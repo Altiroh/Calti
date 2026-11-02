@@ -1,41 +1,34 @@
 import { useRef, useState } from "react";
 import type { BraveInstall } from "../brave/useBraveInstalls";
-import { defaultProfileNames, type ProfileId } from "../browser/useBrowser";
+import { PROFILE_IDS, type ProfileId } from "../browser/useBrowser";
 import { deleteBackground, saveBackground } from "../settings/backgrounds";
 import {
-  accentPresets, fonts, useSettings, type FontName,
+  accentPresets, BACKGROUND_KEY, fonts, useSettings, type FontName,
 } from "../settings/settings";
 import { Drawer } from "./Drawer";
 import { Check, ColorField, Section, Segmented, Slider } from "./Controls";
 
 interface Props {
   open: boolean;
-  /** Profil dont on règle l'environnement (celui du volet actif). */
-  themeKey: ProfileId;
-  profileIndex: number;
   /** Profils Brave dont on peut lire les favoris. */
   installs: BraveInstall[];
-  /** Profil Brave dont les favoris sont affichés (dossier), ou null. */
-  bookmarksSource: string | null;
+  /** Profil Brave dont chaque profil affiche les favoris (dossier), ou null. */
+  bookmarkSources: Record<ProfileId, string | null>;
   onClose: () => void;
   /** Ouvre la page d’édition de la disposition. */
   onEditLayout: () => void;
 }
 
-export function SettingsDrawer({ open, themeKey, profileIndex, installs, bookmarksSource, onClose, onEditLayout }: Props) {
-  const { themeFor, updateTheme, names, setName, profileName } = useSettings();
-  const theme = themeFor(themeKey);
-  const set = (patch: Parameters<typeof updateTheme>[1]) => updateTheme(themeKey, patch);
+export function SettingsDrawer({ open, installs, bookmarkSources, onClose, onEditLayout }: Props) {
+  const { theme, updateTheme: set, profile, updateProfile } = useSettings();
   const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
-  const index = profileIndex;
-  const braveName = defaultProfileNames[themeKey];
 
   const pickImage = async (file: File | undefined) => {
     if (!file) return;
     setBusy(true);
     try {
-      const luminance = await saveBackground(themeKey, file);
+      const luminance = await saveBackground(BACKGROUND_KEY, file);
       // Image sombre : verre fumé et texte clair ; image claire : l'inverse. Modifiable ensuite.
       set({ background: Date.now(), tone: luminance < 0.55 ? "light" : "dark" });
     } finally {
@@ -45,18 +38,7 @@ export function SettingsDrawer({ open, themeKey, profileIndex, installs, bookmar
 
   return (
     <Drawer open={open} title="Réglages" onClose={onClose}>
-      <p className="settings__scope">
-        {index >= 0
-          ? <>Environnement du profil <strong>{profileName(themeKey, index, braveName)}</strong></>
-          : "Environnement par défaut"}
-      </p>
-
-      {index >= 0 && (
-        <Section title="Nom du profil">
-          <input className="field" value={names[themeKey] ?? ""} placeholder={braveName ?? `Profil ${index + 1}`}
-            onChange={(e) => setName(themeKey, e.target.value)} />
-        </Section>
-      )}
+      <p className="settings__scope">Style de Calti, commun à tous les profils et à toutes les fenêtres.</p>
 
       <Section title="Image de fond">
         <div className="settings__row">
@@ -65,7 +47,7 @@ export function SettingsDrawer({ open, themeKey, profileIndex, installs, bookmar
           </button>
           {theme.background && (
             <button className="btn btn--ghost" onClick={async () => {
-              await deleteBackground(themeKey);
+              await deleteBackground(BACKGROUND_KEY);
               set({ background: null });
             }}>Retirer</button>
           )}
@@ -120,13 +102,24 @@ export function SettingsDrawer({ open, themeKey, profileIndex, installs, bookmar
         <button className="btn" onClick={onEditLayout}>Modifier la disposition</button>
       </Section>
 
-      <Section title="Favoris">
-        <p className="settings__hint">Favoris lus dans un profil Brave (lecture seule, Brave peut rester fermé).</p>
-        <select className="field" value={bookmarksSource ?? ""}
-          onChange={(e) => set({ bookmarksFrom: e.target.value || null })}>
-          <option value="">Aucun</option>
-          {installs.map((i) => <option key={i.dir} value={i.dir}>Brave · {i.name}</option>)}
-        </select>
+      <Section title="Profils">
+        <p className="settings__hint">Nom, couleur de repère et favoris (lus dans un profil Brave, en lecture seule).</p>
+        {PROFILE_IDS.map((id) => (
+          <div key={id} className="settings__profile">
+            <div className="settings__row">
+              <input className="field" value={profile(id).name} placeholder={id}
+                onChange={(e) => updateProfile(id, { name: e.target.value })} />
+              <label className="swatch swatch--profile" style={{ background: profile(id).color }} title="Couleur du profil">
+                <input type="color" value={profile(id).color} onChange={(e) => updateProfile(id, { color: e.target.value })} />
+              </label>
+            </div>
+            <select className="field" value={bookmarkSources[id] ?? ""}
+              onChange={(e) => updateProfile(id, { bookmarksFrom: e.target.value || null })}>
+              <option value="">Favoris : aucun</option>
+              {installs.map((i) => <option key={i.dir} value={i.dir}>Favoris : Brave · {i.name}</option>)}
+            </select>
+          </div>
+        ))}
       </Section>
     </Drawer>
   );

@@ -68,7 +68,7 @@ Brave (profil Pro)       ─ extension MV3 ─ stdio ─ calti-host.exe ─┘
 | `config/shortcuts.ts` | Raccourcis de l'accès rapide |
 | `settings/` | Réglages d'environnement par profil (localStorage) et images de fond (IndexedDB) |
 
-Personnalisation par profil Brave :
+Personnalisation (commune à l’application ; par profil : nom, couleur, source des favoris) :
 - Réglages : image de fond (flou), ambiance (voile teinté, vignette, grain, halo), titre, police, accent, verre.
 - Éditeur de disposition : position et taille de chaque bloc, blocs de texte libres, modèles, et pour chaque bloc
   un style complet (fond verre/fumé/plein/aucun, opacité, flou, arrondi, texte clair/sombre, police, taille, graisse,

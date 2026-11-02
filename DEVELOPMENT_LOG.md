@@ -123,3 +123,8 @@ Demande : naviguer dans Calti, onglets dans Calti, deux navigateurs simultanés,
   fenêtre vide. Réglages synchronisés entre fenêtres ; seule la fenêtre principale restaure sa session.
   Vérifié : détachement de Pro, onglet déplacé côté Rust et affiché dans la nouvelle fenêtre.
 - Non vérifié : déplacement de la fenêtre à la souris (événement système, non simulable par CDP).
+- Le style devient propre à l'application (demande de l'utilisateur) : fond, ambiance, typographie, accent,
+  verre et disposition de l'accueil sont communs à tous les profils et à toutes les fenêtres. Chaque profil ne
+  garde que son nom, sa couleur de repère (pastille, liseré du volet) et la source de ses favoris.
+  Réglages au format `calti.settings.v3` ; l'ancien `calti.settings` est conservé. Migration : le style de
+  Personnel devient celui de l'application, l'image de fond passe sous la clé `app`.

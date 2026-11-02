@@ -11,8 +11,6 @@ import { Inspector } from "./Inspector";
 import "./LayoutEditor.css";
 
 interface Props {
-  themeKey: string;
-  profileLabel: string;
   render: (block: Block) => ReactNode;
   onClose: () => void;
 }
@@ -21,9 +19,8 @@ interface Props {
  * Page d'édition de l'accueil : déplacer, agrandir, masquer les blocs sur une grille aimantée,
  * régler le style de chaque bloc dans l'inspecteur, ajouter des blocs de texte, partir d'un modèle.
  */
-export function LayoutEditor({ themeKey, profileLabel, render, onClose }: Props) {
-  const { themeFor, updateTheme } = useSettings();
-  const theme = themeFor(themeKey);
+export function LayoutEditor({ render, onClose }: Props) {
+  const { theme, updateTheme } = useSettings();
   const [draft, setDraft] = useState<Layout>(theme.layout);
   const [selected, setSelected] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(true);
@@ -51,7 +48,7 @@ export function LayoutEditor({ themeKey, profileLabel, render, onClose }: Props)
       <header className="editor__bar glass">
         <div className="editor__title">
           <strong>Disposition</strong>
-          <span>{profileLabel} · glisser, coin pour agrandir, clic pour régler</span>
+          <span>Accueil de Calti · glisser, coin pour agrandir, clic pour régler</span>
         </div>
 
         <div className="editor__tools">
@@ -87,7 +84,7 @@ export function LayoutEditor({ themeKey, profileLabel, render, onClose }: Props)
           </button>
           <button className="chip-btn" onClick={() => withTransition(onClose)}>Annuler</button>
           <button className="chip-btn chip-btn--on" disabled={!changed} onClick={() => withTransition(() => {
-            updateTheme(themeKey, { layout: draft });
+            updateTheme({ layout: draft });
             onClose();
           })}>
             Enregistrer

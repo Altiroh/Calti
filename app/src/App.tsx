@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { BookmarkNode } from "./brave/types";
 import { useBraveInstalls } from "./brave/useBraveInstalls";
 import { profileView } from "./browser/adapter";
-import { defaultProfileNames, PROFILE_IDS, useBrowser, type ProfileId } from "./browser/useBrowser";
+import { PROFILE_IDS, useBrowser, type ProfileId } from "./browser/useBrowser";
 import { BookmarksDrawer } from "./components/BookmarksDrawer";
 import { BrowserPane } from "./components/BrowserPane";
 import { renderBlock } from "./components/HomeBlocks";
@@ -16,7 +16,7 @@ import { WindowControls } from "./components/WindowControls";
 import { withTransition } from "./motion";
 import { useBackground } from "./settings/backgrounds";
 import type { Block } from "./settings/layout";
-import { applyTheme, useSettings } from "./settings/settings";
+import { applyTheme, BACKGROUND_KEY, useSettings } from "./settings/settings";
 
 export type DrawerName = "bookmarks" | "settings" | null;
 
@@ -42,20 +42,19 @@ function useBookmarks(sources: Record<ProfileId, string | null>) {
 export function App() {
   const browser = useBrowser();
   const installs = useBraveInstalls();
-  const { themeFor, profileName } = useSettings();
+  const { theme, profile } = useSettings();
   const [drawer, setDrawer] = useState<DrawerName>(null);
   const [editingLayout, setEditingLayout] = useState(false);
   const toggle = (name: Exclude<DrawerName, null>) => setDrawer((d) => (d === name ? null : name));
 
-  // L'environnement (fond, couleurs) suit le profil du volet actif.
+  // Le style est celui de l'application, quel que soit le profil affiché.
   const focused = browser.focused;
-  const theme = themeFor(focused);
-  const background = useBackground(focused, theme.background);
+  const background = useBackground(BACKGROUND_KEY, theme.background);
   useEffect(() => applyTheme(theme), [theme]);
 
   // Favoris : profil Brave choisi dans les Réglages, sinon le n-ième profil Brave trouvé.
   const sources = Object.fromEntries(PROFILE_IDS.map((p, i) => {
-    const chosen = themeFor(p).bookmarksFrom;
+    const chosen = profile(p).bookmarksFrom;
     return [p, chosen === undefined ? installs[i]?.dir ?? null : chosen];
   })) as Record<ProfileId, string | null>;
   const bookmarks = useBookmarks(sources);
@@ -63,11 +62,10 @@ export function App() {
   // Les pages (vues natives) passent au-dessus de l'interface : on les masque pendant l'édition.
   useEffect(() => browser.setSuspended(editingLayout), [editingLayout]);
 
-  const labelOf = (p: ProfileId) => profileName(p, PROFILE_IDS.indexOf(p), defaultProfileNames[p]);
-  const homeFor = (profile: ProfileId) => {
-    const view = profileView(browser, profile, bookmarks[profile]);
-    const t = themeFor(profile);
-    return <HomeGrid layout={t.layout} render={(block: Block) => renderBlock(block, view, t, () => setDrawer("bookmarks"))} />;
+  const labelOf = (p: ProfileId) => profile(p).name;
+  const homeFor = (p: ProfileId) => {
+    const view = profileView(browser, p, bookmarks[p]);
+    return <HomeGrid layout={theme.layout} render={(block: Block) => renderBlock(block, view, theme, () => setDrawer("bookmarks"))} />;
   };
 
   const tint = parseInt(theme.tint.slice(1), 16);
@@ -100,7 +98,7 @@ export function App() {
         {theme.grain > 0 && <div className="scenery__grain" />}
       </div>
 
-      <Sidebar profiles={PROFILE_IDS.map((p) => ({ id: p, label: labelOf(p), accent: themeFor(p).accent, tabs: browser.tabsOf(p).length }))}
+      <Sidebar profiles={PROFILE_IDS.map((p) => ({ id: p, label: labelOf(p), accent: profile(p).color, tabs: browser.tabsOf(p).length }))}
         focused={focused} onProfile={(p) => withTransition(() => browser.focus(p as ProfileId))}
         drawer={drawer} onToggle={toggle} split={browser.split}
         onHome={() => browser.home()} onToggleSplit={() => withTransition(() => browser.setSplit(!browser.split))} />
@@ -110,7 +108,7 @@ export function App() {
           <>
             <div className="drag-bar" onMouseDown={dragWindow}><WindowControls /></div>
             <div className="page__inner">
-              <LayoutEditor key={focused} themeKey={focused} profileLabel={labelOf(focused)}
+              <LayoutEditor
                 render={(block) => renderBlock(block, profileView(browser, focused, bookmarks[focused]), theme, () => {})}
                 onClose={() => setEditingLayout(false)} />
             </div>
@@ -118,7 +116,7 @@ export function App() {
         ) : (
           <div className={`panes${browser.split ? " panes--split" : ""}`}>
             {visiblePanes.map((p, i) => (
-              <BrowserPane key={p} browser={browser} profile={p} label={labelOf(p)} accent={themeFor(p).accent}
+              <BrowserPane key={p} browser={browser} profile={p} label={labelOf(p)} accent={profile(p).color}
                 home={homeFor(p)} controls={i === visiblePanes.length - 1 ? <WindowControls /> : null} />
             ))}
           </div>
@@ -130,8 +128,7 @@ export function App() {
       <BookmarksDrawer open={drawer === "bookmarks"} bookmarks={bookmarks[focused]}
         send={(c) => c.type === "openUrl" && browser.go(c.url, focused, true)}
         onClose={() => setDrawer(null)} />
-      <SettingsDrawer open={drawer === "settings"} themeKey={focused} profileIndex={PROFILE_IDS.indexOf(focused)}
-        installs={installs} bookmarksSource={sources[focused]}
+      <SettingsDrawer open={drawer === "settings"} installs={installs} bookmarkSources={sources}
         onClose={() => setDrawer(null)}
         onEditLayout={() => {
           setDrawer(null);

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { builtinIds, defaultLayout, normalizeLayout, type Layout } from "./layout";
 
-/** Environnement de la page d'accueil. Chaque profil Brave a le sien ; « default » sert sans profil. */
+/** Style de l'application : fond, ambiance, typographie, couleurs, verre et disposition de l'accueil. */
 export interface HomeTheme {
   accent: string;
   /** Opacité du verre, de 0.15 (très transparent) à 0.8 (laiteux). */
@@ -28,8 +28,6 @@ export interface HomeTheme {
   tagline: string;
   /** Position, taille et visibilité de chaque bloc de l’accueil. */
   layout: Layout;
-  /** Profil Brave (dossier) dont on lit les favoris ; null = aucun, absent = choix automatique. */
-  bookmarksFrom?: string | null;
 }
 
 export type FontName = "moderne" | "editorial" | "condense";
@@ -66,31 +64,62 @@ export const defaultTheme: HomeTheme = {
   layout: defaultLayout,
 };
 
-interface Settings {
-  /** Nom donné à chaque profil Brave, par identifiant. */
-  names: Record<string, string>;
-  themes: Record<string, HomeTheme>;
+/** Ce qui reste propre à chaque profil : nom, couleur de repère, source des favoris. Pas de style. */
+export interface ProfileSettings {
+  name: string;
+  /** Couleur de la pastille et du liseré du volet. */
+  color: string;
+  /** Profil Brave (dossier) dont on lit les favoris ; null = aucun, absent = choix automatique. */
+  bookmarksFrom?: string | null;
 }
 
-const STORAGE_KEY = "calti.settings";
+const profileDefaults: Record<string, ProfileSettings> = {
+  personnel: { name: "Personnel", color: "#2f5fa8" },
+  pro: { name: "Pro", color: "#1f8c8c" },
+};
+
+/** Clé de l'image de fond de l'application (IndexedDB). */
+export const BACKGROUND_KEY = "app";
+
+interface Settings {
+  /** Style de l'application, commun à tous les profils et à toutes les fenêtres. */
+  theme: Partial<HomeTheme> & { blocks?: Record<string, boolean> };
+  profiles: Record<string, Partial<ProfileSettings>>;
+}
+
+const STORAGE_KEY = "calti.settings.v3";
+const LEGACY_KEY = "calti.settings";
 
 function load(): Settings {
   try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
-    return { names: raw.names ?? {}, themes: raw.themes ?? {} };
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const s = JSON.parse(saved);
+      return { theme: s.theme ?? {}, profiles: s.profiles ?? {} };
+    }
+    // Ancien format (un environnement par profil) : le style de Personnel devient celui de l'application.
+    const old = JSON.parse(localStorage.getItem(LEGACY_KEY) ?? "{}");
+    const themes = old.themes ?? {};
+    const { bookmarksFrom: _ignored, ...theme } = themes.personnel ?? themes.pro ?? themes.default ?? {};
+    const profiles: Settings["profiles"] = {};
+    for (const id of Object.keys(profileDefaults)) {
+      const p: Partial<ProfileSettings> = {};
+      if (old.names?.[id]?.trim()) p.name = old.names[id];
+      if (themes[id] && "bookmarksFrom" in themes[id]) p.bookmarksFrom = themes[id].bookmarksFrom;
+      profiles[id] = p;
+    }
+    return { theme, profiles };
   } catch {
-    return { names: {}, themes: {} };
+    return { theme: {}, profiles: {} };
   }
 }
 
 interface SettingsContext {
-  names: Record<string, string>;
-  /** Nom choisi dans Calti, sinon nom du profil dans Brave, sinon « Profil n ». */
-  profileName: (id: string, index: number, braveName?: string) => string;
-  setName: (id: string, name: string) => void;
-  /** Thème d'un profil (ou « default »), complété par les valeurs par défaut. */
-  themeFor: (key: string) => HomeTheme;
-  updateTheme: (key: string, patch: Partial<HomeTheme>) => void;
+  /** Style de l'application, complété par les valeurs par défaut. */
+  theme: HomeTheme;
+  updateTheme: (patch: Partial<HomeTheme>) => void;
+  profile: (id: string) => ProfileSettings;
+  updateProfile: (id: string, patch: Partial<ProfileSettings>) => void;
 }
 
 const Context = createContext<SettingsContext | null>(null);
@@ -110,23 +139,22 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, [settings]);
 
   const value = useMemo<SettingsContext>(() => {
-    const themeFor = (key: string): HomeTheme => {
-      const t: Partial<HomeTheme> & { blocks?: Record<string, boolean> } = settings.themes[key] ?? settings.themes.default ?? {};
-      const layout = normalizeLayout(t.layout);
-      // Anciennes cases « Blocs affichés » : reprises comme blocs masqués.
-      for (const id of builtinIds) if (!t.layout && t.blocks?.[id] === false) layout[id] = { ...layout[id], hidden: true };
-      const { blocks: _legacy, ...rest } = t;
-      return { ...defaultTheme, ...rest, layout };
-    };
+    const t = settings.theme;
+    const layout = normalizeLayout(t.layout);
+    // Anciennes cases « Blocs affichés » : reprises comme blocs masqués.
+    for (const id of builtinIds) if (!t.layout && t.blocks?.[id] === false) layout[id] = { ...layout[id], hidden: true };
+    const { blocks: _legacy, ...rest } = t;
+    const theme: HomeTheme = { ...defaultTheme, ...rest, layout };
     return {
-      names: settings.names,
-      profileName: (id, index, braveName) => settings.names[id]?.trim() || braveName || `Profil ${index + 1}`,
-      setName: (id, name) => setSettings((s) => ({ ...s, names: { ...s.names, [id]: name } })),
-      themeFor,
-      // Un profil sans thème part d'une copie du thème général.
-      updateTheme: (key, patch) => setSettings((s) => ({
+      theme,
+      updateTheme: (patch) => setSettings((s) => ({ ...s, theme: { ...theme, ...patch } })),
+      profile: (id) => {
+        const p = { ...(profileDefaults[id] ?? { name: id, color: defaultTheme.accent }), ...settings.profiles[id] };
+        return { ...p, name: p.name.trim() || profileDefaults[id]?.name || id };
+      },
+      updateProfile: (id, patch) => setSettings((s) => ({
         ...s,
-        themes: { ...s.themes, [key]: { ...themeFor(key), ...patch } },
+        profiles: { ...s.profiles, [id]: { ...s.profiles[id], ...patch } },
       })),
     };
   }, [settings]);
