@@ -26,5 +26,15 @@ Constats annexes :
 - Espace récupérable repéré : `AppData\Local\Docker` 53,4 Go, `npm-cache` 5,1 Go, `Downloads` 3,4 Go, `pnpm` 1,5 Go.
   Même tout libéré, cela ne suffit pas pour un build confortable : un **second disque** est recommandé.
 
+### Libération d'espace (2026-11-02, à la demande de l'utilisateur)
+- `npm cache clean --force` : 4,7 Go libérés.
+- `pnpm store prune` : rien n'a été supprimé, car le store (1,5 Go) est encore référencé par des projets existants.
+- Docker : le fichier `docker_data.vhdx` (53 Go) contient des **données de travail**
+  (volumes `sigimage_db_data`, `local_pg`, `local-dev_pg`, Keycloak) : il **n'est pas supprimé**.
+  Ont été supprimés : tout le cache de build (`docker builder prune -a`, 25,75 Go) et les images orphelines,
+  puis un `fstrim` a été lancé. Les images, conteneurs et volumes sont conservés.
+- Docker et WSL ont été arrêtés. L'espace ne revient à Windows qu'après compactage du disque
+  virtuel (`Optimize-VHD`), ce qui demande les droits **administrateur** : à faire par l'utilisateur.
+
 Sources : wiki brave-browser « Windows Development Environment », README de brave-core,
 `docs/windows_build_instructions.md` de Chromium, `build/vs_toolchain.py` au tag 157.0.8103.30.
