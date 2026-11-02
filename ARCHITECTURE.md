@@ -1,10 +1,28 @@
 # ARCHITECTURE
 
-Calti : application Windows personnelle (Tauri 2 + React) reliée à Brave.
-Brave reste le navigateur réel : les pages s'affichent dans Brave, le cockpit pilote ses onglets et favoris.
-Aucune compilation de Chromium ni de Brave Core.
+Calti : navigateur Windows personnel (Tauri 2 + React). Les pages s’affichent dans Calti : chaque onglet est
+une vue WebView2 (moteur Chromium de Windows) posée dans la fenêtre, à l’emplacement de la zone de contenu de
+son volet. Deux profils, **Personnel** et **Pro**, ont chacun leur dossier de données (cookies, connexions,
+historique) dans `%LOCALAPPDATA%\fr.calti.app\profiles\`. Ils s’affichent seuls ou côte à côte.
 
-## Chaîne de communication
+## Navigateur intégré
+
+| Élément | Fichier | Rôle |
+|---|---|---|
+| Gestionnaire d’onglets | `app/src-tauri/src/browser.rs` | Crée/ferme les vues, les place et les masque, navigation, titres, liens « nouvelle fenêtre » → nouvel onglet |
+| État du navigateur | `app/src/browser/useBrowser.ts` | Onglets, volets, vue partagée, placement (ResizeObserver), restauration de session |
+| Volet | `app/src/components/BrowserPane.tsx` | Barre d’onglets, ← → ⟳ ⌂, barre d’adresse (Ctrl+L), accueil quand aucun onglet |
+| Adaptateur | `app/src/browser/adapter.ts` | Présente les onglets d’un profil aux widgets de l’accueil |
+| Favoris | `setup.rs` (`brave_bookmarks`) | Lecture seule du fichier « Bookmarks » d’un profil Brave choisi dans les Réglages |
+
+Les pages sont des vues natives au-dessus de l’interface : les tiroirs repoussent les volets, et l’éditeur de
+disposition masque les pages. Recherche : Brave Search.
+
+## Pont Brave (en sommeil)
+
+L’extension, l’hôte Native Messaging et le pipe restent dans le dépôt mais l’interface ne les utilise plus.
+
+## Chaîne de communication (pont Brave)
 
 ```
 Brave (profil Personnel) ─ extension MV3 ─ stdio ─ calti-host.exe ─┐

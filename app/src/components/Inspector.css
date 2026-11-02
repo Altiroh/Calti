@@ -1,10 +1,10 @@
 .inspector {
   position: sticky;
-  top: 140px;
+  top: 84px;
   display: flex;
   flex-direction: column;
   width: 330px;
-  max-height: calc(100vh - 160px);
+  max-height: calc(100vh - 120px);
   border-radius: var(--radius-xl);
   --glass-alpha: 0.78;
   animation: inspector-in 420ms var(--ease) both;

@@ -28,6 +28,8 @@ export interface HomeTheme {
   tagline: string;
   /** Position, taille et visibilité de chaque bloc de l’accueil. */
   layout: Layout;
+  /** Profil Brave (dossier) dont on lit les favoris ; null = aucun, absent = choix automatique. */
+  bookmarksFrom?: string | null;
 }
 
 export type FontName = "moderne" | "editorial" | "condense";
@@ -95,6 +97,13 @@ const Context = createContext<SettingsContext | null>(null);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState(load);
+
+  // Plusieurs fenêtres : un réglage changé dans l'une s'applique aussitôt aux autres.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => e.key === STORAGE_KEY && setSettings(load());
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); } catch { /* non persisté */ }

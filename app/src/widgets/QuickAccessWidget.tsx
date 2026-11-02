@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from "react";
-import type { Brave } from "../brave/useBrave";
+import type { Brave } from "../browser/adapter";
 import { Card } from "../components/Card";
 import { siteIcon } from "../components/siteIcon";
 import { shortcuts } from "../config/shortcuts";

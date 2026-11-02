@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
-import type { Brave } from "../brave/useBrave";
-import { braveNameOf, type BraveInstall } from "../brave/useBraveInstalls";
-import { ConnectPanel } from "./ConnectPanel";
+import type { BraveInstall } from "../brave/useBraveInstalls";
+import { defaultProfileNames, type ProfileId } from "../browser/useBrowser";
 import { deleteBackground, saveBackground } from "../settings/backgrounds";
 import {
   accentPresets, fonts, useSettings, type FontName,
@@ -11,23 +10,26 @@ import { Check, ColorField, Section, Segmented, Slider } from "./Controls";
 
 interface Props {
   open: boolean;
-  brave: Brave;
+  /** Profil dont on règle l'environnement (celui du volet actif). */
+  themeKey: ProfileId;
+  profileIndex: number;
+  /** Profils Brave dont on peut lire les favoris. */
   installs: BraveInstall[];
-  /** Profil dont on règle l'environnement (celui affiché), ou « default ». */
-  themeKey: string;
+  /** Profil Brave dont les favoris sont affichés (dossier), ou null. */
+  bookmarksSource: string | null;
   onClose: () => void;
   /** Ouvre la page d’édition de la disposition. */
   onEditLayout: () => void;
 }
 
-export function SettingsDrawer({ open, brave, installs, themeKey, onClose, onEditLayout }: Props) {
+export function SettingsDrawer({ open, themeKey, profileIndex, installs, bookmarksSource, onClose, onEditLayout }: Props) {
   const { themeFor, updateTheme, names, setName, profileName } = useSettings();
   const theme = themeFor(themeKey);
   const set = (patch: Parameters<typeof updateTheme>[1]) => updateTheme(themeKey, patch);
   const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
-  const index = brave.profiles.findIndex((p) => p.id === themeKey);
-  const braveName = braveNameOf(installs, themeKey);
+  const index = profileIndex;
+  const braveName = defaultProfileNames[themeKey];
 
   const pickImage = async (file: File | undefined) => {
     if (!file) return;
@@ -118,8 +120,13 @@ export function SettingsDrawer({ open, brave, installs, themeKey, onClose, onEdi
         <button className="btn" onClick={onEditLayout}>Modifier la disposition</button>
       </Section>
 
-      <Section title="Connexion Brave">
-        <ConnectPanel installs={installs} profiles={brave.profiles} />
+      <Section title="Favoris">
+        <p className="settings__hint">Favoris lus dans un profil Brave (lecture seule, Brave peut rester fermé).</p>
+        <select className="field" value={bookmarksSource ?? ""}
+          onChange={(e) => set({ bookmarksFrom: e.target.value || null })}>
+          <option value="">Aucun</option>
+          {installs.map((i) => <option key={i.dir} value={i.dir}>Brave · {i.name}</option>)}
+        </select>
       </Section>
     </Drawer>
   );

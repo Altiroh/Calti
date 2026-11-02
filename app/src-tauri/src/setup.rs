@@ -169,6 +169,38 @@ pub fn launch_brave(dir: Option<String>, url: Option<String>) -> Result<(), Stri
     spawn_brave(dir.as_deref(), url.as_deref())
 }
 
+#[derive(Serialize)]
+pub struct BookmarkNode {
+    id: String,
+    title: String,
+    url: Option<String>,
+    children: Option<Vec<BookmarkNode>>,
+}
+
+fn bookmark_node(node: &serde_json::Value) -> BookmarkNode {
+    BookmarkNode {
+        id: node["id"].as_str().unwrap_or_default().to_string(),
+        title: node["name"].as_str().unwrap_or_default().to_string(),
+        url: node["url"].as_str().map(str::to_string),
+        children: node["children"].as_array().map(|c| c.iter().map(bookmark_node).collect()),
+    }
+}
+
+/// Favoris d'un profil Brave, lus dans son fichier « Bookmarks » (lecture seule, Brave peut être fermé).
+#[tauri::command]
+pub fn brave_bookmarks(dir: String) -> Result<Vec<BookmarkNode>, String> {
+    let user_data = user_data_dir().ok_or("dossier Brave introuvable")?;
+    if !declared_profiles(&user_data).iter().any(|(d, _)| *d == dir) {
+        return Err("profil Brave inconnu".into());
+    }
+    let file = read_json(&user_data.join(&dir).join("Bookmarks")).ok_or("aucun favori dans ce profil")?;
+    Ok(["bookmark_bar", "other"]
+        .iter()
+        .filter_map(|root| file.pointer(&format!("/roots/{root}")))
+        .map(bookmark_node)
+        .collect())
+}
+
 /// Dossier `extension/` du projet (application personnelle compilée depuis les sources).
 fn extension_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join(r"..\..\extension")

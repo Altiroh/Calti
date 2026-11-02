@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Brave } from "../brave/useBrave";
+import type { Brave } from "../browser/adapter";
 import { Card } from "../components/Card";
 import { Favicon } from "../components/Favicon";
 import { Icon } from "../components/Icon";

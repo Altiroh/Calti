@@ -1,0 +1,298 @@
+//! Navigateur intégré : chaque onglet est une vue WebView2 enfant d'une fenêtre de Calti,
+//! placée par l'interface à l'endroit de sa zone de contenu. Chaque profil a son dossier de données.
+//! Plusieurs fenêtres peuvent coexister ; un onglet appartient à une fenêtre et peut en changer.
+
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
+
+use serde::{Deserialize, Serialize};
+use tauri::webview::{NewWindowResponse, PageLoadEvent};
+use tauri::window::Color;
+use tauri::utils::config::WindowEffectsConfig;
+use tauri::window::Effect;
+use tauri::{
+    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Rect, Url, Webview, WebviewBuilder, WebviewUrl,
+    WebviewWindowBuilder, Window,
+};
+use windows_sys::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
+use windows_sys::Win32::UI::WindowsAndMessaging::GetParent;
+
+/// Arrondi des pages, en pixels logiques (comme les cartes de l'interface).
+const CORNER_RADIUS: f64 = 16.0;
+
+/// Profils de navigation : cookies, connexions et historique séparés.
+pub const PROFILES: [&str; 2] = ["personnel", "pro"];
+
+#[derive(Default)]
+pub struct Browser(Mutex<State>);
+
+#[derive(Default)]
+struct State {
+    next: u64,
+    tabs: Vec<Tab>,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Tab {
+    id: u64,
+    /// Fenêtre qui affiche l'onglet.
+    window: String,
+    profile: String,
+    url: String,
+    title: String,
+    loading: bool,
+}
+
+/// Onglet à afficher et sa zone, en pixels logiques de la fenêtre.
+#[derive(Deserialize)]
+pub struct Placement {
+    id: u64,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+}
+
+fn label(id: u64) -> String {
+    format!("tab-{id}")
+}
+
+/// Adresses ouvrables : le web (http, https) et les fichiers locaux (file).
+fn web_url(input: &str) -> Result<Url, String> {
+    match Url::parse(input) {
+        Ok(u) if matches!(u.scheme(), "http" | "https" | "file") => Ok(u),
+        _ => Err("adresse non prise en charge (http, https ou file)".into()),
+    }
+}
+
+/// Découpe la vue native avec des coins arrondis. La région ne s'applique qu'à une fenêtre enfant,
+/// jamais à la fenêtre principale de Calti.
+fn round_corners(webview: &Webview, width: f64, height: f64) {
+    let scale = webview.window().scale_factor().unwrap_or(1.0);
+    let w = (width * scale).round() as i32;
+    let h = (height * scale).round() as i32;
+    let r = (CORNER_RADIUS * 2.0 * scale).round() as i32;
+    let _ = webview.with_webview(move |platform| unsafe {
+        let mut parent = windows::Win32::Foundation::HWND::default();
+        if platform.controller().ParentWindow(&mut parent).is_err() {
+            return;
+        }
+        let hwnd = parent.0;
+        if hwnd.is_null() || GetParent(hwnd).is_null() {
+            return;
+        }
+        // Le système prend possession de la région : rien à libérer.
+        SetWindowRgn(hwnd, CreateRoundRectRgn(0, 0, w + 1, h + 1, r, r), 1);
+    });
+}
+
+fn emit_tabs(app: &AppHandle) {
+    let tabs = app.state::<Browser>().0.lock().unwrap().tabs.clone();
+    let _ = app.emit("browser:tabs", tabs);
+}
+
+fn update(app: &AppHandle, id: u64, change: impl FnOnce(&mut Tab)) {
+    {
+        let state = app.state::<Browser>();
+        let mut state = state.0.lock().unwrap();
+        match state.tabs.iter_mut().find(|t| t.id == id) {
+            Some(tab) => change(tab),
+            None => return,
+        }
+    }
+    emit_tabs(app);
+}
+
+fn tab_window(app: &AppHandle, id: u64) -> Option<String> {
+    let state = app.state::<Browser>();
+    let state = state.0.lock().unwrap();
+    state.tabs.iter().find(|t| t.id == id).map(|t| t.window.clone())
+}
+
+fn webview(app: &AppHandle, id: u64) -> Result<Webview, String> {
+    app.get_webview(&label(id)).ok_or_else(|| "onglet introuvable".to_string())
+}
+
+/// Crée l'onglet (masqué : l'interface l'affiche ensuite à sa place).
+fn open_tab(app: &AppHandle, window_label: &str, profile: &str, url: Url) -> Result<u64, String> {
+    if !PROFILES.contains(&profile) {
+        return Err("profil inconnu".into());
+    }
+    let id = {
+        let state = app.state::<Browser>();
+        let mut state = state.0.lock().unwrap();
+        state.next += 1;
+        let id = state.next;
+        state.tabs.push(Tab {
+            id,
+            window: window_label.to_string(),
+            profile: profile.to_string(),
+            url: url.to_string(),
+            title: url.host_str().unwrap_or_default().to_string(),
+            loading: true,
+        });
+        id
+    };
+
+    let data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("profiles").join(profile);
+    let window = app.get_window(window_label).ok_or("fenêtre introuvable")?;
+    let (on_title, on_load, on_popup) = (app.clone(), app.clone(), app.clone());
+    let popup_profile = profile.to_string();
+
+    let builder = WebviewBuilder::new(label(id), WebviewUrl::External(url))
+        .data_directory(data_dir)
+        // Fond transparent : pas de flash blanc avant le premier affichage de la page.
+        .background_color(Color(0, 0, 0, 0))
+        .on_document_title_changed(move |_, title| update(&on_title, id, |t| t.title = title))
+        .on_page_load(move |_, page| {
+            let url = page.url().to_string();
+            let loading = matches!(page.event(), PageLoadEvent::Started);
+            update(&on_load, id, |t| {
+                t.url = url;
+                t.loading = loading;
+            });
+        })
+        // Les liens vers d'autres schémas (mailto:, applications…) ne sont pas suivis.
+        .on_navigation(|url| matches!(url.scheme(), "http" | "https" | "file" | "about" | "data" | "blob"))
+        // « Ouvrir dans une nouvelle fenêtre » devient un nouvel onglet du même profil.
+        .on_new_window(move |url, _| {
+            let app = on_popup.clone();
+            let profile = popup_profile.clone();
+            tauri::async_runtime::spawn(async move {
+                // L'onglet d'origine a pu changer de fenêtre : on ouvre dans sa fenêtre actuelle.
+                let Some(window) = tab_window(&app, id) else { return };
+                if let Ok(new_id) = open_tab(&app, &window, &profile, url) {
+                    let _ = app.emit("browser:opened", (new_id, id));
+                }
+            });
+            NewWindowResponse::Deny
+        });
+
+    let created = window
+        .add_child(builder, LogicalPosition::new(0.0, 0.0), LogicalSize::new(1.0, 1.0))
+        .and_then(|w| w.hide().map(|_| w));
+    if let Err(e) = created {
+        app.state::<Browser>().0.lock().unwrap().tabs.retain(|t| t.id != id);
+        return Err(e.to_string());
+    }
+    emit_tabs(app);
+    Ok(id)
+}
+
+#[tauri::command]
+pub fn browser_tabs(state: tauri::State<'_, Browser>) -> Vec<Tab> {
+    state.0.lock().unwrap().tabs.clone()
+}
+
+// Les commandes qui créent ou manipulent des vues sont asynchrones : sous Windows, une commande
+// synchrone bloquerait le fil principal dont la création de vue a besoin.
+
+#[tauri::command]
+pub async fn browser_open(app: AppHandle, window: Window, profile: String, url: String) -> Result<u64, String> {
+    open_tab(&app, window.label(), &profile, web_url(&url)?)
+}
+
+#[tauri::command]
+pub async fn browser_close(app: AppHandle, id: u64) -> Result<(), String> {
+    if let Ok(w) = webview(&app, id) {
+        w.close().map_err(|e| e.to_string())?;
+    }
+    app.state::<Browser>().0.lock().unwrap().tabs.retain(|t| t.id != id);
+    emit_tabs(&app);
+    Ok(())
+}
+
+/// Affiche les onglets demandés à leur place et masque tous les autres.
+#[tauri::command]
+pub async fn browser_layout(app: AppHandle, window: Window, visible: Vec<Placement>) -> Result<(), String> {
+    // Seuls les onglets de la fenêtre appelante sont concernés.
+    let ids: Vec<u64> = app.state::<Browser>().0.lock().unwrap().tabs.iter()
+        .filter(|t| t.window == window.label())
+        .map(|t| t.id)
+        .collect();
+    // D'abord afficher les pages demandées, ensuite masquer les autres : pas de trou au changement d'onglet.
+    for p in visible.iter().filter(|p| ids.contains(&p.id)) {
+        let w = webview(&app, p.id)?;
+        let (width, height) = (p.width.max(1.0), p.height.max(1.0));
+        w.set_bounds(Rect {
+            position: LogicalPosition::new(p.x, p.y).into(),
+            size: LogicalSize::new(width, height).into(),
+        })
+        .map_err(|e| e.to_string())?;
+        round_corners(&w, width, height);
+        w.show().map_err(|e| e.to_string())?;
+    }
+    for id in &ids {
+        if !visible.iter().any(|p| p.id == *id) {
+            if let Ok(w) = webview(&app, *id) {
+                let _ = w.hide();
+            }
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn browser_navigate(app: AppHandle, id: u64, url: String) -> Result<(), String> {
+    webview(&app, id)?.navigate(web_url(&url)?).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn browser_action(app: AppHandle, id: u64, action: String) -> Result<(), String> {
+    let w = webview(&app, id)?;
+    let result = match action.as_str() {
+        "back" => w.eval("history.back()"),
+        "forward" => w.eval("history.forward()"),
+        "reload" => w.reload(),
+        "stop" => w.eval("window.stop()"),
+        "focus" => w.set_focus(),
+        _ => return Err("action inconnue".into()),
+    };
+    result.map_err(|e| e.to_string())
+}
+
+static NEXT_WINDOW: AtomicU64 = AtomicU64::new(1);
+
+/// Ouvre une nouvelle fenêtre Calti sur un profil. Avec `detach`, les onglets de ce profil quittent
+/// la fenêtre appelante pour la nouvelle, sans être rechargés.
+#[tauri::command]
+pub async fn browser_new_window(app: AppHandle, window: Window, profile: String, detach: bool) -> Result<String, String> {
+    if !PROFILES.contains(&profile.as_str()) {
+        return Err("profil inconnu".into());
+    }
+    let label = format!("calti-{}", NEXT_WINDOW.fetch_add(1, Ordering::Relaxed));
+    let url = WebviewUrl::App(format!("index.html?profile={profile}").into());
+    // Mêmes réglages que la fenêtre principale (tauri.conf.json).
+    let new_window = WebviewWindowBuilder::new(&app, &label, url)
+        .title("Calti")
+        .inner_size(1320.0, 840.0)
+        .min_inner_size(960.0, 620.0)
+        .decorations(false)
+        .transparent(true)
+        .shadow(true)
+        .effects(WindowEffectsConfig { effects: vec![Effect::Acrylic], ..Default::default() })
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    if detach {
+        let moving: Vec<u64> = app.state::<Browser>().0.lock().unwrap().tabs.iter()
+            .filter(|t| t.window == window.label() && t.profile == profile)
+            .map(|t| t.id)
+            .collect();
+        let target = new_window.as_ref().window();
+        for id in moving {
+            let w = webview(&app, id)?;
+            w.reparent(&target).map_err(|e| e.to_string())?;
+            let _ = w.hide();
+            update(&app, id, |t| t.window = label.clone());
+        }
+    }
+    Ok(label)
+}
+
+/// Fenêtre fermée : ses onglets (fermés avec elle) sont oubliés.
+pub fn forget_window(app: &AppHandle, label: &str) {
+    app.state::<Browser>().0.lock().unwrap().tabs.retain(|t| t.window != label);
+    emit_tabs(app);
+}

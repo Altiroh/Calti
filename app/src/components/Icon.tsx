@@ -2,6 +2,9 @@
 
 const paths = {
   home: "M4 11l8-7 8 7M6 9.5V19h4v-5h4v5h4V9.5",
+  split: "M4 5h16v14H4zM12 5v14",
+  popout: "M14 4h6v6M20 4l-8 8M18 14v5H5V6h5",
+  lock: "M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6z",
   back: "M15 5l-7 7 7 7",
   forward: "M9 5l7 7-7 7",
   reload: "M19 12a7 7 0 1 1-2.05-4.95M19 4v4h-4",

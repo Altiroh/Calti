@@ -1,4 +1,4 @@
-import type { Brave } from "../brave/useBrave";
+import type { Brave } from "../browser/adapter";
 import type { BookmarkNode } from "../brave/types";
 import { Card } from "../components/Card";
 import { Favicon } from "../components/Favicon";

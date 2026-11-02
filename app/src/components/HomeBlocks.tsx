@@ -1,4 +1,4 @@
-import type { Brave } from "../brave/useBrave";
+import type { Brave } from "../browser/adapter";
 import type { Block } from "../settings/layout";
 import type { HomeTheme } from "../settings/settings";
 import { ActiveTabWidget } from "../widgets/ActiveTabWidget";

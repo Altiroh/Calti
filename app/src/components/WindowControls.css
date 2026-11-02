@@ -1,0 +1,56 @@
+.window-controls {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  margin-left: 6px;
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+}
+
+.wc {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 30px;
+  border-radius: 9px;
+  color: var(--text-dim);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.wc:hover {
+  background: var(--glass-fill-active);
+  color: var(--text);
+}
+
+.wc--close:hover {
+  background: #e5484d;
+  color: #fff;
+}
+
+/* Erreur passagère, en bas de la fenêtre. */
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  z-index: 30;
+  max-width: 560px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--danger);
+  transform: translateX(-50%);
+  animation: toast-in 360ms var(--ease) both;
+}
+
+/* Barre minimale de l'éditeur (déplacement de la fenêtre et boutons). */
+.drag-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  height: 40px;
+  margin-bottom: 8px;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, 10px); }
+}

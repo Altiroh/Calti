@@ -1,0 +1,204 @@
+.pane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  animation: pane-in 460ms var(--ease) both;
+}
+
+/* Barre d'onglets */
+.pane__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 6px 0 14px;
+  border-radius: var(--radius-md);
+}
+
+.pane--focused .pane__bar {
+  border-color: color-mix(in srgb, var(--pane-accent) 45%, transparent);
+}
+
+.pane__profile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pane__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--pane-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pane-accent) 22%, transparent);
+}
+
+.pane__tabs {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ptab {
+  flex: 0 1 200px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 44px;
+  height: 32px;
+  padding: 0 4px 0 10px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  cursor: default;
+  animation: tab-in 300ms var(--ease) both;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.ptab:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.ptab--active {
+  background: var(--surface-solid);
+  color: var(--text);
+  box-shadow: var(--shadow-soft);
+}
+
+.ptab--new {
+  flex: 0 0 32px;
+  min-width: 32px;
+  justify-content: center;
+  padding: 0;
+}
+
+.ptab__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ptab__close {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  color: var(--text-faint);
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.ptab:hover .ptab__close,
+.ptab--active .ptab__close {
+  opacity: 1;
+}
+
+.ptab__close:hover {
+  background: var(--line);
+  color: var(--text);
+}
+
+/* Barre d'outils et adresse */
+.pane__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 44px;
+  padding: 0 6px;
+  border-radius: var(--radius-md);
+}
+
+.pane__toolbar .icon-btn {
+  width: 34px;
+  height: 34px;
+}
+
+.pane__address {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  margin-left: 6px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.pane__address:focus-within {
+  background: var(--surface-solid);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.pane__address input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  font-size: 13.5px;
+  color: var(--text);
+}
+
+.pane__address input::placeholder {
+  color: var(--text-faint);
+}
+
+.pane__lock {
+  display: flex;
+  color: var(--ok);
+}
+
+.pane__lock--off {
+  color: var(--text-faint);
+}
+
+/* Contenu : la page web est posée par-dessus cette zone (vue native). */
+.pane__content {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  border-radius: 16px;
+}
+
+.pane__home {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding: 6px 4px 6px;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent-fg);
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes tab-in {
+  from { opacity: 0; transform: translateY(4px); }
+}
+
+@keyframes pane-in {
+  from { opacity: 0; transform: translateY(8px); }
+}

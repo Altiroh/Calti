@@ -1,4 +1,4 @@
-import type { Brave } from "../brave/useBrave";
+import type { Brave } from "../browser/adapter";
 import type { NavAction } from "../brave/types";
 import { Favicon } from "../components/Favicon";
 import { Icon, type IconName } from "../components/Icon";

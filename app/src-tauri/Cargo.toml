@@ -10,5 +10,8 @@ tauri-build = { version = "2", features = [] }
 bridge = { path = "../../crates/bridge" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["unstable"] }
 tokio = { version = "1", features = ["io-util", "net", "sync"] }
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging"] }
+# Même version que webview2-com (types du contrôleur WebView2).
+windows = { version = "0.62", features = ["Win32_Foundation"] }

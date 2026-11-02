@@ -99,3 +99,27 @@ Le projet ne compile plus Brave : une application Tauri 2 pilote Brave via une e
   établie. « Ewen Private » (17 onglets, favoris) et « Développeur » connectés simultanément, nommés
   automatiquement d'après Brave. Cause de l'échec de l'instance de 16h31 non identifiée (le journal ne contient
   aucune ligne Native Messaging en v=1) ; si cela se reproduit, l'erreur s'affiche dans « Connecter Brave ».
+
+## 2026-11-02 — Navigateur intégré
+
+Demande : naviguer dans Calti, onglets dans Calti, deux navigateurs simultanés, Brave invisible.
+- Essai d'incrustation de fenêtres Brave (`--app`) : en fenêtre enfant, elles ne s'affichent pas dans la fenêtre
+  transparente de Calti ; en fenêtre attachée, faisable mais fragile (décalage, focus, tiroirs impossibles
+  par-dessus). Choix de l'utilisateur : moteur intégré (WebView2).
+- Chaque onglet est une vue WebView2 enfant (`tauri` feature `unstable`, `Window::add_child`), deux profils à
+  dossiers de données séparés, vue côte à côte, session restaurée, favoris lus dans le fichier de Brave.
+- Vérifié à l'écran (capture de la vraie fenêtre) : page affichée dans le volet, vue partagée Personnel/Pro,
+  tiroir qui repousse les pages, dossiers de profils distincts. Réglages migrés : Personnel ← « default »,
+  Pro existant (image recopiée). Corrigé : restauration en double après rechargement de l'interface.
+- Limites connues : coins des pages carrés, pas d'extensions (bloqueur de pubs), pas d'état « précédent
+  possible », fenêtres pop-up (connexion OAuth) ouvertes en onglet.
+- Finitions : pages aux coins arrondis (région Win32 sur la fenêtre native de chaque vue, appliquée seulement
+  à une fenêtre enfant), fond transparent (pas de flash blanc), nouvelle page affichée avant de masquer
+  l'ancienne. Ligne du haut supprimée : profils en pastilles rondes dans le rail (texte lisible selon
+  l'accent), boutons de fenêtre au bout de la barre d'onglets, haut de fenêtre déplaçable (double-clic :
+  agrandir). Fichiers locaux : `file:///…` et chemins Windows `C:\…` (vérifié avec un HTML local).
+- Plusieurs fenêtres : chaque onglet appartient à une fenêtre ; bouton « détacher » d'un volet (les onglets
+  du profil partent dans une nouvelle fenêtre sans rechargement, `Webview::reparent`), Ctrl+N pour une
+  fenêtre vide. Réglages synchronisés entre fenêtres ; seule la fenêtre principale restaure sa session.
+  Vérifié : détachement de Pro, onglet déplacé côté Rust et affiché dans la nouvelle fenêtre.
+- Non vérifié : déplacement de la fenêtre à la souris (événement système, non simulable par CDP).
