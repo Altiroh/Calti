@@ -1,0 +1,224 @@
+.settings__scope {
+  margin: 0 8px 6px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.settings__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 8px;
+  border-top: 1px solid var(--line);
+}
+
+.settings__section:first-of-type {
+  border-top: none;
+}
+
+.settings__section h3 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.settings__hint {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.settings__section .btn {
+  align-self: flex-start;
+}
+
+.settings__row {
+  display: flex;
+  gap: 8px;
+}
+
+.field {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 11px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  outline: none;
+  resize: none;
+}
+
+.field:focus {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.btn {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--strong-text);
+  background: var(--strong-fill);
+  transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn--ghost {
+  color: var(--text-dim);
+  background: var(--surface);
+}
+
+.slider {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  align-items: center;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.slider input {
+  accent-color: var(--accent);
+}
+
+.segmented {
+  display: flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.segmented button {
+  flex: 1;
+  height: 30px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.segmented .segmented--on {
+  background: var(--surface-solid);
+  color: var(--text);
+  box-shadow: var(--shadow-soft);
+}
+
+.swatches {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.swatch {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 6px rgba(40, 70, 120, 0.18);
+  transition: transform var(--dur) var(--ease);
+}
+
+.swatch:hover {
+  transform: scale(1.08);
+}
+
+.swatch--on {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.swatch--custom {
+  overflow: hidden;
+  background: conic-gradient(#e56, #fc4, #6d8, #4bd, #66e, #c6d, #e56);
+  cursor: pointer;
+}
+
+.swatch--custom input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--text);
+}
+
+.check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.slider output {
+  min-width: 44px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.slider:has(output) {
+  grid-template-columns: 70px 1fr auto;
+  gap: 8px;
+}
+
+.color-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.color-field > span:first-child {
+  width: 70px;
+}
+
+.color-field__swatch {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  border: 2px solid var(--surface-border);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.color-field__swatch--auto {
+  background: repeating-conic-gradient(var(--surface) 0 25%, transparent 0 50%) 0 0 / 10px 10px;
+}
+
+.color-field__swatch input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.color-field__clear {
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: var(--text-dim);
+  background: var(--surface);
+}
+
+.color-field__auto {
+  font-size: 12px;
+  color: var(--text-faint);
+}

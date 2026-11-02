@@ -1,0 +1,56 @@
+/* Mouvement global : reflets, survols, parallaxe et transitions de vue. */
+
+/* Reflet doux qui suit le pointeur sur le verre (variables posées par motion.ts). */
+.glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(260px circle at var(--mx, -400px) var(--my, -400px), rgba(255, 255, 255, 0.16), transparent 65%);
+  opacity: 0;
+  transition: opacity 400ms var(--ease);
+  pointer-events: none;
+}
+
+.glass:hover::after {
+  opacity: 1;
+}
+
+/* Les cartes se soulèvent légèrement au survol. */
+.card,
+.hero {
+  transition: transform 420ms var(--ease), box-shadow 420ms var(--ease), background 300ms var(--ease);
+}
+
+.home-grid:not(.home-grid--editing) .card:hover,
+.home-grid:not(.home-grid--editing) .hero:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--glass-shadow), 0 18px 40px rgba(10, 25, 50, 0.16), inset 0 1px 0 var(--glass-inner);
+}
+
+/* Parallaxe : le décor glisse un peu à l'opposé du pointeur. */
+.scenery__image,
+.scenery__mountain {
+  transition: transform 1200ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translate(calc(var(--px, 0) * -14px), calc(var(--py, 0) * -10px)) scale(1.03);
+}
+
+.scenery__mountain--near {
+  transform: translate(calc(var(--px, 0) * -24px), calc(var(--py, 0) * -6px));
+}
+
+/* Transitions de vue (changement de profil, édition de la disposition). */
+::view-transition-group(*) {
+  animation-duration: 520ms;
+  animation-timing-function: cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 420ms;
+}
+
+/* Pression sur les boutons : un léger ressort. */
+button:active:not(:disabled) {
+  transition-timing-function: cubic-bezier(0.3, 1.6, 0.5, 1);
+}

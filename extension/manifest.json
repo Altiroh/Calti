@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Calti",
+  "version": "0.1.1",
+  "description": "Relie Brave à l'application Calti (onglets et favoris).",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy7MdqSYatZeN+PlkkwNsBp1/Abd1c0JmViCPu+bgidi0pbsvy62h2jxZlKVUteNzncD43rZ+D2wr+GaotuwBTeM/2YcWkiJF8p9bcofbG4JEIm0Pq56jfnivPtapRw8LDgeHIVj6NlfosWYDkCsynQaLDh5WPOOWrmDLBFmqufCGxg4y7yETsqGQeymzRkWWwmq9zMZBlkoPeqLLWDI1WdLWo7ApqMv5DGVRHXbjltcwo2szB6sFyzF7fsoJ2Qzy5Ih3lVWKBGrRIOjh4C9YxVLyKPABS072EJTJGxV4rqpNfxDYb4f375W70KTIvItPPXem1kG1t0yZkmNNLaSYoQIDAQAB",
+  "minimum_chrome_version": "116",
+  "permissions": ["tabs", "bookmarks", "search", "nativeMessaging", "alarms", "storage"],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

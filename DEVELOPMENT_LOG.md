@@ -38,3 +38,64 @@ Constats annexes :
 
 Sources : wiki brave-browser « Windows Development Environment », README de brave-core,
 `docs/windows_build_instructions.md` de Chromium, `build/vs_toolchain.py` au tag 157.0.8103.30.
+
+## 2026-11-02 — Changement d'approche : application compagnon
+
+Le projet ne compile plus Brave : une application Tauri 2 pilote Brave via une extension MV3 et Native Messaging.
+`FEATURE_COMPATIBILITY.md` (audit du fork) est retiré ; il reste dans l'historique git.
+
+- Rust 1.99.1 installé (rustup, profil minimal, toolchain MSVC). MSVC 14.27 (VS 2019) et le SDK 10.0.18362 suffisent.
+- Disque C: : 3,1 Go libres après compilation (`target/` ≈ 1,3 Go, sans infos de débogage). Toujours critique.
+- Hôte enregistré sous `HKCU\Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\com.nopro.cockpit`,
+  manifeste dans `%LOCALAPPDATA%\NoproCockpit\`.
+- Extension : ID fixe `djgdkiajnehmpnnnanbojdmgndcmendg` grâce à la clé publique du manifeste
+  (la clé privée n'a pas été conservée : inutile tant que l'extension n'est pas empaquetée).
+- Demandes ajoutées en cours de route : références graphiques (verre givré clair), deux profils Brave
+  (Personnel / Pro) connectés simultanément, environnement d'accueil personnalisable par profil.
+- Corrigé pendant les tests : nom du pipe mal échappé ; ordre d'import CSS (`.glass` écrasait la position des tiroirs).
+- Non vérifié : fonctionnement avec le vrai Brave, rendu de l'effet acrylique (voir TEST_PLAN).
+
+## 2026-11-02 — Calti, lisibilité sur fond sombre, guide de connexion
+
+- Projet renommé **Calti** : `calti.exe`, `calti-host.exe`, pipe `\.\pipe\calti`, hôte `com.calti.host`
+  (manifeste dans `%LOCALAPPDATA%\Calti\`), identifiant Tauri `fr.calti.app`. L'ancien hôte `com.nopro.cockpit`
+  a été désenregistré ; les données WebView ont été déplacées de `%LOCALAPPDATA%\fr.nopro.cockpit` et
+  `settings/migrate.ts` reprend les anciennes clés (à supprimer plus tard).
+- Fond sombre : tout le matériau bascule (verre fumé, texte clair) via des jetons dans `tokens.css`.
+  La luminance de l'image importée choisit le mode automatiquement.
+- « Brave n'est pas connecté » : l'extension n'était chargée dans aucun profil. Brave n'autorise pas
+  l'installation automatique d'une extension non publiée (seulement Web Store ou stratégies administrateur),
+  d'où un chargement manuel unique par profil, guidé par la carte « Connecter Brave ».
+- Les profils connectés prennent le nom du profil Brave, retrouvé dans le stockage local de l'extension.
+- Extension chargée par l'utilisateur dans « Ewen Private » et « Développeur », mais aucun relais lancé :
+  Brave sous Windows ne lit pas `HKCU\Software\BraveSoftware\…\NativeMessagingHosts` mais
+  `HKCU\Software\Google\Chrome\NativeMessagingHosts` (chaînes trouvées dans `chrome.dll` de Brave 156,
+  avec `SOFTWARE\Chromium\NativeMessagingHosts`). `register-host.ps1` utilise désormais la clé Chrome.
+- Diagnostic : le relais lancé comme Chromium le fait (`cmd.exe /c "chemin"`) démarre et se connecte : le chemin
+  accentué n'est pas en cause. L'hôte est enregistré sous les clés Chrome et Chromium ; l'extension (0.1.1)
+  enregistre désormais sa dernière erreur Native Messaging, affichée par Calti dans « Connecter Brave »,
+  et le relais écrit `%LOCALAPPDATA%\Calti\host.log`. Connexion réelle toujours non vérifiée.
+- Demande de l'utilisateur : personnalisation complète de la disposition. Éditeur en grille (12 colonnes,
+  rangées de 28 px) : déplacer, agrandir, masquer/réafficher, grille visible, aimantation, pas de chevauchement,
+  disposition par profil. Testé par vrais événements souris (CDP) : déplacement, agrandissement, masquage,
+  enregistrement. Transitions de vue (changement de profil, édition), reflet sous le pointeur, parallaxe.
+- Erreur remontée par l'extension 0.1.1 : « Specified native messaging host not found », malgré un manifeste
+  valide enregistré sous les clés Chrome, Chromium et BraveSoftware. Une instance Brave neuve (profil temporaire,
+  `--load-extension`) lance pourtant le relais et se connecte à Calti (onglets et favoris reçus) : registre,
+  manifeste et chemin accentué sont corrects. L'instance de l'utilisateur, démarrée à 08h32 avant tout
+  enregistrement, ne voit pas l'hôte : redémarrage complet de Brave demandé.
+- Demande : pouvoir recréer des pages d'accueil type « landing » (références BridgeAI, Anything, Synecdoche…).
+  Ajouts : blocs de texte libres, inspecteur de style par bloc, texte enrichi (*mise en valeur*, dégradé, polices
+  mixtes), recherche stylable (pilule, bouton coloré, invite), ambiance du fond (teinte, vignette, grain, halo),
+  modèles de mise en page. Correctif : la couleur du verre était calculée sur la racine, si bien qu'une opacité
+  locale (bloc, tiroir) restait sans effet ; elle est désormais calculée sur chaque élément `.glass`.
+  Vérifié en recréant « Bridge the gap » via l'éditeur (CDP), réglages de l'utilisateur sauvegardés puis restaurés.
+- Démarrage automatique de Brave : si aucun profil n'est connecté, une adresse (accès rapide, favori, saisie)
+  lance `brave.exe --profile-directory=<dernier profil> <adresse>` ; une recherche est mise en attente jusqu'à la
+  connexion (25 s max). Non vérifié de bout en bout : Brave était déjà ouvert au moment du test.
+- Brave redémarré par l'utilisateur à 16h31 : « Ewen Private » échoue toujours (« host not found »), alors qu'un
+  profil neuf trouve l'hôte. Cause liée au profil, non identifiée : journal de Brave (`--enable-logging --v=1`) demandé.
+- Brave relancé par Calti (`--profile-directory="Profile 1" --enable-logging --v=1`) : relais lancé, connexion
+  établie. « Ewen Private » (17 onglets, favoris) et « Développeur » connectés simultanément, nommés
+  automatiquement d'après Brave. Cause de l'échec de l'instance de 16h31 non identifiée (le journal ne contient
+  aucune ligne Native Messaging en v=1) ; si cela se reproduit, l'erreur s'affiche dans « Connecter Brave ».

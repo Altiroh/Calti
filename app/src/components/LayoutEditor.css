@@ -1,0 +1,120 @@
+.editor__bar {
+  position: sticky;
+  top: 60px;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 10px 12px 10px 20px;
+  border-radius: var(--radius-lg);
+  --glass-alpha: 0.7;
+  animation: bar-in 480ms var(--ease) both;
+}
+
+.editor__title {
+  display: flex;
+  flex-direction: column;
+}
+
+.editor__title strong {
+  font-size: 15px;
+}
+
+.editor__title span {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.editor__tools {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.editor__restore {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  animation: fade 260ms var(--ease) both;
+}
+
+.editor__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.editor__actions .chip-btn {
+  height: 32px;
+  padding: 0 14px;
+}
+
+@keyframes bar-in {
+  from { opacity: 0; transform: translateY(-12px); }
+}
+
+.editor__add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.editor__presets {
+  position: relative;
+}
+
+.editor__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  --glass-alpha: 0.9;
+  animation: menu-in 260ms var(--ease) both;
+}
+
+.editor__menu-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  text-align: left;
+  transition: background var(--dur) var(--ease);
+}
+
+.editor__menu-item:hover {
+  background: var(--surface-hover);
+}
+
+.editor__menu-item strong {
+  font-size: 13.5px;
+}
+
+.editor__menu-item span {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* La grille se resserre pour laisser la place à l'inspecteur. */
+.editor__stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 0;
+  gap: 0;
+  align-items: start;
+  transition: grid-template-columns 420ms var(--ease), gap 420ms var(--ease);
+}
+
+.editor__stage--inspecting {
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 18px;
+}
+
+@keyframes menu-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+}

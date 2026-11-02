@@ -1,29 +1,37 @@
 # TEST_PLAN
 
-## A. Validation de la première version (build Brave non modifié)
+## Exécuté le 2026-11-02 (sans Brave)
 
-Le build est validé uniquement si **tous** les critères suivants sont observés :
+Un faux client Node lance le vrai `calti-host.exe` comme le ferait Brave et parle le protocole Native Messaging.
+L'interface est pilotée par CDP (WebView2 `--remote-debugging-port`).
 
-1. `pnpm run init` se termine sans erreur.
-2. `pnpm run build` (Component) se termine avec le code 0 ; `out\Component\brave.exe` existe.
-3. `pnpm start` ouvre une fenêtre, sans crash pendant 10 minutes d'utilisation.
-4. `brave://version` affiche la version Chromium attendue (157.0.8103.30 au 2026-11-02).
-5. Navigation HTTPS (wikipedia.org, youtube.com) : rendu correct et lecture vidéo avec son.
-6. Shields : compteur de blocages > 0 sur un site avec publicités.
-7. Onglets : ouverture, fermeture, réouverture (Ctrl+Shift+T) et glisser-déposer.
-8. Fenêtre privée : ouverture, puis aucun historique conservé après fermeture.
-9. Favori ajouté puis retrouvé après redémarrage.
-10. Téléchargement d'un fichier, visible dans `brave://downloads`.
-11. Extension installée depuis le Chrome Web Store et fonctionnelle.
-12. Sandbox active : `brave://sandbox` affiche les processus renderer protégés.
+| Test | Résultat |
+|---|---|
+| `cargo build --workspace` sans avertissement | ✅ |
+| `npm run build` (tsc + Vite) | ✅ |
+| Hôte lancé avec une origine inconnue → refus, code 1 | ✅ |
+| Instantané initial affiché (onglets, onglet actif, favoris) | ✅ |
+| Nouvel onglet poussé par l'extension → affiché en temps réel | ✅ |
+| Clic sur un onglet → `activateTab` reçu par l'extension | ✅ |
+| Bouton fermer → `closeTab` reçu, liste mise à jour | ✅ |
+| Fermeture du port (Brave fermé) → interface « En attente de Brave » | ✅ |
+| `node.exe` se connecte au pipe → refusé et déconnecté | ✅ |
+| `openUrl` avec `javascript:` → refusé côté Rust | ✅ |
+| Champ inconnu dans une commande → refusé | ✅ |
+| Deux profils connectés en même temps, sélecteur de profil | ✅ |
+| Commande envoyée au seul profil affiché | ✅ |
+| Nom, accent, titre, police, ton, image de fond, voile par profil, conservés dans le stockage | ✅ |
+| Fond sombre : texte des cartes clair sur verre fumé (#f1f5fa sur rgba(14,22,32)) | ✅ |
+| Migration nopro → calti (réglages, image) | ✅ |
+| Guide de connexion : profils Brave lus, extension absente détectée | ✅ |
 
-## B. Tests automatisés
+## À faire avec le vrai Brave
 
-- Ciblés et rapides : `pnpm run test brave_unit_tests --filter=<suite>`, `brave_browser_tests --filter=<suite>`.
-- Pour chaque composant nopro : tests unitaires des PageHandlers (validation des entrées) et browser tests
-  du layout et de l'interaction avec les onglets.
-- Régression : comparer le comportement avec `kNoproShell` activé et désactivé.
-
-## C. Après chaque modification importante
-
-Rejouer A.3 à A.12, les tests automatisés concernés et une mesure de mémoire et de temps de démarrage.
+1. Bouton « Ouvrir les extensions » : `brave://extensions` s’ouvre dans le bon profil (non testé, pour ne pas ouvrir d’onglet dans ton Brave).
+2. Charger `extension/` dans les deux profils : ils apparaissent sous leur nom Brave.
+3. Ouvrir, fermer, déplacer des onglets dans Brave : mise à jour immédiate.
+4. Cliquer un onglet dans le cockpit : Brave l'active et passe au premier plan.
+5. Recherche (moteur par défaut de Brave), adresse, raccourcis, favoris : nouvel onglet dans le bon profil.
+6. Précédent / suivant / recharger sur l'onglet actif.
+7. Fermer puis rouvrir Brave, puis le cockpit : reconnexion automatique dans les deux sens.
+8. Effet acrylique de la fenêtre et rendu réel (les captures CDP ne montrent pas l'arrière-plan Windows).

@@ -1,0 +1,49 @@
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 52px;
+  padding: 12px 0;
+  border-radius: var(--radius-xl);
+  align-self: start;
+  min-height: 420px;
+  max-height: calc(100% - 52px);
+}
+
+.rail-btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  color: var(--text-dim);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.rail-btn:hover:not(:disabled) {
+  background: var(--glass-fill-active);
+  color: var(--text);
+}
+
+.rail-btn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.rail-btn--on,
+.rail-btn--on:hover:not(:disabled) {
+  background: var(--strong-fill);
+  color: var(--strong-text);
+  box-shadow: var(--shadow-soft);
+}
+
+.rail__sep {
+  width: 22px;
+  height: 1px;
+  margin: 4px 0;
+  background: var(--line);
+}
+
+.rail__spacer {
+  flex: 1;
+}

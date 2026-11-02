@@ -1,0 +1,33 @@
+.bm-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 34px;
+  padding-right: 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--text-dim);
+  text-align: left;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.bm-row:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.bm-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.bm-chevron {
+  display: flex;
+  transition: transform var(--dur) var(--ease);
+}
+
+.bm-chevron--open {
+  transform: rotate(90deg);
+}

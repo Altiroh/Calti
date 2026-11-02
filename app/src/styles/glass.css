@@ -1,0 +1,37 @@
+/* Matériau « Liquid Glass » : verre translucide, flou, liseré lumineux et reflet. */
+.glass {
+  position: relative;
+  color: var(--text);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, calc(var(--glass-alpha) * var(--glass-sheen-k))), transparent),
+    rgba(var(--glass-rgb), var(--glass-alpha));
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-inner);
+}
+
+/* Liseré dégradé : plus clair en haut à gauche, comme une lumière rasante. */
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--glass-edge);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Surface intérieure (lignes, tuiles) posée sur une carte de verre. */
+.inset {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.inset:hover {
+  background: var(--surface-hover);
+  box-shadow: var(--shadow-soft);
+}

@@ -1,0 +1,19 @@
+.text-free {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 4px 6px;
+  overflow: hidden;
+  color: var(--hero-text);
+  text-shadow: var(--hero-shadow);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+/* Un bloc texte posé sur une surface reprend la couleur de texte des cartes. */
+.text-free.glass {
+  color: var(--text);
+  text-shadow: none;
+  padding: 16px 20px;
+  border-radius: var(--radius-lg);
+}

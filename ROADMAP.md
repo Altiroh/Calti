@@ -1,31 +1,16 @@
 # ROADMAP
 
-## Phase A — Installation et compilation  *(en cours, bloquée : espace disque)*
-- [x] Diagnostic de l'environnement (2026-11-02)
-- [ ] Libérer / ajouter au moins **250 Go** sur un volume NTFS avec sa propre lettre de lecteur
-- [ ] Installer Visual Studio 2026 Community, le SDK Windows 10.0.28000 et les Debugging Tools
-- [ ] Node 24.16+ (nvm), pnpm 11.11+, Python 3 (python.org), `core.longpaths` / `core.autocrlf false`
-- [ ] Forker `brave/brave-core`, cloner dans `<lecteur>:\nopro\src\brave`
-- [ ] `pnpm install` puis `pnpm run init`
-- [ ] `pnpm run build` (Component)
-- [ ] `pnpm start` : validation selon `TEST_PLAN.md` § A
+> Le 2026-11-02, le projet a abandonné le fork de Brave Core au profit d'une application compagnon
+> (Tauri) reliée à Brave par une extension. Les anciens documents restent dans l'historique git.
 
-## Phase B — Cartographie technique
-- [ ] Vérifier l'existence et le rôle réel de : `brave/browser/ui/`, `…/views/`, `…/webui/`, `brave/components/`,
-      `brave/chromium_src/`, `brave/patches/`, `chrome/browser/ui/`, `ui/views/`
-- [ ] Identifier : BrowserView et son layout, frame, TabStrip/TabStripModel, omnibox, BrowserCommandController,
-      Side Panel, sidebar Brave, NTP, settings
-- [ ] Étudier le WebUI Tab Strip de Chromium comme modèle
-- [ ] Remplir `CODEBASE_MAP.md` et réviser `ARCHITECTURE.md`
+## Étape 1 — Cockpit connecté *(en cours)*
+- [x] Application Tauri avec interface Liquid Glass
+- [x] Extension MV3 : onglets, favoris, événements, commandes
+- [x] Hôte Native Messaging + pipe nommé local vérifié
+- [x] Onglets en temps réel et sélection (testé avec un faux client, voir TEST_PLAN)
+- [x] Plusieurs profils Brave simultanés (Personnel / Pro)
+- [x] Environnement d'accueil personnalisable par profil
+- [x] Validation avec le vrai Brave : deux profils connectés (2026-11-02)
 
-## Phase C — Premier prototype
-- [ ] Feature `kNoproShell` + layout personnalisé
-- [ ] Sidebar WebUI : liste d'onglets, ouvrir/fermer/activer
-- [ ] Navigation : URL, précédent/suivant, recharger (commandes natives)
-- [ ] Contenu web natif inchangé
-
-## Phase D — Refonte avancée
-Menus, espaces de travail, panneaux modulaires, thèmes, animations, page d'accueil, intégration des maquettes.
-
-## Phase E — Compatibilité
-Mise en place et exécution systématique de `TEST_PLAN.md`, avec mesures de performance, de permissions et de sécurité.
+## Pistes (non engagées)
+Météo, tâches, notes, citation, lecteur audio, onglets récemment fermés (`chrome.sessions`), démarrage avec Windows.

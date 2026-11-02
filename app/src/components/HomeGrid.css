@@ -1,0 +1,164 @@
+.home-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.grid-block {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  animation: block-in 620ms calc(var(--i) * 60ms) var(--ease) both;
+}
+
+.grid-block > :first-child {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+@keyframes block-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); filter: blur(6px); }
+}
+
+/* --- Édition ------------------------------------------------------------ */
+
+.home-grid__cell {
+  border-radius: 8px;
+  background: var(--surface);
+  outline: 1px dashed var(--line);
+  outline-offset: -1px;
+  pointer-events: none;
+  animation: fade 300ms var(--ease) both;
+}
+
+.home-grid__ghost {
+  z-index: 1;
+  border-radius: var(--radius-lg);
+  background: var(--accent-soft);
+  border: 2px dashed var(--accent-border);
+  pointer-events: none;
+  transition: all 160ms var(--ease);
+}
+
+.home-grid__ghost--invalid {
+  background: rgba(212, 80, 95, 0.12);
+  border-color: rgba(212, 80, 95, 0.55);
+}
+
+.grid-block--editing {
+  z-index: 2;
+  cursor: grab;
+  touch-action: none;
+}
+
+/* Le contenu ne réagit pas en édition : seul le cadre se manipule. */
+.grid-block--editing > :first-child {
+  pointer-events: none;
+}
+
+.grid-block--active {
+  z-index: 5;
+  cursor: grabbing;
+  filter: drop-shadow(0 22px 40px rgba(10, 25, 50, 0.3));
+  transition: none;
+}
+
+.block-edit {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  border: 1.5px dashed var(--accent-border);
+  background: linear-gradient(180deg, var(--accent-soft), transparent 60%);
+  animation: fade 240ms var(--ease) both;
+}
+
+.grid-block--editing:hover .block-edit {
+  border-style: solid;
+  border-color: var(--accent);
+}
+
+.block-edit__label {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--strong-text);
+  background: var(--strong-fill);
+  box-shadow: var(--shadow-soft);
+}
+
+.block-edit__hide {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: var(--strong-text);
+  background: var(--strong-fill);
+  box-shadow: var(--shadow-soft);
+  transition: transform var(--dur) var(--ease);
+}
+
+.block-edit__hide:hover {
+  transform: scale(1.12);
+}
+
+.block-edit__resize {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px 6px 14px 6px;
+  cursor: nwse-resize;
+  background:
+    linear-gradient(135deg, transparent 45%, var(--accent) 45% 55%, transparent 55%),
+    linear-gradient(135deg, transparent 70%, var(--accent) 70% 80%, transparent 80%);
+  opacity: 0.8;
+}
+
+.block-edit__resize:hover {
+  opacity: 1;
+}
+
+.grid-block--selected .block-edit {
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+/* --- Style par bloc (inspecteur) ----------------------------------------- */
+
+/* Sans fond : le contenu flotte directement sur l'image. */
+.grid-block[data-surface="none"] .glass {
+  background: none;
+  backdrop-filter: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.grid-block[data-surface="none"] .glass::before,
+.grid-block[data-surface="none"] .glass::after {
+  display: none;
+}
+
+/* Opaque : verre presque plein, sans flou. */
+.grid-block[data-surface="solid"] {
+  --glass-alpha: 0.94;
+}
+
+.grid-block[data-surface="solid"] .glass {
+  backdrop-filter: none;
+}
+
+.grid-block[data-radius] .glass {
+  border-radius: var(--block-radius);
+}

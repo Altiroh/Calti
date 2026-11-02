@@ -1,0 +1,10 @@
+[workspace]
+resolver = "2"
+members = ["app/src-tauri", "host", "crates/bridge"]
+
+# Pas d'informations de débogage en dev : le disque C: est presque plein.
+[profile.dev]
+debug = 0
+
+[profile.dev.package."*"]
+debug = 0

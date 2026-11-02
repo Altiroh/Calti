@@ -1,0 +1,42 @@
+.rt {
+  font-family: var(--t-font, inherit);
+  font-size: var(--t-size, inherit);
+  font-weight: var(--t-weight, inherit);
+  font-style: var(--t-style, normal);
+  letter-spacing: var(--t-tracking, inherit);
+  text-transform: var(--t-transform, none);
+  text-align: var(--t-align, inherit);
+  color: var(--t-color, inherit);
+}
+
+.rt-line {
+  display: block;
+  animation: line-in 900ms var(--ease) both;
+}
+
+.rt-em {
+  color: var(--t-color2, inherit);
+  font-family: var(--t-font2, inherit);
+  font-style: var(--t-style2, inherit);
+}
+
+/* Titre : lignes suivantes atténuées, comme dans les références. */
+.rt--dim-lines .rt-line + .rt-line {
+  color: var(--t-color2, var(--hero-text-dim));
+}
+
+.rt--gradient .rt-line {
+  background: linear-gradient(100deg, var(--t-color, currentColor), var(--t-color2, var(--hero-text-dim)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.rt--gradient .rt-em,
+.rt--gradient.rt--dim-lines .rt-line + .rt-line {
+  color: transparent;
+}
+
+@keyframes line-in {
+  from { opacity: 0; transform: translateY(18px); filter: blur(8px); }
+}

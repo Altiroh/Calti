@@ -1,0 +1,53 @@
+.inspector {
+  position: sticky;
+  top: 140px;
+  display: flex;
+  flex-direction: column;
+  width: 330px;
+  max-height: calc(100vh - 160px);
+  border-radius: var(--radius-xl);
+  --glass-alpha: 0.78;
+  animation: inspector-in 420ms var(--ease) both;
+}
+
+.inspector__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 16px 12px 6px 20px;
+}
+
+.inspector__head strong {
+  display: block;
+  font-size: 15px;
+}
+
+.inspector__head span {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.inspector__body {
+  overflow-y: auto;
+  padding: 0 12px 16px;
+}
+
+.inspector__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+
+.inspector__reset {
+  margin: 6px 8px 0;
+}
+
+.inspector .segmented button {
+  padding: 0 4px;
+  font-size: 12px;
+}
+
+@keyframes inspector-in {
+  from { opacity: 0; transform: translateX(24px); }
+}

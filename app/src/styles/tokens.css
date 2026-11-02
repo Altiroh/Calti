@@ -1,0 +1,142 @@
+/* Jetons de design : couleurs, verre, rayons, dimensions et animations. */
+:root {
+  /* Ciel brumeux froid derrière le verre (décor par défaut). */
+  --sky-top: #eaf0f7;
+  --sky-bottom: #c9d6e4;
+  --mist: rgba(255, 255, 255, 0.75);
+  --mountain-far: rgba(150, 172, 198, 0.45);
+  --mountain-near: rgba(118, 142, 172, 0.35);
+
+  --text: #1b2840;
+  --text-dim: #55657e;
+  --text-faint: #7b8aa1;
+
+  --accent: #2f5fa8;
+  /* Accent utilisé pour les icônes et repères : éclairci sur fond sombre. */
+  --accent-fg: var(--accent);
+  --accent-soft: rgba(70, 120, 200, 0.12);
+  --accent-border: rgba(80, 130, 210, 0.35);
+  --ok: #34b38a;
+  --danger: #d4505f;
+
+  /* Verre */
+  --glass-alpha: 0.42;
+  /* Teinte du verre (r, g, b) et force du reflet : combinées sur chaque élément .glass. */
+  --glass-rgb: 255, 255, 255;
+  --glass-sheen-k: 0.6;
+  --glass-fill-strong: rgba(255, 255, 255, 0.62);
+  --glass-fill-active: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.65);
+  --glass-edge: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.25) 40%,
+      rgba(200, 220, 245, 0.2) 70%, rgba(255, 255, 255, 0.7));
+  --glass-inner: rgba(255, 255, 255, 0.9);
+  --glass-blur: 24px;
+  --glass-shadow: 0 10px 34px rgba(40, 70, 120, 0.12), 0 2px 6px rgba(40, 70, 120, 0.06);
+
+  /* Surfaces posées sur le verre : lignes, tuiles, champs, boutons secondaires. */
+  --surface: rgba(255, 255, 255, 0.55);
+  --surface-hover: rgba(255, 255, 255, 0.85);
+  --surface-border: rgba(255, 255, 255, 0.85);
+  --surface-solid: #fff;
+  --line: rgba(60, 90, 140, 0.12);
+  --shadow-soft: 0 6px 18px rgba(40, 70, 120, 0.12);
+
+  /* Élément sélectionné ou action principale. */
+  --strong-fill: #1c2c4a;
+  --strong-text: #fff;
+
+  --radius-xl: 28px;
+  --radius-lg: 22px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
+
+  --rail-width: 64px;
+  --gap: 20px;
+  --content-max: 1240px;
+
+  --ease: cubic-bezier(0.22, 0.8, 0.24, 1);
+  --dur: 180ms;
+
+  --font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --font-headline: var(--font-display);
+  --headline-weight: 600;
+
+  /* Texte posé directement sur le fond (titre, horloge). */
+  --hero-text: #14213a;
+  --hero-text-dim: rgba(20, 33, 58, 0.7);
+  --hero-shadow: none;
+}
+
+/* Fond sombre : verre fumé et texte clair partout. */
+.tone-light {
+  --text: #f1f5fa;
+  --text-dim: rgba(232, 239, 247, 0.78);
+  --text-faint: rgba(220, 230, 242, 0.56);
+
+  --accent-fg: color-mix(in srgb, var(--accent) 45%, #fff);
+
+  --glass-rgb: 14, 22, 32;
+  --glass-sheen-k: 0.12;
+  --glass-fill-strong: rgba(255, 255, 255, 0.1);
+  --glass-fill-active: rgba(255, 255, 255, 0.16);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --glass-edge: linear-gradient(155deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.06) 40%,
+      rgba(255, 255, 255, 0.03) 70%, rgba(255, 255, 255, 0.22));
+  --glass-inner: rgba(255, 255, 255, 0.12);
+  --glass-shadow: 0 12px 36px rgba(0, 0, 0, 0.32), 0 2px 6px rgba(0, 0, 0, 0.18);
+
+  --surface: rgba(255, 255, 255, 0.07);
+  --surface-hover: rgba(255, 255, 255, 0.14);
+  --surface-border: rgba(255, 255, 255, 0.1);
+  --surface-solid: rgba(255, 255, 255, 0.18);
+  --line: rgba(255, 255, 255, 0.1);
+  --shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.25);
+
+  --strong-fill: #eef3f9;
+  --strong-text: #14213a;
+
+  --hero-text: #f6f8fc;
+  --hero-text-dim: rgba(240, 245, 252, 0.82);
+  --hero-shadow: 0 2px 24px rgba(0, 10, 30, 0.35);
+}
+
+/* Bloc forcé en verre clair et texte sombre (inspecteur), y compris sur un fond sombre. */
+.tone-dark {
+  --text: #1b2840;
+  --text-dim: #55657e;
+  --text-faint: #7b8aa1;
+
+  --accent-fg: var(--accent);
+  --accent-soft: rgba(70, 120, 200, 0.12);
+  --accent-border: rgba(80, 130, 210, 0.35);
+  --ok: #34b38a;
+  --danger: #d4505f;
+
+  /* Verre */
+  --glass-rgb: 255, 255, 255;
+  --glass-sheen-k: 0.6;
+  --glass-fill-strong: rgba(255, 255, 255, 0.62);
+  --glass-fill-active: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.65);
+  --glass-edge: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.25) 40%,
+      rgba(200, 220, 245, 0.2) 70%, rgba(255, 255, 255, 0.7));
+  --glass-inner: rgba(255, 255, 255, 0.9);
+  --glass-shadow: 0 10px 34px rgba(40, 70, 120, 0.12), 0 2px 6px rgba(40, 70, 120, 0.06);
+
+  /* Surfaces posées sur le verre : lignes, tuiles, champs, boutons secondaires. */
+  --surface: rgba(255, 255, 255, 0.55);
+  --surface-hover: rgba(255, 255, 255, 0.85);
+  --surface-border: rgba(255, 255, 255, 0.85);
+  --surface-solid: #fff;
+  --line: rgba(60, 90, 140, 0.12);
+  --shadow-soft: 0 6px 18px rgba(40, 70, 120, 0.12);
+
+  /* Élément sélectionné ou action principale. */
+  --strong-fill: #1c2c4a;
+  --strong-text: #fff;
+
+  --hero-text: #14213a;
+  --hero-text-dim: rgba(20, 33, 58, 0.7);
+  --hero-shadow: none;
+}

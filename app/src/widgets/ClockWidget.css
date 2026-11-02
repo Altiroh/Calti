@@ -1,0 +1,55 @@
+.clock-block {
+  display: flex;
+  flex-direction: column;
+  padding: 0 4px 6px;
+  color: var(--t-color, var(--hero-text));
+  text-shadow: var(--hero-shadow);
+}
+
+.clock-block--left { align-items: flex-start; }
+.clock-block--center { align-items: center; }
+.clock-block--right { align-items: flex-end; }
+
+.clock-block.glass {
+  color: var(--t-color, var(--text));
+  text-shadow: none;
+  padding: 16px 20px;
+  border-radius: var(--radius-lg);
+}
+
+.clock-block__time {
+  display: flex;
+  font-family: var(--t-font, var(--font-display));
+  font-size: var(--t-size, clamp(48px, 5vw, 72px));
+  font-weight: var(--t-weight, 200);
+  font-style: var(--t-style, normal);
+  line-height: 0.95;
+  letter-spacing: var(--t-tracking, -0.02em);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+}
+
+.clock-block__digit {
+  display: inline-block;
+  animation: digit-in 520ms var(--ease) both;
+}
+
+.clock-block__date {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--t-color2, var(--hero-text-dim));
+  text-transform: var(--t-transform, none);
+  letter-spacing: var(--t-tracking, normal);
+}
+
+.clock-block.glass .clock-block__date {
+  color: var(--t-color2, var(--text-dim));
+}
+
+.clock-block__date::first-letter {
+  text-transform: uppercase;
+}
+
+@keyframes digit-in {
+  from { opacity: 0; transform: translateY(40%); filter: blur(4px); }
+}

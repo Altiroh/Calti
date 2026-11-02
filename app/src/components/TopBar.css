@@ -1,0 +1,111 @@
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 52px;
+}
+
+.topbar__spacer {
+  flex: 1;
+  align-self: stretch;
+}
+
+/* Sélecteur de profil Brave (segmenté). */
+.profiles {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+}
+
+.profiles__tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dim);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.profiles__tab:hover {
+  color: var(--text);
+}
+
+.profiles__tab--on {
+  background: var(--glass-fill-active);
+  color: var(--text);
+  box-shadow: var(--shadow-soft);
+}
+
+.profiles__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.profiles__count {
+  font-size: 11px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.pill__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  animation: breathe 2.4s var(--ease) infinite;
+}
+
+.pill--error {
+  color: var(--danger);
+}
+
+.topbar__controls {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+}
+
+.wc {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 32px;
+  border-radius: 999px;
+  color: var(--text-dim);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.wc:hover {
+  background: var(--glass-fill-active);
+  color: var(--text);
+}
+
+.wc--close:hover {
+  background: #e5484d;
+  color: #fff;
+}
+
+@keyframes breathe {
+  50% { opacity: 0.3; }
+}

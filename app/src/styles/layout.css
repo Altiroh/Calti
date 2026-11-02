@@ -1,0 +1,157 @@
+/* Disposition générale de la fenêtre. */
+.shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--rail-width) minmax(0, 1fr);
+  column-gap: var(--gap);
+  height: 100%;
+  padding: 16px var(--gap) 16px 16px;
+  background: linear-gradient(180deg, var(--sky-top), var(--sky-bottom));
+  isolation: isolate;
+}
+
+.page {
+  min-width: 0;
+  overflow-y: auto;
+  padding: 0 6px 6px;
+}
+
+.page__inner {
+  max-width: var(--content-max);
+  margin: 0 auto;
+}
+
+/* Décor : brume et reliefs flous qui donnent de la profondeur au verre. */
+.scenery {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.scenery__image {
+  position: absolute;
+  inset: -40px;
+  background-size: cover;
+  background-position: center;
+  animation: fade 700ms var(--ease) both;
+}
+
+/* Voile teinté (couleur réglable), un peu plus dense en haut pour la lisibilité du titre. */
+.scenery__dim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(var(--tint), calc(var(--dim) * 1.3)), rgba(var(--tint), var(--dim)) 45%,
+      rgba(var(--tint), calc(var(--dim) * 0.8)));
+  transition: background 600ms var(--ease);
+}
+
+/* Bords assombris. */
+.scenery__vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 40%, rgba(0, 0, 0, var(--vignette)) 100%);
+  transition: opacity 600ms var(--ease);
+}
+
+/* Halo de lumière tombant du haut, façon projecteur. */
+.scenery__spot {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 28% 60% at 50% -8%, rgba(255, 250, 240, 0.42), transparent 70%),
+    radial-gradient(ellipse 50% 80% at 50% -10%, rgba(255, 250, 240, 0.12), transparent 75%);
+  mix-blend-mode: screen;
+  animation: fade 900ms var(--ease) both;
+}
+
+/* Grain photographique (bruit SVG). */
+.scenery__grain {
+  position: absolute;
+  inset: -50%;
+  opacity: var(--grain);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  animation: grain 1.2s steps(6) infinite;
+}
+
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-3%, 2%); }
+  40% { transform: translate(2%, -3%); }
+  60% { transform: translate(-2%, -1%); }
+  80% { transform: translate(3%, 3%); }
+  100% { transform: translate(0, 0); }
+}
+
+.tone-light .scenery__mist {
+  opacity: 0.25;
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+}
+
+.scenery__mountain {
+  position: absolute;
+  bottom: -5%;
+  filter: blur(14px);
+}
+
+.scenery__mountain--far {
+  left: -10%;
+  width: 75%;
+  height: 62%;
+  background: var(--mountain-far);
+  clip-path: polygon(0 100%, 0 55%, 18% 30%, 32% 48%, 50% 12%, 68% 42%, 82% 28%, 100% 60%, 100% 100%);
+}
+
+.scenery__mountain--near {
+  right: -12%;
+  width: 70%;
+  height: 48%;
+  background: var(--mountain-near);
+  clip-path: polygon(0 100%, 0 70%, 22% 40%, 40% 58%, 62% 20%, 80% 45%, 100% 35%, 100% 100%);
+}
+
+.scenery__mist {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--mist), transparent);
+  filter: blur(30px);
+}
+
+.scenery__mist--a {
+  width: 70%;
+  height: 40%;
+  left: 10%;
+  bottom: 8%;
+  animation: mist-a 36s ease-in-out infinite alternate;
+}
+
+.scenery__mist--b {
+  width: 50%;
+  height: 32%;
+  right: -5%;
+  top: 18%;
+  opacity: 0.7;
+  animation: mist-b 44s ease-in-out infinite alternate;
+}
+
+@keyframes mist-a {
+  to { transform: translateX(12%); }
+}
+
+@keyframes mist-b {
+  to { transform: translate(-18%, 8%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

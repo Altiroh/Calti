@@ -1,0 +1,37 @@
+.title-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 0 4px 6px;
+  color: var(--hero-text);
+  text-shadow: var(--hero-shadow);
+}
+
+.title-block__title {
+  font-family: var(--t-font, var(--font-headline));
+  font-weight: var(--t-weight, var(--headline-weight));
+  font-size: var(--t-size, clamp(44px, 6vw, 92px));
+  line-height: 0.98;
+  letter-spacing: var(--t-tracking, -0.025em);
+}
+
+.title-block__tagline {
+  margin: 16px 0 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--hero-text-dim);
+  animation: line-in 900ms 320ms var(--ease) both;
+}
+
+/* Alignement vertical commun aux blocs de texte. */
+.text-block--v-top {
+  justify-content: flex-start;
+}
+
+.text-block--v-center {
+  justify-content: center;
+}
+
+.text-block--v-bottom {
+  justify-content: flex-end;
+}
