@@ -70,12 +70,44 @@
   transform: rotate(-90deg);
 }
 
+/* Ouverture fluide : la rangée passe de 0 à sa hauteur, les profils glissent et apparaissent en cascade. */
+.switcher__drawer {
+  display: grid;
+  grid-template-rows: 0fr;
+  width: 100%;
+  transition: grid-template-rows 380ms cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+
+.switcher--open .switcher__drawer {
+  grid-template-rows: 1fr;
+}
+
 .switcher__menu {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  animation: menu-drop 280ms var(--ease) both;
+  min-height: 0;
+  /* Marge : les compteurs d’onglets dépassent des pastilles et seraient rognés. */
+  padding: 0 6px;
+  overflow: hidden;
+  transition: padding 380ms cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+
+.switcher--open .switcher__menu {
+  padding: 4px 6px 2px;
+}
+
+.switcher__drawer .switcher__item {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.85);
+  transition: opacity 220ms var(--ease), transform 300ms cubic-bezier(0.3, 1.4, 0.5, 1), background var(--dur) var(--ease);
+}
+
+.switcher--open .switcher__drawer .switcher__item {
+  opacity: 1;
+  transform: none;
+  transition-delay: calc(var(--i, 0) * 45ms + 60ms), calc(var(--i, 0) * 45ms + 60ms), 0ms;
 }
 
 .rail--wide .switcher__menu {

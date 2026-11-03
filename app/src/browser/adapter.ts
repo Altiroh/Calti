@@ -49,7 +49,7 @@ export function profileView(browser: Browser, profile: ProfileId, bookmarks: Boo
       case "activateTab": return browser.activate(command.tabId);
       case "closeTab": return browser.close(command.tabId);
       case "newTab": return browser.newTab(profile);
-      case "openUrl": return browser.go(command.url, profile, true);
+      case "openUrl": return browser.go(command.url, profile, command.where !== "current", command.where === "background");
       case "search": return browser.go(command.text, profile, true);
       case "navigate":
         // Depuis l'accueil, la navigation porte sur le dernier onglet affiché, qu'on réaffiche.

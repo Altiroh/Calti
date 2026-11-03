@@ -55,7 +55,7 @@ fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     haystack.windows(needle.len()).position(|w| w == needle)
 }
 
-fn user_data_dir() -> Option<PathBuf> {
+pub(crate) fn user_data_dir() -> Option<PathBuf> {
     let local = std::env::var_os("LOCALAPPDATA")?;
     Some(Path::new(&local).join(r"BraveSoftware\Brave-Browser\User Data"))
 }
@@ -65,7 +65,7 @@ fn read_json(path: &Path) -> Option<serde_json::Value> {
 }
 
 /// Profils déclarés dans « Local State » : (dossier, nom).
-fn declared_profiles(user_data: &Path) -> Vec<(String, String)> {
+pub(crate) fn declared_profiles(user_data: &Path) -> Vec<(String, String)> {
     let Some(state) = read_json(&user_data.join("Local State")) else { return Vec::new() };
     let Some(cache) = state.pointer("/profile/info_cache").and_then(|c| c.as_object()) else { return Vec::new() };
     cache

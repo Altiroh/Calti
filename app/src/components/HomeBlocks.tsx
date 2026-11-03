@@ -4,22 +4,35 @@ import type { HomeTheme } from "../settings/settings";
 import { ActiveTabWidget } from "../widgets/ActiveTabWidget";
 import { BookmarksWidget } from "../widgets/BookmarksWidget";
 import { ClockWidget } from "../widgets/ClockWidget";
+import { ClipboardWidget, HistoryWidget, NotesWidget, type HistoryView } from "../widgets/LibraryWidgets";
 import { QuickAccessWidget } from "../widgets/QuickAccessWidget";
 import { TabsWidget } from "../widgets/TabsWidget";
 import { TextWidget } from "../widgets/TextWidget";
 import { TitleWidget } from "../widgets/TitleWidget";
 import { SearchBar } from "./SearchBar";
 
+/** Ce que les blocs de l'accueil d'un profil affichent. */
+export interface HomeContext {
+  brave: Brave;
+  theme: HomeTheme;
+  profile: { id: string; name: string };
+  history: HistoryView;
+  onShowAllBookmarks: () => void;
+}
+
 /** Contenu de chaque bloc de l'accueil. Pour ajouter un type de bloc : layout.ts puis ici. */
-export function renderBlock(block: Block, brave: Brave, theme: HomeTheme, onShowAllBookmarks: () => void) {
+export function renderBlock(block: Block, { brave, theme, profile, history, onShowAllBookmarks }: HomeContext) {
   switch (block.kind) {
-    case "title": return <TitleWidget theme={theme} block={block} />;
+    case "title": return <TitleWidget theme={theme} block={block} profileName={profile.name} />;
     case "clock": return <ClockWidget block={block} />;
     case "search": return <SearchBar send={brave.send} style={block.style} />;
     case "activeTab": return <ActiveTabWidget brave={brave} />;
     case "tabs": return <TabsWidget brave={brave} />;
     case "bookmarks": return <BookmarksWidget brave={brave} onShowAll={onShowAllBookmarks} />;
-    case "quickAccess": return <QuickAccessWidget brave={brave} />;
+    case "quickAccess": return <QuickAccessWidget brave={brave} profile={profile.id} />;
+    case "history": return <HistoryWidget brave={brave} history={history} />;
+    case "clipboard": return <ClipboardWidget brave={brave} />;
+    case "notes": return <NotesWidget profile={profile.id} />;
     case "text": return <TextWidget block={block} />;
   }
 }

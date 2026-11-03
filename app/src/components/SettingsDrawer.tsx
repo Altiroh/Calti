@@ -1,17 +1,21 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { BraveInstall } from "../brave/useBraveInstalls";
 import type { ProfileId } from "../browser/useBrowser";
-import { deleteBackground, saveBackground } from "../settings/backgrounds";
+import { deleteBackground, saveAvatar, saveBackground } from "../settings/backgrounds";
 import {
-  BACKGROUND_KEY, defaultChrome, fonts, profileIcons, searchEngines, useSettings,
-  type BarSurface, type ChromeSettings, type FontName, type SearchEngine,
+  BACKGROUND_KEY, barWidgetLabels, defaultChrome, fonts, meshes, profileIcons, profileImageKey, searchEngines, useSettings,
+  type AvatarKind, type BarSurface, type BarWidget, type ChromeSettings, type FontName, type MeshName, type ProfileSettings,
+  type SearchEngine,
 } from "../settings/settings";
+import { AppearancePresets } from "./AppearancePresets";
+import { BraveImport } from "./BraveImport";
 import { Check, ColorField, Section, Segmented, Slider } from "./Controls";
 import { Drawer } from "./Drawer";
-import { Icon } from "./Icon";
+import { Icon, type IconName } from "./Icon";
 import { ProfileBadge } from "./ProfileBadge";
 
-export type SettingsTab = "appearance" | "interface" | "profiles";
+/** Général (extensions, raccourcis), Profils, Apparence (cohérence graphique de toute l'application). */
+export type SettingsTab = "general" | "profiles" | "appearance";
 
 interface Props {
   open: boolean;
@@ -26,24 +30,127 @@ interface Props {
   onEditLayout: () => void;
 }
 
+const tabs: [SettingsTab, string, IconName][] = [["general", "Général", "puzzle"], ["profiles", "Profils", "user"], ["appearance", "Apparence", "palette"]];
+
 export function SettingsDrawer({ open, tab, onTab, installs, bookmarkSources, onClose, onEditLayout }: Props) {
   return (
     <Drawer open={open} title="Réglages" onClose={onClose}>
-      <div className="settings__tabs">
-        <Segmented value={tab} onChange={onTab} options={[["appearance", "Apparence"], ["interface", "Interface"], ["profiles", "Profils"]]} />
+      <nav className="settings-tabs" role="tablist">
+        {tabs.map(([id, label, icon]) => (
+          <button key={id} role="tab" aria-selected={tab === id} className={`settings-tabs__tab${tab === id ? " settings-tabs__tab--on" : ""}`}
+            onClick={() => onTab(id)}>
+            <Icon name={icon} size={15} /> {label}
+          </button>
+        ))}
+      </nav>
+      <div className="settings-page" key={tab}>
+        {tab === "general" && <General />}
+        {tab === "profiles" && <Profiles installs={installs} bookmarkSources={bookmarkSources} />}
+        {tab === "appearance" && <Appearance onEditLayout={onEditLayout} />}
       </div>
-      {tab === "appearance" && <Appearance onEditLayout={onEditLayout} />}
-      {tab === "interface" && <InterfaceSettings />}
-      {tab === "profiles" && <Profiles installs={installs} bookmarkSources={bookmarkSources} />}
     </Drawer>
   );
 }
 
-/** Style de Calti, commun à tous les profils et à toutes les fenêtres. */
+/* --- Général ------------------------------------------------------------------ */
+
+/** Extensions de Calti : icône, couleur et description ; activées, elles ont leur raccourci dans la barre latérale. */
+const extensions: { id: BarWidget; icon: IconName; colors: [string, string]; description: string }[] = [
+  { id: "clipboard", icon: "clipboard", colors: ["#ff9a44", "#ff5f6d"], description: "Textes, liens et images copiés récemment." },
+  { id: "history", icon: "history", colors: ["#4facfe", "#2f5fa8"], description: "Pages visitées par le profil, avec un filtre." },
+  { id: "notes", icon: "notes", colors: ["#ffd166", "#f4a261"], description: "Bloc-notes du profil, enregistré au fil de la frappe." },
+  { id: "ruler", icon: "ruler", colors: ["#ff3d7f", "#a259ff"], description: "Règles, repères et grille de colonnes sur la page." },
+  { id: "bookmarks", icon: "star", colors: ["#f9d423", "#f7971e"], description: "Favoris de Calti et de Brave." },
+  { id: "tabs", icon: "tabs", colors: ["#43e97b", "#1f8c8c"], description: "Onglets ouverts du profil." },
+];
+
+const shortcuts: [string, string][] = [
+  ["Ctrl+T", "Nouvel onglet"], ["Ctrl+W", "Fermer l'onglet"], ["Ctrl+Tab", "Onglet suivant"], ["Ctrl+L · F6", "Barre d'adresse"],
+  ["F5 · Ctrl+R", "Recharger"], ["Ctrl+F5", "Recharger sans le cache"], ["Ctrl+D", "Favori"], ["Ctrl+N", "Nouvelle fenêtre"],
+  ["F11", "Plein écran"], ["Clic molette", "Lien en arrière-plan"],
+];
+
+function General() {
+  const { theme, updateTheme } = useSettings();
+  const c = theme.chrome;
+  const active = new Set(c.railWidgets);
+  const toggle = (id: BarWidget) =>
+    updateTheme({ chrome: { ...c, railWidgets: active.has(id) ? c.railWidgets.filter((w) => w !== id) : [...c.railWidgets, id] } });
+
+  return (
+    <>
+      <Section title={`Extensions · ${active.size} active${active.size > 1 ? "s" : ""}`}>
+        <div className="ext-grid">
+          {extensions.map((e) => {
+            const on = active.has(e.id);
+            return (
+              <button key={e.id} className={`ext${on ? " ext--on" : ""}`} role="switch" aria-checked={on} onClick={() => toggle(e.id)}
+                style={{ "--ext-a": e.colors[0], "--ext-b": e.colors[1] } as CSSProperties}>
+                <span className="ext__icon"><Icon name={e.icon} size={18} /></span>
+                <span className="ext__text">
+                  <strong>{barWidgetLabels[e.id]}</strong>
+                  <span>{e.description}</span>
+                </span>
+                <span className="ext__switch" aria-hidden="true" />
+              </button>
+            );
+          })}
+        </div>
+        <p className="settings__hint">Une extension activée a son raccourci dans la barre latérale ; elle s'ouvre à côté de la page.</p>
+      </Section>
+
+      <Section title="Raccourcis clavier">
+        <dl className="keys">
+          {shortcuts.map(([keys, label]) => (
+            <div key={keys} className="keys__row"><dt><kbd>{keys}</kbd></dt><dd>{label}</dd></div>
+          ))}
+        </dl>
+        <p className="settings__hint">Clic droit sur la barre du haut, un onglet ou le bouton Recharger : menus d'actions.</p>
+      </Section>
+
+      <Section title="À propos">
+        <p className="settings__hint">
+          Calti · navigateur personnel sur WebView2. Chaque profil garde ses onglets, connexions et mots de passe dans son
+          propre dossier ; rien ne quitte cet ordinateur.
+        </p>
+      </Section>
+    </>
+  );
+}
+
+/* --- Apparence ----------------------------------------------------------------- */
+
+/** Groupe repliable : un seul ouvert à la fois, pour garder le panneau lisible. */
+function Group({ icon, title, color, open, onToggle, children }: {
+  icon: IconName; title: string; color: string; open: boolean; onToggle: () => void; children: ReactNode;
+}) {
+  return (
+    <section className={`sgroup${open ? " sgroup--open" : ""}`} style={{ "--group-color": color } as CSSProperties}>
+      <button className="sgroup__head" aria-expanded={open} onClick={onToggle}>
+        <span className="sgroup__icon"><Icon name={icon} size={15} /></span>
+        <span className="sgroup__title">{title}</span>
+        <span className="sgroup__chevron"><Icon name="chevron" size={13} /></span>
+      </button>
+      <div className="sgroup__drawer">
+        <div className="sgroup__body">{children}</div>
+      </div>
+    </section>
+  );
+}
+
+/** Style de Calti, commun à tous les profils et à toutes les fenêtres : fond, couleurs, accueil, barres, onglets. */
 function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
-  const { theme, updateTheme: set } = useSettings();
+  const { theme, updateTheme } = useSettings();
+  const set = updateTheme;
+  const c = theme.chrome;
+  const setChrome = (patch: Partial<ChromeSettings>) => updateTheme({ chrome: { ...c, ...patch } });
+  const [openGroup, setOpenGroup] = useState<string | null>("presets");
+  const group = (id: string) => ({ open: openGroup === id, onToggle: () => setOpenGroup((g) => (g === id ? null : id)) });
   const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const px = (v: number) => `${v} px`;
+  const pct = (v: number) => `${Math.round(v * 100)} %`;
+  const surfaces: [BarSurface, string][] = [["glass", "Verre"], ["solid", "Plein"], ["none", "Aucun fond"]];
 
   const pickImage = async (file: File | undefined) => {
     if (!file) return;
@@ -58,8 +165,12 @@ function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
   };
 
   return (
-    <>
-      <Section title="Fond">
+    <div className="sgroups">
+      <Group icon="spark" title="Préréglages" color="#ff3d7f" {...group("presets")}>
+        <AppearancePresets />
+      </Group>
+
+      <Group icon="image" title="Fond et ambiance" color="#4facfe" {...group("background")}>
         <div className="settings__row">
           <button className="btn" disabled={busy} onClick={() => fileInput.current?.click()}>
             {busy ? "Import…" : theme.background ? "Changer l'image" : "Choisir une image"}
@@ -73,100 +184,162 @@ function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
           <input ref={fileInput} type="file" accept="image/*" hidden
             onChange={(e) => { pickImage(e.target.files?.[0]); e.target.value = ""; }} />
         </div>
-        <Segmented value={theme.tone} onChange={(tone) => set({ tone })}
-          options={[["dark", "Fond clair"], ["light", "Fond sombre"]]} />
-        <Slider label="Flou" value={theme.blur} min={0} max={20} step={1} format={(v) => `${v} px`}
-          onChange={(blur) => set({ blur })} />
-        <Slider label="Voile" value={theme.dim} min={0} max={0.7} step={0.05} format={(v) => `${Math.round(v * 100)} %`}
-          onChange={(dim) => set({ dim })} />
+        <Segmented value={theme.tone} onChange={(tone) => set({ tone })} options={[["dark", "Fond clair"], ["light", "Fond sombre"]]} />
+        <Slider label="Flou" value={theme.blur} min={0} max={20} step={1} format={px} onChange={(blur) => set({ blur })} />
+        <Slider label="Voile" value={theme.dim} min={0} max={0.7} step={0.05} format={pct} onChange={(dim) => set({ dim })} />
         <ColorField label="Teinte" value={theme.tint === "#080e1a" ? undefined : theme.tint}
           onChange={(tint) => set({ tint: tint ?? "#080e1a" })} />
-        <Slider label="Vignette" value={theme.vignette} min={0} max={0.9} step={0.05}
-          format={(v) => `${Math.round(v * 100)} %`} onChange={(vignette) => set({ vignette })} />
-        <Slider label="Grain" value={theme.grain} min={0} max={0.6} step={0.05}
-          format={(v) => `${Math.round(v * 100)} %`} onChange={(grain) => set({ grain })} />
+        <Slider label="Vignette" value={theme.vignette} min={0} max={0.9} step={0.05} format={pct} onChange={(vignette) => set({ vignette })} />
+        <Slider label="Grain" value={theme.grain} min={0} max={0.6} step={0.05} format={pct} onChange={(grain) => set({ grain })} />
         <Check label="Halo de lumière venant du haut" checked={theme.spotlight} onChange={(spotlight) => set({ spotlight })} />
-      </Section>
+      </Group>
 
-      <Section title="Couleurs et verre">
+      <Group icon="palette" title="Couleurs et verre" color="#a259ff" {...group("colors")}>
         <ColorField label="Accent" value={theme.accent} optional={false} onChange={(accent) => accent && set({ accent })} />
-        <Slider label="Opacité" value={theme.glassOpacity} min={0.15} max={0.8} step={0.05}
-          format={(v) => `${Math.round(v * 100)} %`} onChange={(glassOpacity) => set({ glassOpacity })} />
-      </Section>
+        <Slider label="Opacité du verre" value={theme.glassOpacity} min={0.15} max={0.8} step={0.05} format={pct}
+          onChange={(glassOpacity) => set({ glassOpacity })} />
+        <Segmented<FontName> value={theme.font} onChange={(font) => set({ font })}
+          options={Object.entries(fonts).map(([k, f]) => [k as FontName, f.label])} />
+      </Group>
 
-      <Section title="Accueil">
-        <textarea className="field" rows={2} value={theme.headline} placeholder="Titre (vide : salutation selon l'heure)"
+      <Group icon="home" title="Accueil" color="#43e97b" {...group("home")}>
+        <textarea className="field" rows={2} value={theme.headline} placeholder="Titre (vide : « Bonjour, profil. »)"
           onChange={(e) => set({ headline: e.target.value })} />
         <input className="field" value={theme.tagline} placeholder="Sous-titre (facultatif)"
           onChange={(e) => set({ tagline: e.target.value })} />
-        <Segmented<FontName> value={theme.font} onChange={(font) => set({ font })}
-          options={Object.entries(fonts).map(([k, f]) => [k as FontName, f.label])} />
-        <button className="btn" onClick={onEditLayout}>Modifier la disposition</button>
-      </Section>
-    </>
-  );
-}
+        <button className="btn" onClick={onEditLayout}>Modifier la disposition et les widgets</button>
+      </Group>
 
-/** Habillage autour des pages : barres, onglets, fenêtre, et CSS libre pour le reste. */
-function InterfaceSettings() {
-  const { theme, updateTheme } = useSettings();
-  const c = theme.chrome;
-  const set = (patch: Partial<ChromeSettings>) => updateTheme({ chrome: { ...c, ...patch } });
-  const px = (v: number) => `${v} px`;
-  const surfaces: [BarSurface, string][] = [["glass", "Verre"], ["solid", "Plein"], ["none", "Aucun fond"]];
-
-  return (
-    <>
-      <Section title="Barre du haut">
-        <Segmented value={c.barStyle} onChange={(barStyle) => set({ barStyle })}
+      <Group icon="window" title="Barre du haut" color="#ff9a44" {...group("bar")}>
+        <Segmented value={c.barStyle} onChange={(barStyle) => setChrome({ barStyle })}
           options={[["floating", "Flottante"], ["attached", "Collée au bord"]]} />
-        <Segmented value={c.barSurface} onChange={(barSurface) => set({ barSurface })} options={surfaces} />
-        <Slider label="Arrondi" value={c.barRadius} min={0} max={28} step={1} format={px} onChange={(barRadius) => set({ barRadius })} />
-        <Slider label="Hauteur" value={c.barHeight} min={36} max={64} step={2} format={px} onChange={(barHeight) => set({ barHeight })} />
-      </Section>
+        <Segmented value={c.barSurface} onChange={(barSurface) => setChrome({ barSurface })} options={surfaces} />
+        <Segmented value={c.addressWidth} onChange={(addressWidth) => setChrome({ addressWidth })}
+          options={[["s", "Adresse courte"], ["m", "Moyenne"], ["l", "Large"]]} />
+        <Slider label="Arrondi" value={c.barRadius} min={0} max={28} step={1} format={px} onChange={(barRadius) => setChrome({ barRadius })} />
+        <Slider label="Hauteur" value={c.barHeight} min={36} max={64} step={2} format={px} onChange={(barHeight) => setChrome({ barHeight })} />
+        <div className="settings__checks">
+          <Check label="Précédent / suivant" checked={c.barButtons.nav} onChange={(nav) => setChrome({ barButtons: { ...c.barButtons, nav } })} />
+          <Check label="Recharger" checked={c.barButtons.reload} onChange={(reload) => setChrome({ barButtons: { ...c.barButtons, reload } })} />
+          <Check label="Favori ★" checked={c.barButtons.star} onChange={(star) => setChrome({ barButtons: { ...c.barButtons, star } })} />
+          <Check label="Détacher" checked={c.barButtons.detach} onChange={(detach) => setChrome({ barButtons: { ...c.barButtons, detach } })} />
+        </div>
+      </Group>
 
-      <Section title="Barre latérale">
-        <Segmented value={c.railStyle} onChange={(railStyle) => set({ railStyle })}
-          options={[["floating", "Flottante"], ["attached", "Collée au bord"]]} />
-        <Segmented value={c.railSurface} onChange={(railSurface) => set({ railSurface })} options={surfaces} />
-        <Slider label="Arrondi" value={c.railRadius} min={0} max={36} step={1} format={px} onChange={(railRadius) => set({ railRadius })} />
-        <p className="settings__hint">Largeur : tirer le bord droit de la barre (double-clic : icônes seules ou large).</p>
-      </Section>
+      <Group icon="sidebar" title="Barre latérale" color="#0b0d10" {...group("rail")}>
+        <Segmented value={c.railStyle} onChange={(railStyle) => setChrome({ railStyle })}
+          options={[["edge", "Bord renflé"], ["floating", "Flottante"], ["attached", "Collée au bord"]]} />
+        {c.railStyle === "edge" ? (
+          <>
+            <Segmented value={c.edgeSurface} onChange={(edgeSurface) => setChrome({ edgeSurface })}
+              options={[["color", "Couleur"], ["glass", "Verre"], ["none", "Sans fond"]]} />
+            {c.edgeSurface === "color" && (
+              <ColorField label="Couleur du bord" value={c.edgeColor} optional={false} onChange={(edgeColor) => edgeColor && setChrome({ edgeColor })} />
+            )}
+            {c.edgeSurface !== "none" && (
+              <Slider label="Opacité" value={c.edgeOpacity ?? (c.edgeSurface === "color" ? 1 : theme.glassOpacity)}
+                min={0.05} max={1} step={0.05} format={pct} onChange={(edgeOpacity) => setChrome({ edgeOpacity })} />
+            )}
+          </>
+        ) : (
+          <Segmented value={c.railSurface} onChange={(railSurface) => setChrome({ railSurface })} options={surfaces} />
+        )}
+        <Slider label="Arrondi" value={c.railRadius} min={0} max={36} step={1} format={px} onChange={(railRadius) => setChrome({ railRadius })} />
+        <p className="settings__hint">Les raccourcis de la barre se choisissent dans Général → Extensions.</p>
+      </Group>
 
-      <Section title="Onglets">
-        <Segmented value={c.tabActive} onChange={(tabActive) => set({ tabActive })}
-          options={[["filled", "Onglet actif plein"], ["outline", "Contour"], ["underline", "Souligné"]]} />
-        <Segmented value={c.tabClose} onChange={(tabClose) => set({ tabClose })}
+      <Group icon="tabs" title="Onglets" color="#1f8c8c" {...group("tabs")}>
+        <Segmented value={c.tabActive} onChange={(tabActive) => setChrome({ tabActive })}
+          options={[["filled", "Actif plein"], ["outline", "Contour"], ["underline", "Souligné"]]} />
+        <Segmented value={c.tabClose} onChange={(tabClose) => setChrome({ tabClose })}
           options={[["hover", "Fermer au survol"], ["always", "Toujours"], ["never", "Jamais"]]} />
-        <Check label="Icônes seules (sans titre)" checked={c.tabIconsOnly} onChange={(tabIconsOnly) => set({ tabIconsOnly })} />
-        <Slider label="Arrondi" value={c.tabRadius} min={0} max={18} step={1} format={px} onChange={(tabRadius) => set({ tabRadius })} />
-        <Slider label="Largeur" value={c.tabMaxWidth} min={100} max={320} step={10} format={px} onChange={(tabMaxWidth) => set({ tabMaxWidth })} />
-        <p className="settings__hint">Groupes : clic droit sur un onglet → « Nouveau groupe » ; clic sur la pastille du groupe pour le replier.</p>
-      </Section>
+        <Check label="Icônes seules (sans titre)" checked={c.tabIconsOnly} onChange={(tabIconsOnly) => setChrome({ tabIconsOnly })} />
+        <Slider label="Arrondi" value={c.tabRadius} min={0} max={18} step={1} format={px} onChange={(tabRadius) => setChrome({ tabRadius })} />
+        <Slider label="Largeur" value={c.tabMaxWidth} min={100} max={320} step={10} format={px} onChange={(tabMaxWidth) => setChrome({ tabMaxWidth })} />
+      </Group>
 
-      <Section title="Fenêtre et pages">
-        <Slider label="Marges" value={c.windowPadding} min={0} max={32} step={1} format={px} onChange={(windowPadding) => set({ windowPadding })} />
-        <Slider label="Espacement" value={c.gap} min={0} max={28} step={1} format={px} onChange={(gap) => set({ gap })} />
-        <Slider label="Pages" value={c.pageRadius} min={0} max={32} step={1} format={px} onChange={(pageRadius) => set({ pageRadius })} />
-        <Check label="Animations" checked={c.motion} onChange={(motion) => set({ motion })} />
-      </Section>
+      <Group icon="layout" title="Fenêtre et pages" color="#2f5fa8" {...group("window")}>
+        <Slider label="Marges" value={c.windowPadding} min={0} max={32} step={1} format={px} onChange={(windowPadding) => setChrome({ windowPadding })} />
+        <Slider label="Espacement" value={c.gap} min={0} max={28} step={1} format={px} onChange={(gap) => setChrome({ gap })} />
+        <Slider label="Arrondi des pages" value={c.pageRadius} min={0} max={32} step={1} format={px} onChange={(pageRadius) => setChrome({ pageRadius })} />
+        <Check label="Animations" checked={c.motion} onChange={(motion) => setChrome({ motion })} />
+      </Group>
 
-      <Section title="CSS personnalisé">
-        <p className="settings__hint">Pour ajuster le moindre détail : appliqué en direct, après tous les styles de Calti.</p>
+      <Group icon="code" title="Avancé" color="#5f6368" {...group("advanced")}>
+        <p className="settings__hint">CSS libre, appliqué en direct après tous les styles de Calti.</p>
         <textarea className="field field--code" rows={7} spellCheck={false} value={c.customCss}
           placeholder={".ptab { font-size: 14px; }\n.rail { opacity: .9; }"}
-          onChange={(e) => set({ customCss: e.target.value })} />
+          onChange={(e) => setChrome({ customCss: e.target.value })} />
         <button className="btn btn--ghost" onClick={() => updateTheme({ chrome: defaultChrome })}>Interface par défaut</button>
-      </Section>
+      </Group>
+    </div>
+  );
+}
+
+/* --- Profils ------------------------------------------------------------------- */
+
+/** Pastille du profil : couleur, dégradé classique, dégradé multicolore ou image. */
+function AvatarSettings({ profile: p, onChange }: { profile: ProfileSettings; onChange: (patch: Partial<ProfileSettings>) => void }) {
+  const file = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const kind = p.avatar ?? "color";
+  const choose = async (f: File | undefined) => {
+    if (!f) return;
+    try {
+      await saveAvatar(profileImageKey(p.id), f);
+      setError(null);
+      onChange({ avatar: "image", image: Date.now() });
+    } catch {
+      setError("Image illisible.");
+    }
+  };
+  return (
+    <>
+      <Segmented<AvatarKind> value={kind} onChange={(avatar) => (avatar === "image" && !p.image ? file.current?.click() : onChange({ avatar }))}
+        options={[["color", "Couleur"], ["gradient", "Dégradé"], ["mesh", "Multicolore"], ["image", "Image"]]} />
+      {kind === "gradient" && (
+        <ColorField label="Seconde couleur" value={p.color2 ?? "#a259ff"} optional={false} onChange={(color2) => color2 && onChange({ color2 })} />
+      )}
+      {kind === "mesh" && (
+        <div className="icon-grid">
+          {(Object.keys(meshes) as MeshName[]).map((mesh) => (
+            <button key={mesh} className={`icon-grid__item${(p.mesh ?? "aurore") === mesh ? " icon-grid__item--on" : ""}`}
+              title={mesh} onClick={() => onChange({ mesh })}>
+              <ProfileBadge profile={{ ...p, avatar: "mesh", mesh, icon: " " }} size={26} />
+            </button>
+          ))}
+        </div>
+      )}
+      {kind === "image" && (
+        <div className="settings__row">
+          <button className="btn" onClick={() => file.current?.click()}>Changer l'image</button>
+          <button className="btn btn--ghost" onClick={async () => {
+            await deleteBackground(profileImageKey(p.id)).catch(() => {});
+            onChange({ avatar: "color", image: null });
+          }}>Retirer</button>
+        </div>
+      )}
+      {error && <p className="settings__hint">{error}</p>}
+      <input ref={file} type="file" accept="image/*" hidden onChange={(e) => { choose(e.target.files?.[0]); e.target.value = ""; }} />
     </>
   );
 }
 
-/** Profils : création, préférences, suppression. */
+/** Bloc d'une fiche de profil, avec son titre. */
+function Block({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="pblock">
+      <div className="pblock__title">{title}</div>
+      {children}
+    </div>
+  );
+}
+
 function Profiles({ installs, bookmarkSources }: { installs: BraveInstall[]; bookmarkSources: Record<ProfileId, string | null> }) {
   const { profileIds, profile, updateProfile, createProfile, deleteProfile } = useSettings();
   const [openId, setOpenId] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
 
   const create = () => {
     const name = newName.trim();
@@ -182,6 +355,7 @@ function Profiles({ installs, bookmarkSources }: { installs: BraveInstall[]; boo
         {profileIds.map((id) => {
           const p = profile(id);
           const expanded = openId === id;
+          const update = (patch: Partial<ProfileSettings>) => updateProfile(id, patch);
           return (
             <div key={id} className={`pcard${expanded ? " pcard--open" : ""}`}>
               <button className="pcard__head" onClick={() => setOpenId(expanded ? null : id)} aria-expanded={expanded}>
@@ -193,50 +367,63 @@ function Profiles({ installs, bookmarkSources }: { installs: BraveInstall[]; boo
 
               {expanded && (
                 <div className="pcard__body">
-                  <input className="field" value={p.name} placeholder="Nom du profil"
-                    onChange={(e) => updateProfile(id, { name: e.target.value })} />
+                  <Block title="Identité">
+                    <input className="field" value={p.name} placeholder="Nom du profil" onChange={(e) => update({ name: e.target.value })} />
+                    <div className="icon-grid">
+                      {profileIcons.map((icon) => (
+                        <button key={icon || "initiales"} className={`icon-grid__item${p.icon === icon ? " icon-grid__item--on" : ""}`}
+                          title={icon ? icon : "Initiales"} onClick={() => update({ icon })}>
+                          {icon || p.name.slice(0, 2)}
+                        </button>
+                      ))}
+                    </div>
+                    <ColorField label="Couleur" value={p.color} optional={false} onChange={(color) => color && update({ color })} />
+                    <AvatarSettings profile={p} onChange={update} />
+                  </Block>
 
-                  <div className="pcard__label">Icône</div>
-                  <div className="icon-grid">
-                    {profileIcons.map((icon) => (
-                      <button key={icon || "initiales"} className={`icon-grid__item${p.icon === icon ? " icon-grid__item--on" : ""}`}
-                        title={icon ? icon : "Initiales"} onClick={() => updateProfile(id, { icon })}>
-                        {icon || p.name.slice(0, 2)}
-                      </button>
-                    ))}
-                  </div>
+                  <Block title="Navigation">
+                    <label className="pblock__field">
+                      <span>Moteur de recherche</span>
+                      <select className="field" value={p.search} onChange={(e) => update({ search: e.target.value as SearchEngine })}>
+                        {Object.entries(searchEngines).map(([k, e]) => <option key={k} value={k}>{e.label}</option>)}
+                      </select>
+                    </label>
+                    <Segmented value={p.startPage === "home" ? "home" : "url"}
+                      onChange={(v) => update({ startPage: v === "home" ? "home" : "https://" })}
+                      options={[["home", "Nouvel onglet : accueil"], ["url", "Une adresse"]]} />
+                    {p.startPage !== "home" && (
+                      <input className="field" value={p.startPage} placeholder="https://…" spellCheck={false}
+                        onChange={(e) => update({ startPage: e.target.value })} />
+                    )}
+                  </Block>
 
-                  <ColorField label="Couleur" value={p.color} optional={false} onChange={(color) => color && updateProfile(id, { color })} />
+                  <Block title="Brave">
+                    <label className="pblock__field">
+                      <span>Profil Brave associé</span>
+                      <select className="field" value={bookmarkSources[id] ?? ""} onChange={(e) => update({ bookmarksFrom: e.target.value || null })}>
+                        <option value="">Aucun</option>
+                        {installs.map((i) => <option key={i.dir} value={i.dir}>{i.name}</option>)}
+                      </select>
+                    </label>
+                    <BraveImport profile={id} braveDir={bookmarkSources[id] ?? null} />
+                  </Block>
 
-                  <div className="pcard__label">Moteur de recherche</div>
-                  <select className="field" value={p.search} onChange={(e) => updateProfile(id, { search: e.target.value as SearchEngine })}>
-                    {Object.entries(searchEngines).map(([k, e]) => <option key={k} value={k}>{e.label}</option>)}
-                  </select>
-
-                  <div className="pcard__label">Nouvel onglet</div>
-                  <Segmented value={p.startPage === "home" ? "home" : "url"}
-                    onChange={(v) => updateProfile(id, { startPage: v === "home" ? "home" : "https://" })}
-                    options={[["home", "Accueil de Calti"], ["url", "Une adresse"]]} />
-                  {p.startPage !== "home" && (
-                    <input className="field" value={p.startPage} placeholder="https://…" spellCheck={false}
-                      onChange={(e) => updateProfile(id, { startPage: e.target.value })} />
-                  )}
-
-                  <div className="pcard__label">Favoris (lus dans Brave, lecture seule)</div>
-                  <select className="field" value={bookmarkSources[id] ?? ""}
-                    onChange={(e) => updateProfile(id, { bookmarksFrom: e.target.value || null })}>
-                    <option value="">Aucun</option>
-                    {installs.map((i) => <option key={i.dir} value={i.dir}>Brave · {i.name}</option>)}
-                  </select>
-
-                  {profileIds.length > 1 && (
-                    <button className="btn btn--danger" onClick={() => {
-                      if (window.confirm(`Retirer le profil « ${p.name} » ? Ses onglets ouverts restent ouverts jusqu'à leur fermeture ; ses données de navigation restent sur le disque.`)) {
-                        deleteProfile(id);
-                        setOpenId(null);
-                      }
-                    }}>Retirer ce profil</button>
-                  )}
+                  {/* Confirmation sur place : une boîte de dialogue du navigateur passerait sous les pages. */}
+                  {profileIds.length > 1 && (confirmRemove === id ? (
+                    <div className="pblock pblock--danger">
+                      <p className="settings__hint">
+                        Retirer « {p.name} » ? Ses onglets restent ouverts jusqu'à leur fermeture ; ses données de navigation restent sur le disque.
+                      </p>
+                      <div className="settings__row">
+                        <button className="btn btn--danger" onClick={() => { deleteProfile(id); setOpenId(null); setConfirmRemove(null); }}>
+                          Confirmer le retrait
+                        </button>
+                        <button className="btn btn--ghost" onClick={() => setConfirmRemove(null)}>Annuler</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button className="btn btn--ghost pcard__remove" onClick={() => setConfirmRemove(id)}>Retirer ce profil…</button>
+                  ))}
                 </div>
               )}
             </div>

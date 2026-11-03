@@ -54,3 +54,15 @@
 button:active:not(:disabled) {
   transition-timing-function: cubic-bezier(0.3, 1.6, 0.5, 1);
 }
+
+/* Décor caché (pages affichées, fenêtre réduite) : ses animations s'arrêtent. */
+:root[data-browsing] .scenery,
+:root[data-browsing] .scenery *,
+:root[data-hidden] * {
+  animation-play-state: paused !important;
+}
+
+:root[data-browsing] .scenery__image,
+:root[data-browsing] .scenery__mountain {
+  transition: none;
+}

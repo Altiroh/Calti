@@ -40,6 +40,7 @@ export type Command =
   | { type: "activateTab"; tabId: number }
   | { type: "closeTab"; tabId: number }
   | { type: "newTab" }
-  | { type: "openUrl"; url: string }
+  /** `where` : onglet affiché, nouvel onglet (par défaut) ou nouvel onglet en arrière-plan. */
+  | { type: "openUrl"; url: string; where?: "current" | "new" | "background" }
   | { type: "search"; text: string }
   | { type: "navigate"; action: NavAction };

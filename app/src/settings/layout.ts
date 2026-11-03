@@ -1,8 +1,11 @@
 // Disposition de l'accueil : grille de 12 colonnes, rangées de hauteur fixe.
 // Chaque bloc a une place, une taille et un style ; les blocs « texte » peuvent être ajoutés à volonté.
 
-export type BlockKind = "title" | "clock" | "search" | "activeTab" | "tabs" | "bookmarks" | "quickAccess" | "text";
+export type BlockKind =
+  | "title" | "clock" | "search" | "activeTab" | "tabs" | "bookmarks" | "quickAccess" | "history" | "clipboard" | "notes" | "text";
 export type BuiltinId = Exclude<BlockKind, "text">;
+
+export type ClockStyle = "classic" | "labels" | "flip" | "capsule" | "orbit" | "hologram" | "neon" | "matrix";
 
 export type Surface = "glass" | "glass-dark" | "solid" | "none";
 export type TextFont = "moderne" | "editorial" | "condense" | "mono";
@@ -45,8 +48,15 @@ export interface BlockStyle {
   button?: boolean;
   placeholder?: string;
 
+  // Accueil (salutation)
+  /** Nom du profil après la salutation (« Bonjour, Pro. »). */
+  showProfile?: boolean;
+
   // Horloge
   showDate?: boolean;
+  /** Style de l’horloge (voir widgets/clockStyles). */
+  clockStyle?: ClockStyle;
+  showSeconds?: boolean;
 }
 
 export interface Block {
@@ -66,16 +76,19 @@ export type Layout = Record<string, Block>;
 
 export const GRID = { cols: 12, row: 28, gap: 16 };
 
-export const builtinIds: BuiltinId[] = ["title", "clock", "search", "activeTab", "tabs", "bookmarks", "quickAccess"];
+export const builtinIds: BuiltinId[] = ["title", "clock", "search", "activeTab", "tabs", "bookmarks", "quickAccess", "history", "clipboard", "notes"];
 
 export const kindLabels: Record<BlockKind, string> = {
-  title: "Titre",
+  title: "Accueil",
   clock: "Horloge",
   search: "Recherche",
   activeTab: "Onglet actif",
   tabs: "Onglets",
   bookmarks: "Favoris",
   quickAccess: "Accès rapide",
+  history: "Historique",
+  clipboard: "Copies récentes",
+  notes: "Notes",
   text: "Texte",
 };
 
@@ -88,6 +101,9 @@ export const minSize: Record<BlockKind, { w: number; h: number }> = {
   tabs: { w: 3, h: 5 },
   bookmarks: { w: 3, h: 4 },
   quickAccess: { w: 3, h: 5 },
+  history: { w: 3, h: 4 },
+  clipboard: { w: 3, h: 4 },
+  notes: { w: 2, h: 3 },
   text: { w: 1, h: 1 },
 };
 
@@ -99,6 +115,9 @@ export const defaultLayout: Layout = {
   tabs: { kind: "tabs", x: 8, y: 9, w: 4, h: 12 },
   bookmarks: { kind: "bookmarks", x: 0, y: 14, w: 4, h: 7 },
   quickAccess: { kind: "quickAccess", x: 4, y: 14, w: 4, h: 7 },
+  history: { kind: "history", x: 0, y: 21, w: 4, h: 8 },
+  clipboard: { kind: "clipboard", x: 4, y: 21, w: 4, h: 8 },
+  notes: { kind: "notes", x: 8, y: 21, w: 4, h: 8 },
 };
 
 export function blockLabel(block: Block): string {
@@ -147,11 +166,18 @@ export function newTextId(): string {
 export function normalizeLayout(saved: Record<string, Partial<Block>> | undefined): Layout {
   const layout: Layout = {};
   for (const id of builtinIds) {
-    const b = { ...defaultLayout[id], ...saved?.[id], kind: id };
+    if (!saved?.[id]) continue;
+    const b = { ...defaultLayout[id], ...saved[id], kind: id };
     layout[id] = clampBlock(b, b);
   }
   for (const [id, b] of Object.entries(saved ?? {})) {
     if (b.kind === "text") layout[id] = clampBlock(b as Block, b as Block);
+  }
+  // Blocs apparus depuis l'enregistrement : à leur place par défaut si elle est libre, sinon à la première place libre.
+  for (const id of builtinIds) {
+    if (layout[id]) continue;
+    const b = defaultLayout[id];
+    layout[id] = saved && collides(layout, id, b) ? { ...b, ...findFreeSpot(layout, id, b) } : { ...b };
   }
   return layout;
 }

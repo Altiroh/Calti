@@ -155,3 +155,137 @@ Demande : naviguer dans Calti, onglets dans Calti, deux navigateurs simultanés,
   espacements, arrondi des pages (aussi appliqué aux vues natives), animations ; CSS personnalisé appliqué en direct.
 - Vérifié dans une instance isolée (WEBVIEW2_USER_DATA_FOLDER, profil jetable) : création, nommage, couleur,
   ajout, repli du groupe, session ; barre collée sans fond. Corrigé : bouton « + » étiré et onglets écrasés.
+
+## 2026-11-03 — Raccourcis, veille des onglets, widgets, barre personnalisable
+
+- Raccourcis captés aussi quand la page a le focus (`AcceleratorKeyPressed` de WebView2, `src-tauri/src/native.rs`) :
+  F5 / Ctrl+R rechargent, Ctrl+F5, Maj+F5 et Ctrl+Maj+R rechargent sans le cache (`Page.reload` ignoreCache) ;
+  Ctrl+T, W, N, L, D, F6, Ctrl+Tab et Ctrl+Maj+Tab sont transmis à l'interface (`browser:shortcut`).
+  **Non vérifié** : les touches simulées par CDP ne passent pas par ce chemin, et l'envoi de vraies touches a
+  échoué (fenêtre de test pas au premier plan, touches parties vers une autre fenêtre). À essayer à la main.
+- Optimisation : un onglet caché passe en mémoire réduite (`SetMemoryUsageTargetLevel`), puis est suspendu après
+  5 minutes (`TrySuspend`), réveillé à l'affichage ; les onglets restaurés au démarrage ne se chargent qu'une fois
+  affichés (titre et adresse de la session gardés). Décor (brume, grain, parallaxe) en pause quand les pages
+  couvrent tout, et toute animation en pause fenêtre réduite. Vérifié : onglet restauré `sleeping` puis chargé au clic.
+  La suspension après 5 minutes n'a pas été observée.
+- Favoris de Calti par profil (étoile dans l'adresse, Ctrl+D), en tête des favoris Brave. Historique par profil
+  (400 entrées). Vérifié : ajout du favori, historique de deux pages.
+- Barre du haut : adresse plus étroite (S/M/L), clic droit sur un espace libre → réglages sur place (boutons,
+  widgets, largeur d'adresse, fond, flottante/collée). Sans fond, chaque élément garde une pastille de verre.
+- Pastille de profil : couleur, dégradé classique (2 couleurs), dégradé multicolore (7 palettes) ou image
+  (recadrée 256 px, IndexedDB `profile-<id>`).
+- Accueil : « Bonjour, <profil>. » avec texte qui suit la taille du bloc ; nouveaux widgets Historique,
+  Copies récentes, Notes ; horloge en 8 styles (classique, compte à rebours, volets, tambour, orbite, hologramme,
+  néon, matrice). Orbite corrigée et vérifiée ; hologramme corrigé (lignes de balayage), rendu final non revu.
+- Copies récentes (`src-tauri/src/clipboard.rs`) : textes, liens et images copiés dans Windows, 40 au plus ;
+  les contenus marqués privés par les gestionnaires de mots de passe sont ignorés ; bouton pause. Vérifié avec un
+  texte, un lien et une image.
+- Widgets en raccourci dans la barre du haut et dans la barre latérale : le widget s'ouvre à côté de la page,
+  qui se resserre. Vérifié : volet « Copies récentes » (barre du haut) et « Notes » (barre latérale).
+- Mots de passe : vérifié dans l'instance de test, l'identifiant et le mot de passe d'un formulaire local sont
+  enregistrés automatiquement (sans demande) dans `Login Data` du profil. Le préremplissage n'a pas été observé :
+  avec deux comptes pour le même site, Chromium propose la liste au clic sur le champ.
+- Retour utilisateur : les raccourcis de widgets ne restent que dans la barre latérale. Le clic droit sur la
+  barre du haut ouvre un panneau flottant sous la barre (boutons, largeur d'adresse, fond, position) ; les pages
+  sont masquées tant qu'il est ouvert, sinon elles passeraient par-dessus. Vérifié dans l'instance de test.
+- Les boîtes de dialogue du navigateur (`window.confirm`) passent sous les pages natives : « Effacer » (historique,
+  copies récentes) agit directement, et le retrait d'un profil se confirme sur place (deux clics).
+- Historique : clic = onglet affiché, clic molette = nouvel onglet en arrière-plan, clic droit = menu déplié sous
+  la ligne (ouvrir, nouvel onglet, arrière-plan, copier le lien, retirer). `openUrl` accepte `where`.
+  Vérifié dans l'instance de test (événements simulés).
+- Clic droit sur la barre du haut : menu natif de Windows (API menu de Tauri), affiché par-dessus les pages sans
+  les masquer : précédent, suivant, recharger (avec ou sans cache), favori, copier l'adresse, nouvel onglet,
+  nouvelle fenêtre, détacher, « Afficher dans la barre » (cases à cocher), « Personnaliser l'interface… ».
+  Le panneau flottant de réglages est retiré. Vérifié dans l'instance de test (menu affiché sur la page).
+- Barre latérale : boutons « Côte à côte » et « Favoris » retirés. La vue côte à côte passe dans le menu du clic
+  droit de la barre du haut (« Deux profils côte à côte ») ; les favoris restent dans le widget Favoris.
+- Plein écran (F11, y compris depuis une page) : fenêtre en plein écran, barre latérale et barre du haut masquées,
+  pages sans marge ni arrondi. Seul reste le badge du profil, estompé (35 %), en haut à gauche ; au survol il
+  s'élargit en « Quitter le plein écran ». Les pages sont découpées à cet endroit (région Win32 `RGN_DIFF`) pour
+  qu'il reste visible au-dessus d'elles. Vérifié dans l'instance de test : bascule 1320×840 ↔ 1920×1080, badge
+  estompé et état survolé (rendu de l'interface). Non vérifié à l'écran : la découpe dans la page, la fenêtre de
+  test ne pouvant pas passer au premier plan.
+- Onglets : clic droit = menu natif (nouveau groupe…, ajouter au groupe, retirer du groupe, recharger, dupliquer,
+  copier l'adresse, fermer, fermer les autres) ; sur la pastille d'un groupe : nom et couleur…, replier, dissocier,
+  fermer. « Nouveau groupe… » ouvre un dialogue sous l'onglet (nom, couleur de soulignement tirée au hasard),
+  découpé dans les pages (plusieurs découpes par page désormais, avec arrondi). Les actions sur place dans la
+  barre d'onglets sont retirées. Vérifié : dialogue, création du groupe nommé et coloré. Non vérifié à l'écran :
+  la découpe au-dessus d'une page.
+- Barre d'adresse réduite de 60 % au repos (moyenne : ~120 px au lieu de ~310 px), élargie pendant la saisie.
+- Connexion Google depuis Pinterest restait blanche : chaque `window.open` devenait un onglet séparé, sans lien avec
+  la page d'origine (`window.opener`). Les fenêtres surgissantes demandées avec une taille s'ouvrent désormais dans
+  leur propre fenêtre WebView2 (même profil) ; les liens `target=_blank` restent des onglets. Vérifié avec une page
+  locale : la fenêtre surgissante écrit à sa page d'origine puis se ferme ; un lien `_blank` ajoute un onglet.
+  Non vérifié sur Pinterest même.
+- Outil « Règle et grille » (façon Grid Ruler), raccourci de la barre latérale masqué par défaut (Réglages →
+  Interface → widgets en raccourci). Injecté dans les pages affichées (`browser_eval`, shadow DOM, sans innerHTML
+  pour les sites à Trusted Types) : règles haut et gauche, repères tirés des règles (déplaçables, double-clic ou
+  retour sur la règle pour les retirer, gardés par site le temps de la session), coordonnées du pointeur, grille
+  de colonnes (nombre, gouttière, largeur max, marges, couleur, opacité). Vérifié : grille de 12 colonnes,
+  2 règles, repère créé par glisser, repère retrouvé après rechargement, outil retiré à la désactivation.
+  Non confirmé : la mise à jour des coordonnées du pointeur.
+- Plein écran corrigé : la barre latérale masquée laissait le contenu dans sa colonne de 0 px (page invisible).
+  Grille à une seule colonne en plein écran. Vérifié : zone de page 1920×1078 en plein écran.
+- Reprise de Brave (Réglages → Profils → « Reprendre depuis Brave », profil Brave associé au profil Calti) :
+  historique (1000 pages au plus, sans doublon) et sites les plus visités (12, un par domaine, affichés dans
+  l'accès rapide « Les plus visités »), lus dans une copie de la base `History`. Mots de passe : 84 des 85 du profil
+  « Développeur » sont chiffrés en v20 (protection liée à Brave) et ne sont pas contournés ; on passe par l'export
+  CSV de Brave, mis de côté puis importé au lancement suivant, avant WebView2 (base verrouillée sinon), et effacé
+  aussitôt. Réécrits avec la clé du profil Calti, sans doublon (même site, même identifiant). Les connexions
+  (cookies) ne sont pas reprises. Vérifié sur une copie de profil : import CSV, import direct v10, pas de doublon
+  au second passage. Non vérifié : le bouton d'import dans la version installée.
+- Liens : clic molette et Ctrl+clic ouvrent un nouvel onglet en arrière-plan (script de page + message WebView2),
+  le volet reste sur sa page. Clic droit sur un lien : « Ouvrir dans un nouvel onglet » remplace « Ouvrir dans une
+  nouvelle fenêtre ». Vérifié : onglets ajoutés sans changer l'affichage ni naviguer. Non vérifié : le menu du clic
+  droit (natif, non pilotable par les outils de test).
+- Barre latérale « bord renflé » (par défaut, appliquée une fois aux réglages existants) : liseré noir sur le bord
+  gauche, bosse arrondie à hauteur des boutons, raccordée par des congés concaves. Vérifié en capture.
+- Clic droit sur le bouton Recharger : menu natif (recharger, sans le cache, « Vider le cache et recharger » :
+  `Network.clearBrowserCache` puis rechargement sans cache). Le menu contextuel par défaut de WebView2 est coupé
+  sur l'interface (son « Actualiser » rechargeait Calti), sauf dans les champs de saisie. Vérifié : les deux
+  rechargements rechargent la page ; menu par défaut bloqué.
+- Bord renflé : surface au choix (couleur — noir par défaut, contenu clair ou sombre selon la couleur —, verre
+  flouté, sans fond) ; les congés passent en masques radiaux pour que le verre s'y applique ; l'arrondi suit le
+  réglage « Arrondi ». Vérifié en capture : noir, rose clair (icônes sombres), verre, sans fond.
+- Barre des tâches : icône de la fenêtre = badge du profil affiché (image, dégradés, couleur, icône ou
+  initiales, dessiné en PNG), titre « Calti — titre de la page » (ou nom du profil sur l'accueil). Vérifié :
+  titre suivi, badge-image du profil dans la barre des tâches.
+- Bord renflé, arrondi maximal : congé et coin de la bosse se chevauchaient (36 + 36 px > 52 px de bosse), d'où une
+  encoche. Chacun est limité à 26 px (moitié de la bosse hors liseré). Vérifié en capture à 0 et 36.
+- Liste des profils (barre latérale) : ouverture et fermeture fluides (hauteur animée 0 → contenu, profils en
+  cascade) ; la bosse du bord renflé grandit avec. Mesuré : 6 → 46 px en ~400 ms, retour symétrique.
+- Barre d'adresse : suggestions à la frappe — recherches passées du profil (mémorisées à chaque recherche,
+  200 au plus), favoris, historique (sans les pages de résultats du moteur) ; flèches haut/bas, Entrée, clic.
+  La liste est découpée dans la page pour rester visible. Vérifié : mémorisation, classement, sélection au
+  clavier, rendu. Non vérifié à l'écran : la découpe au-dessus d'une page.
+- Bord renflé : réglage d'opacité (couleur comme verre) ; sans réglage, couleur opaque et verre à l'opacité de
+  l'interface. Vérifié en capture : verre 20 % / 90 %, noir 40 %.
+- Barre des tâches, Calti épinglé : Windows affiche l'icône du raccourci et ignore celle de la fenêtre. Le badge
+  du profil est désormais superposé à l'icône (`ITaskbarList3::SetOverlayIcon`, petit badge dans un coin).
+  Vérifié : superposition visible sur l'icône de l'instance de test.
+- Réglages réorganisés en trois onglets : Général (extensions en tuiles colorées avec icône, description et
+  interrupteur — elles déterminent les raccourcis de la barre latérale —, raccourcis clavier, à propos), Profils
+  (fiche en blocs Identité, Navigation, Brave, retrait en bas), Apparence (fond, couleurs, accueil, barre du haut,
+  barre latérale, onglets, fenêtre, avancé, en groupes repliables, un seul ouvert à la fois). Vérifié en capture.
+- Plein écran des vidéos (YouTube…) : WebView2 ne remplissait que la vue de l'onglet. L'événement
+  `ContainsFullScreenElementChanged` passe la fenêtre en plein écran, page seule (sans barres, sans badge, l'autre
+  volet masqué en vue partagée), et la rend à la sortie (sauf si F11 était actif). Vérifié : 1320×840 →
+  1920×1080 (page 1920×1078, marge basse supprimée ensuite) → retour à 1320×840.
+- Préréglages d'apparence (Réglages → Apparence → Préréglages) : enregistrement du style actuel (tout sauf la
+  disposition et les textes de l'accueil ; image de fond copiée à part, clé `preset-<id>`), miniatures dessinées
+  (fond, barre latérale, barre du haut, accent), aperçu au survol sur toute l'application sans enregistrement
+  (aperçu tenu par le contexte des réglages), application au clic, suppression. Vérifié : enregistrement de deux
+  préréglages, aperçu puis retour au style courant, application, suppression.
+- Disque C: plein (0 octet libre) : l'édition de liens de la version release échouait (LNK1108). Libéré 1,2 Go
+  en supprimant le cache incrémental de compilation (`target/debug/incremental`) et un ancien dossier WebView2 de
+  test. Il reste très peu d'espace : à surveiller.
+- Session : chaque fenêtre enregistre ses onglets (`calti.browser` pour la principale, `calti.browser.calti-n`
+  pour les autres). Au lancement, la fenêtre principale rouvre les fenêtres secondaires encore ouvertes à la
+  dernière fermeture, avec leurs onglets ; une fenêtre fermée par l'utilisateur est oubliée. Vérifié : arrêt brutal
+  de l'application puis relance, fenêtres secondaires rouvertes avec leur onglet. La fenêtre principale gardait
+  déjà ses onglets (15 avant, 15 après).
+- Clic molette sur un profil (liste de la barre latérale) : nouvelle fenêtre sur ce profil.
+- Onglets glissés au pointeur : l'onglet suit la souris au-dessus des autres, qui s'écartent ; lâché, il prend
+  sa place (`browser_move`, ordre gardé dans la session ; posé dans un groupe, il le rejoint). Tiré loin de la
+  barre ou hors de la fenêtre, il part seul dans une nouvelle fenêtre. Vérifié avec des mouvements de souris
+  simulés : « un deux trois » → « deux trois un », puis « deux » sorti dans sa propre fenêtre.

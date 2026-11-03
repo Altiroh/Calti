@@ -65,88 +65,31 @@
   box-shadow: var(--shadow-soft), inset 0 -2px 0 var(--group);
 }
 
-/* --- Actions sur place (clic droit) ----------------------------------------- */
-
-.strip--editing {
-  gap: 6px;
-  animation: tab-in 240ms var(--ease) both;
+/* Glisser un onglet : il suit le pointeur au-dessus des autres, qui glissent pour lui faire de la place. */
+.ptab {
+  touch-action: none;
 }
 
-.strip__label {
-  flex: 0 1 auto;
-  max-width: 180px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: 12px;
-  color: var(--text-faint);
+.strip .ptab:not(.ptab--new) {
+  transition: transform 200ms cubic-bezier(0.22, 0.8, 0.24, 1), background var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 
-.strip__action {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 11px;
-  border-radius: 999px;
-  font-size: 12px;
-  color: var(--text);
-  background: var(--surface);
-  white-space: nowrap;
-  transition: background var(--dur) var(--ease);
-}
-
-.strip__action:hover {
+.strip .ptab.ptab--dragging {
+  position: relative;
+  z-index: 3;
+  transition: opacity 160ms var(--ease), scale 160ms var(--ease);
   background: var(--surface-solid);
+  box-shadow: var(--shadow-soft), 0 8px 20px rgba(8, 20, 45, 0.22);
+  cursor: grabbing;
 }
 
-.strip__dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--group);
+/* Tiré loin de la barre : il partira dans une nouvelle fenêtre. */
+.strip .ptab.ptab--detaching {
+  opacity: 0.75;
+  scale: 0.92;
 }
 
-.strip__name {
-  flex: 0 1 180px;
-  min-width: 90px;
-  height: 28px;
-  padding: 0 12px;
-  border-radius: 999px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #fff;
-  background: var(--group);
-}
-
-.strip__name::placeholder {
-  color: rgba(255, 255, 255, 0.75);
-}
-
-.strip__colors {
-  display: flex;
-  gap: 4px;
-}
-
-.strip__color {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  transition: transform 200ms cubic-bezier(0.3, 1.5, 0.5, 1);
-}
-
-.strip__color:hover {
-  transform: scale(1.15);
-}
-
-.strip__color--on {
-  box-shadow: 0 0 0 2px var(--surface-solid), 0 0 0 3.5px var(--text);
-}
-
-.strip__done {
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  margin-left: auto;
+/* Pendant un glisser, la barre d'onglets ne rogne plus l'onglet qui suit le pointeur. */
+.strip:has(.ptab--dragging) {
+  overflow: visible;
 }

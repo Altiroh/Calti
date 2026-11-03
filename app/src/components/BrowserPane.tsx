@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
-import type { Browser } from "../browser/useBrowser";
-import type { ProfileSettings } from "../settings/settings";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent, type ReactNode } from "react";
+import { Menu } from "@tauri-apps/api/menu";
+import type { Suggestion } from "../browser/library";
+import { PANE_EVENT, type Browser, type Cutout } from "../browser/useBrowser";
+import { withTransition } from "../motion";
+import { barWidgetLabels, useSettings, type BarWidget, type ChromeSettings, type ProfileSettings } from "../settings/settings";
 import { dragWindow } from "./dragWindow";
 import { Icon } from "./Icon";
 import { ProfileBadge } from "./ProfileBadge";
@@ -19,38 +22,125 @@ interface Props {
   home: ReactNode;
   /** Boutons de fenêtre, au bout de la barre du volet de droite. */
   controls?: ReactNode;
+  /** Favoris de Calti : la page affichée y est-elle, et bascule. */
+  isBookmarked: (url: string) => boolean;
+  onToggleBookmark: (url: string, title: string) => void;
+  /** Réglages → Interface. */
+  onMoreSettings: () => void;
+  /** Widget ouvert à côté de la page (barre du haut ou barre latérale), et son contenu. */
+  panel: BarWidget | null;
+  onPanel: (kind: BarWidget | null) => void;
+  renderWidget: (kind: BarWidget) => ReactNode;
+  /** Suggestions pour la saisie (recherches passées, favoris, historique du profil). */
+  suggest: (input: string) => Suggestion[];
+  /** Place de la liste de suggestions, retirée des pages pour la laisser voir. */
+  onSuggestRect: (rect: Cutout | null) => void;
 }
 
+/** Éléments de la barre qui gardent leur propre menu (clic droit). */
+const OWN_MENU = "button, a, input, .ptab, .tgroup";
+
 /** Volet de navigation d'un profil : une seule barre (navigation, adresse, onglets), puis le contenu. */
-export function BrowserPane({ browser, profile, split, choices, onChooseProfile, home, controls }: Props) {
+export function BrowserPane({
+  browser, profile, split, choices, onChooseProfile, home, controls, isBookmarked, onToggleBookmark, onMoreSettings, panel, onPanel, renderWidget, suggest, onSuggestRect,
+}: Props) {
   const id = profile.id;
+  const { theme, updateTheme } = useSettings();
+  const c = theme.chrome;
+  const show = c.barButtons;
   const tabs = browser.tabsOf(id);
   const pane = browser.pane(id);
   const active = tabs.find((t) => t.id === pane.activeTab) ?? null;
   const focused = browser.focused === id;
   const [draft, setDraft] = useState<string | null>(null);
-  const [choosing, setChoosing] = useState(false);
-  const address = useRef<HTMLInputElement>(null);
+  // Suggestions : seulement une fois que l’on tape (pas pour l’adresse affichée au focus).
+  const [typed, setTyped] = useState(false);
+  const [picked, setPicked] = useState(-1);
+  const suggestions = typed && draft?.trim() ? suggest(draft) : [];
+  const [menu, setMenu] = useState<"profiles" | null>(null);
+  const shownPanel = panel;
 
-  // Ctrl+L : barre d'adresse du volet principal.
+  // Échap referme le widget ouvert.
   useEffect(() => {
-    if (!focused) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key.toLowerCase() === "l") {
-        e.preventDefault();
-        address.current?.focus();
-        address.current?.select();
-      }
-    };
+    if (!shownPanel) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onPanel(null);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [focused]);
+  }, [shownPanel, onPanel]);
+  const address = useRef<HTMLInputElement>(null);
+  const bookmarked = !!active && isBookmarked(active.url);
+  const toggleBookmark = useRef(() => {});
+  toggleBookmark.current = () => active && onToggleBookmark(active.url, active.title);
 
+  // Ctrl+L, F6 (saisie d'adresse) et Ctrl+D (favori), y compris depuis une page.
+  useEffect(() => {
+    const onAddress = (e: Event) => {
+      if ((e as CustomEvent).detail !== id) return;
+      address.current?.focus();
+      address.current?.select();
+    };
+    const onBookmark = (e: Event) => (e as CustomEvent).detail === id && toggleBookmark.current();
+    window.addEventListener(PANE_EVENT.address, onAddress);
+    window.addEventListener(PANE_EVENT.bookmark, onBookmark);
+    return () => {
+      window.removeEventListener(PANE_EVENT.address, onAddress);
+      window.removeEventListener(PANE_EVENT.bookmark, onBookmark);
+    };
+  }, [id]);
+
+  const go = (input: string) => {
+    if (input.trim()) browser.go(input, id);
+    setDraft(null);
+    setTyped(false);
+    address.current?.blur();
+  };
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (draft?.trim()) browser.go(draft, id);
-    setDraft(null);
-    address.current?.blur();
+    const s = suggestions[picked];
+    go(s ? s.url ?? s.text : draft ?? "");
+  };
+
+  // Clic droit sur un espace libre de la barre : menu d'actions natif, affiché par-dessus les pages.
+  const onContextMenu = (e: MouseEvent) => {
+    if ((e.target as Element).closest(OWN_MENU)) return;
+    e.preventDefault();
+    const setButton = (key: keyof ChromeSettings["barButtons"]) => () =>
+      updateTheme({ chrome: { ...c, barButtons: { ...c.barButtons, [key]: !c.barButtons[key] } } });
+    const shown = (key: keyof ChromeSettings["barButtons"], text: string) =>
+      ({ id: `show-${key}`, text, checked: c.barButtons[key], action: setButton(key) });
+    Menu.new({
+      items: [
+        { id: "back", text: "Précédent", enabled: !!active, action: () => browser.action("back", id) },
+        { id: "forward", text: "Suivant", enabled: !!active, action: () => browser.action("forward", id) },
+        { id: "reload", text: "Recharger\tF5", enabled: !!active, action: () => browser.action("reload", id) },
+        { id: "hard-reload", text: "Recharger sans le cache\tCtrl+F5", enabled: !!active, action: () => browser.action("hard-reload", id) },
+        { item: "Separator" },
+        {
+          id: "bookmark", text: `${bookmarked ? "Retirer des favoris" : "Ajouter aux favoris"}\tCtrl+D`, enabled: !!active,
+          action: () => toggleBookmark.current(),
+        },
+        { id: "copy-url", text: "Copier l'adresse", enabled: !!active, action: () => active && navigator.clipboard.writeText(active.url).catch(() => {}) },
+        { item: "Separator" },
+        { id: "new-tab", text: "Nouvel onglet\tCtrl+T", action: () => browser.newTab(id) },
+        { id: "new-window", text: "Nouvelle fenêtre\tCtrl+N", action: () => browser.newWindow(id) },
+        { id: "detach", text: "Ouvrir ce profil dans sa propre fenêtre", action: () => browser.newWindow(id, true) },
+        {
+          id: "split", text: "Deux profils côte à côte", checked: browser.split, enabled: choices.length > 1,
+          action: () => withTransition(() => browser.setSplit(!browser.split)),
+        },
+        { item: "Separator" },
+        {
+          text: "Afficher dans la barre",
+          items: [
+            shown("nav", "Précédent / suivant"),
+            shown("reload", "Recharger"),
+            shown("star", "Favori ★"),
+            shown("detach", "Détacher"),
+          ],
+        },
+        { id: "settings", text: "Personnaliser l'interface…", action: onMoreSettings },
+      ],
+    }).then((menu) => menu.popup()).catch(() => {});
   };
 
   const secure = active?.url.startsWith("https://");
@@ -58,65 +148,152 @@ export function BrowserPane({ browser, profile, split, choices, onChooseProfile,
 
   return (
     <section className={`pane${focused ? " pane--focused" : ""}`} style={{ "--pane-accent": profile.color } as CSSProperties}>
-      <header className="pane__bar glass" onMouseDown={dragWindow}>
+      <header className="pane__bar glass" onMouseDown={dragWindow} onContextMenu={onContextMenu}>
         {split && (
           <button className="pane__who" title={`${profile.name} · changer le profil de ce volet`}
-            aria-expanded={choosing} onClick={() => setChoosing((c) => !c)}>
+            aria-expanded={menu === "profiles"} onClick={() => setMenu((m) => (m === "profiles" ? null : "profiles"))}>
             <ProfileBadge profile={profile} size={26} />
           </button>
         )}
 
-        <div className="pane__nav">
-          <button className="icon-btn" disabled={!active} aria-label="Précédent" title="Précédent"
-            onClick={() => browser.action("back", id)}>
-            <Icon name="back" size={16} />
-          </button>
-          <button className="icon-btn" disabled={!active} aria-label="Suivant" title="Suivant"
-            onClick={() => browser.action("forward", id)}>
-            <Icon name="forward" size={16} />
-          </button>
-          <button className="icon-btn" disabled={!active} aria-label={active?.loading ? "Arrêter" : "Recharger"}
-            title={active?.loading ? "Arrêter" : "Recharger"}
-            onClick={() => browser.action(active?.loading ? "stop" : "reload", id)}>
-            <Icon name={active?.loading ? "close" : "reload"} size={15} />
-          </button>
-        </div>
+        {(show.nav || show.reload) && (
+          <div className="pane__nav">
+            {show.nav && (
+              <>
+                <button className="icon-btn" disabled={!active} aria-label="Précédent" title="Précédent"
+                  onClick={() => browser.action("back", id)}>
+                  <Icon name="back" size={16} />
+                </button>
+                <button className="icon-btn" disabled={!active} aria-label="Suivant" title="Suivant"
+                  onClick={() => browser.action("forward", id)}>
+                  <Icon name="forward" size={16} />
+                </button>
+              </>
+            )}
+            {show.reload && (
+              <button className="icon-btn" disabled={!active} aria-label={active?.loading ? "Arrêter" : "Recharger"}
+                title={active?.loading ? "Arrêter" : "Recharger (F5) · sans le cache : Ctrl+F5"}
+                onClick={(e) => browser.action(active?.loading ? "stop" : e.ctrlKey || e.shiftKey ? "hard-reload" : "reload", id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  if (!active) return;
+                  Menu.new({
+                    items: [
+                      { id: "reload", text: "Recharger	F5", action: () => browser.action("reload", id) },
+                      { id: "hard-reload", text: "Recharger sans le cache	Ctrl+F5", action: () => browser.action("hard-reload", id) },
+                      { id: "empty-cache-reload", text: "Vider le cache et recharger (rechargement intégral)", action: () => browser.action("empty-cache-reload", id) },
+                    ],
+                  }).then((menu) => menu.popup()).catch(() => {});
+                }}>
+                <Icon name={active?.loading ? "close" : "reload"} size={15} />
+              </button>
+            )}
+          </div>
+        )}
 
         <form className="pane__address" onSubmit={submit}>
           {active && <span className={`pane__lock${secure ? "" : " pane__lock--off"}`}><Icon name={secure ? "lock" : "globe"} size={13} /></span>}
           <input ref={address} value={draft ?? active?.url ?? ""} spellCheck={false}
             placeholder={`Rechercher ou saisir une adresse · ${profile.name}`}
             onFocus={(e) => { browser.focus(id); setDraft(e.target.value); requestAnimationFrame(() => e.target.select()); }}
-            onBlur={() => setDraft(null)}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => e.key === "Escape" && address.current?.blur()} />
+            onBlur={() => { setDraft(null); setTyped(false); setPicked(-1); }}
+            onChange={(e) => { setDraft(e.target.value); setTyped(true); setPicked(-1); }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") address.current?.blur();
+              else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && suggestions.length) {
+                e.preventDefault();
+                // De -1 (la saisie elle-même) à la dernière suggestion, en boucle.
+                const n = suggestions.length;
+                setPicked((p) => (e.key === "ArrowDown" ? (p + 1 >= n ? -1 : p + 1) : (p - 1 < -1 ? n - 1 : p - 1)));
+              }
+            }} />
+          {show.star && active && (
+            <button type="button" className={`pane__star${bookmarked ? " pane__star--on" : ""}`}
+              aria-pressed={bookmarked} title={bookmarked ? "Retirer des favoris (Ctrl+D)" : "Ajouter aux favoris (Ctrl+D)"}
+              onClick={() => toggleBookmark.current()}>
+              <Icon name="star" size={15} />
+            </button>
+          )}
+          {suggestions.length > 0 && (
+            <SuggestionList items={suggestions} picked={picked} query={draft ?? ""} onPick={(s) => go(s.url ?? s.text)} onRect={onSuggestRect} />
+          )}
         </form>
 
-        {choosing ? (
+        {menu === "profiles" ? (
           // Choix du profil de ce volet, sur place (un menu flottant passerait sous la page).
           <div className="pane__choices">
             {others.map((p) => (
-              <button key={p.id} className="pane__choice" onClick={() => { onChooseProfile(p.id); setChoosing(false); }}>
+              <button key={p.id} className="pane__choice" onClick={() => { onChooseProfile(p.id); setMenu(null); }}>
                 <ProfileBadge profile={p} size={22} />
                 <span>{p.name}</span>
               </button>
             ))}
-            <button className="icon-btn" aria-label="Annuler" onClick={() => setChoosing(false)}><Icon name="close" size={13} /></button>
+            <button className="icon-btn" aria-label="Annuler" onClick={() => setMenu(null)}><Icon name="close" size={13} /></button>
           </div>
         ) : (
           <TabStrip browser={browser} profile={id} />
         )}
 
-        <button className="icon-btn pane__detach" title="Ouvrir ce profil dans sa propre fenêtre"
-          aria-label="Détacher dans une nouvelle fenêtre" onClick={() => browser.newWindow(id, true)}>
-          <Icon name="popout" size={15} />
-        </button>
+        {show.detach && (
+          <button className="icon-btn pane__detach" title="Ouvrir ce profil dans sa propre fenêtre"
+            aria-label="Détacher dans une nouvelle fenêtre" onClick={() => browser.newWindow(id, true)}>
+            <Icon name="popout" size={15} />
+          </button>
+        )}
         {controls}
       </header>
 
-      <div className="pane__content" ref={(el) => browser.registerSlot(id, el)}>
-        {pane.activeTab == null && <div className="pane__home">{home}</div>}
+      <div className="pane__body">
+        <div className="pane__content" ref={(el) => browser.registerSlot(id, el)}>
+          {pane.activeTab == null && <div className="pane__home">{home}</div>}
+        </div>
+        {/* Widget ouvert depuis la barre : la page se resserre à côté (une vue native passerait par-dessus). */}
+        {shownPanel && (
+          <aside className="pane__panel" key={shownPanel} aria-label={barWidgetLabels[shownPanel]}>
+            {renderWidget(shownPanel)}
+          </aside>
+        )}
       </div>
     </section>
+  );
+}
+
+const kindIcon = { search: "search", history: "history", bookmark: "star" } as const;
+
+/** Mots saisis mis en gras dans la suggestion. */
+function highlight(text: string, query: string): ReactNode {
+  const i = text.toLowerCase().indexOf(query.trim().toLowerCase());
+  if (!query.trim() || i < 0) return text;
+  const end = i + query.trim().length;
+  return <>{text.slice(0, i)}<strong>{text.slice(i, end)}</strong>{text.slice(end)}</>;
+}
+
+/** Suggestions sous la barre d’adresse ; la page est découpée à leur place (onRect) pour les laisser voir. */
+function SuggestionList({ items, picked, query, onPick, onRect }: {
+  items: Suggestion[];
+  picked: number;
+  query: string;
+  onPick: (s: Suggestion) => void;
+  onRect: (rect: Cutout | null) => void;
+}) {
+  const box = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const r = box.current?.getBoundingClientRect();
+    onRect(r ? { x: r.left - 2, y: r.top - 2, width: r.width + 4, height: r.height + 4, radius: 16 } : null);
+  }, [items.length]);
+  useEffect(() => () => onRect(null), []);
+  return (
+    <div ref={box} className="suggest glass" role="listbox">
+      {items.map((s, i) => (
+        <div key={(s.url ?? "?") + s.text} role="option" aria-selected={i === picked}
+          className={`suggest__item${i === picked ? " suggest__item--on" : ""}`}
+          // mousedown : avant que la barre d’adresse perde le focus (et ferme la liste).
+          onMouseDown={(e) => { e.preventDefault(); onPick(s); }}>
+          <span className="suggest__icon"><Icon name={kindIcon[s.kind]} size={13} /></span>
+          <span className="suggest__text">{highlight(s.text, query)}</span>
+          {s.url && <span className="suggest__url">{s.url.replace(/^https?:\/\/(www\.)?/, "")}</span>}
+        </div>
+      ))}
+    </div>
   );
 }

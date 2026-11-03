@@ -1,10 +1,17 @@
+/* Le bloc est un conteneur : sans taille imposée, les chiffres suivent celle du bloc. */
 .clock-block {
+  --clk-n: 5; /* caractères affichés : HH:MM ou HH:MM:SS */
+  --clk: var(--t-size, min(clamp(48px, 5vw, 72px), 62cqh, calc(170cqi / var(--clk-n))));
+  position: relative;
+  container-type: size;
   display: flex;
   flex-direction: column;
   padding: 0 4px 6px;
   color: var(--t-color, var(--hero-text));
   text-shadow: var(--hero-shadow);
 }
+
+.clock-block--sec { --clk-n: 8; }
 
 .clock-block--left { align-items: flex-start; }
 .clock-block--center { align-items: center; }
@@ -20,7 +27,7 @@
 .clock-block__time {
   display: flex;
   font-family: var(--t-font, var(--font-display));
-  font-size: var(--t-size, clamp(48px, 5vw, 72px));
+  font-size: var(--clk);
   font-weight: var(--t-weight, 200);
   font-style: var(--t-style, normal);
   line-height: 0.95;
@@ -35,6 +42,7 @@
 }
 
 .clock-block__date {
+  position: relative;
   margin-top: 8px;
   font-size: 14px;
   color: var(--t-color2, var(--hero-text-dim));
@@ -52,4 +60,491 @@
 
 @keyframes digit-in {
   from { opacity: 0; transform: translateY(40%); filter: blur(4px); }
+}
+
+/* Les animations partent de l'état final : sans mouvement (.no-motion), tout reste lisible. */
+
+/* --- Compte à rebours ------------------------------------------------------- */
+
+.clock-block--labels {
+  --clk: var(--t-size, clamp(22px, min(46cqh, calc(150cqi / var(--clk-n))), 160px));
+}
+
+.ck-labels {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.12em;
+  font-family: var(--t-font, var(--font-display));
+  font-size: var(--clk);
+  font-weight: var(--t-weight, 600);
+  font-style: var(--t-style, normal);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--t-tracking, -0.01em);
+}
+
+.ck-labels__unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ck-labels__digits { display: flex; }
+
+.ck-labels__sep {
+  line-height: 1.05;
+  font-weight: 200;
+  opacity: 0.55;
+}
+
+.ck-labels__cap {
+  margin-top: 0.3em;
+  font-family: var(--t-font2, var(--font));
+  font-size: max(9px, 0.13em);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--t-color2, var(--hero-text-dim));
+}
+
+.clock-block.glass .ck-labels__cap { color: var(--t-color2, var(--text-dim)); }
+
+.ck-roll {
+  display: inline-block;
+  height: 1.05em;
+  line-height: 1.05;
+  overflow: hidden;
+}
+
+.ck-roll span { display: block; }
+
+.ck-roll__track {
+  transform: translateY(-50%);
+  animation: ck-roll 560ms var(--ease) both;
+}
+
+@keyframes ck-roll {
+  from { transform: translateY(0); }
+}
+
+/* --- Volets ----------------------------------------------------------------- */
+
+.clock-block--flip {
+  --clk: var(--t-size, clamp(22px, min(58cqh, calc(118cqi / var(--clk-n))), 180px));
+  text-shadow: none;
+}
+
+.ck-flip {
+  display: flex;
+  align-items: center;
+  gap: 0.06em;
+  font-family: var(--t-font, var(--font-display));
+  font-size: var(--clk);
+  font-weight: var(--t-weight, 600);
+  font-style: var(--t-style, normal);
+  font-variant-numeric: tabular-nums;
+}
+
+.ck-flip__pair {
+  display: flex;
+  gap: 0.05em;
+}
+
+.ck-flip__sep {
+  padding-bottom: 0.08em;
+  color: var(--t-color2, var(--hero-text-dim));
+}
+
+.ck-flap {
+  position: relative;
+  width: 0.78em;
+  height: 1.16em;
+  perspective: 3em;
+  border-radius: 0.1em;
+  box-shadow: 0 0.06em 0.18em rgba(0, 0, 0, 0.35);
+}
+
+.ck-flap__half {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  overflow: hidden;
+  color: var(--t-color, #f3f4f6);
+  backface-visibility: hidden;
+}
+
+.ck-flap__half > span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 200%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.ck-flap__top {
+  top: 0;
+  border-radius: 0.1em 0.1em 0 0;
+  background: linear-gradient(180deg, #34373e, #26282e);
+  transform-origin: bottom;
+}
+
+.ck-flap__top > span { top: 0; }
+
+.ck-flap__bottom {
+  bottom: 0;
+  border-radius: 0 0 0.1em 0.1em;
+  background: linear-gradient(180deg, #212328, #2b2e34);
+  transform-origin: top;
+}
+
+.ck-flap__bottom > span { bottom: 0; }
+
+/* Charnière. */
+.ck-flap::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  top: calc(50% - 0.5px);
+  height: 1px;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.ck-flap__fold-top {
+  z-index: 2;
+  transform: rotateX(-90deg);
+  animation: ck-fold-top 260ms ease-in both;
+}
+
+.ck-flap__fold-bottom {
+  z-index: 2;
+  animation: ck-fold-bottom 260ms 260ms ease-out both;
+}
+
+@keyframes ck-fold-top {
+  from { transform: rotateX(0); }
+}
+
+@keyframes ck-fold-bottom {
+  from { transform: rotateX(90deg); }
+  to { transform: rotateX(0); }
+}
+
+/* --- Tambour ---------------------------------------------------------------- */
+
+.clock-block--capsule {
+  --clk: var(--t-size, clamp(16px, min(32cqh, calc(100cqi / var(--clk-n))), 120px));
+  text-shadow: none;
+}
+
+.ck-capsule {
+  --row: 1.1em;
+  display: flex;
+  align-items: center;
+  gap: 0.1em;
+  padding: 0 0.45em;
+  border-radius: 999px;
+  font-family: var(--t-font, var(--font-display));
+  font-size: var(--clk);
+  font-weight: var(--t-weight, 600);
+  font-style: var(--t-style, normal);
+  font-variant-numeric: tabular-nums;
+  color: var(--t-color, #1d2129);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+  background: linear-gradient(180deg, #fbfbfc 0%, #d9dce1 38%, #a9aeb7 52%, #c8ccd2 70%, #f1f2f4 100%);
+  box-shadow:
+    inset 0 0.08em 0.2em rgba(0, 0, 0, 0.35),
+    inset 0 -0.05em 0.1em rgba(255, 255, 255, 0.7),
+    0 0.1em 0.35em rgba(10, 20, 40, 0.3);
+}
+
+.ck-capsule__sep {
+  padding-bottom: 0.08em;
+  opacity: 0.6;
+}
+
+.ck-drum {
+  height: calc(var(--row) * 2.2);
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 32%, #000 68%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 32%, #000 68%, transparent);
+}
+
+.ck-drum__track {
+  display: flex;
+  flex-direction: column;
+  margin-top: calc(var(--row) * -1.4);
+}
+
+.ck-drum__track > span {
+  height: var(--row);
+  line-height: var(--row);
+  text-align: center;
+  opacity: 0.3;
+}
+
+.ck-drum__track > .is-current { opacity: 1; }
+
+.ck-drum__track--turn {
+  animation: ck-drum 620ms var(--ease) both;
+}
+
+@keyframes ck-drum {
+  from { transform: translateY(var(--row)); }
+}
+
+/* --- Orbite ----------------------------------------------------------------- */
+
+.clock-block--orbit {
+  --clk: var(--t-size, clamp(24px, 40cqh, 150px));
+  --r: max(90cqh, 30cqi);
+  --x: 46cqi; /* abscisse du point le plus à droite du cercle */
+  overflow: hidden;
+}
+
+.ck-orbit {
+  position: absolute;
+  inset: 0;
+  font-family: var(--t-font, var(--font-display));
+  font-style: var(--t-style, normal);
+  font-variant-numeric: tabular-nums;
+}
+
+.ck-orbit__wheel {
+  position: absolute;
+  top: calc(50% - var(--r));
+  left: calc(var(--x) - 2 * var(--r));
+  width: calc(2 * var(--r));
+  height: calc(2 * var(--r));
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  transition: transform 900ms var(--ease);
+}
+
+/* Chaque heure est un rayon du centre au bord : son libellé se pose au bout, contre l'arc. */
+.ck-orbit__n {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 50%;
+  height: 0;
+  transform-origin: 0 0;
+  transform: rotate(var(--a));
+  font-size: var(--clk);
+  font-weight: var(--t-weight, 700);
+  line-height: 1;
+}
+
+.ck-orbit__n > span {
+  position: absolute;
+  right: 0.18em;
+  top: 0;
+  white-space: nowrap;
+  opacity: 0;
+  transform-origin: right center;
+  transform: translateY(-50%) scale(0.4);
+  transition: opacity 600ms var(--ease), transform 600ms var(--ease);
+}
+
+.ck-orbit__n[data-d="0"] > span { opacity: 1; transform: translateY(-50%); }
+.ck-orbit__n[data-d="1"] > span { opacity: 0.45; }
+.ck-orbit__n[data-d="2"] > span { opacity: 0.22; }
+.ck-orbit__n[data-d="3"] > span { opacity: 0.1; }
+
+.ck-orbit__info {
+  position: absolute;
+  left: calc(var(--x) + 4cqi);
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.ck-orbit__time {
+  font-size: clamp(14px, 16cqh, 40px);
+  font-weight: var(--t-weight, 600);
+  letter-spacing: var(--t-tracking, -0.01em);
+}
+
+.ck-orbit__cap {
+  margin-top: 4px;
+  font-size: clamp(10px, 7cqh, 14px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--t-color2, var(--hero-text-dim));
+}
+
+.clock-block.glass .ck-orbit__cap { color: var(--t-color2, var(--text-dim)); }
+
+/* --- Hologramme ------------------------------------------------------------- */
+
+.clock-block--hologram {
+  --clk: var(--t-size, clamp(24px, min(56cqh, calc(170cqi / var(--clk-n))), 180px));
+  --holo: var(--t-color, #8ff9ff);
+  color: var(--holo);
+  text-shadow: none;
+  perspective: 600px;
+}
+
+/* Sans surface, un halo sombre bleu-vert sert d'écran : lisible sur fond clair comme sombre. */
+.clock-block--hologram:not(.glass) {
+  padding: 12px 18px;
+  border-radius: var(--block-radius, var(--radius-lg));
+  background:
+    radial-gradient(ellipse 70% 80% at 50% 60%, rgba(10, 70, 82, 0.55), transparent 75%),
+    radial-gradient(ellipse at 50% 55%, rgba(3, 22, 30, 0.82), rgba(3, 22, 30, 0.55) 70%, rgba(3, 22, 30, 0.25));
+}
+
+.clock-block--hologram .clock-block__face {
+  position: relative;
+  transform: rotateX(14deg);
+}
+
+.clock-block--hologram .clock-block__time {
+  position: relative;
+  font-weight: var(--t-weight, 500);
+  color: var(--holo);
+  text-shadow:
+    -0.03em 0 rgba(255, 60, 120, 0.4),
+    0.03em 0 rgba(40, 255, 255, 0.6),
+    0 0 0.12em var(--holo),
+    0 0 0.35em color-mix(in srgb, var(--holo) 60%, transparent);
+  animation: ck-flicker 7s steps(1) infinite;
+}
+
+/* Lignes de balayage posées par-dessus (un masque sur un élément incliné en 3D ne s’affiche pas dans WebView2). */
+.clock-block--hologram .clock-block__face::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(180deg, transparent 0 2px, rgba(3, 22, 30, 0.28) 2px 4px);
+  pointer-events: none;
+}
+
+.clock-block--hologram .clock-block__digit {
+  animation-name: ck-holo-in;
+}
+
+.ck-holo__base {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: -0.18em;
+  height: 0.5em;
+  font-size: var(--clk);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--holo) 45%, transparent), transparent);
+  filter: blur(4px);
+  pointer-events: none;
+}
+
+.clock-block--hologram .clock-block__date {
+  color: var(--t-color2, color-mix(in srgb, var(--holo) 75%, transparent));
+  text-shadow: 0 0 8px color-mix(in srgb, var(--holo) 50%, transparent);
+}
+
+@keyframes ck-holo-in {
+  from { opacity: 0; transform: scaleY(0.2); filter: blur(3px); }
+}
+
+@keyframes ck-flicker {
+  0%, 100% { opacity: 1; }
+  91% { opacity: 0.6; }
+  92% { opacity: 1; }
+  95% { opacity: 0.8; }
+  96% { opacity: 1; }
+}
+
+/* --- Néon ------------------------------------------------------------------- */
+
+.clock-block--neon {
+  --clk: var(--t-size, clamp(24px, min(58cqh, calc(170cqi / var(--clk-n))), 180px));
+  --neon: var(--t-color, color-mix(in srgb, var(--accent) 55%, #fff));
+  text-shadow: none;
+}
+
+.clock-block--neon .clock-block__time {
+  font-weight: var(--t-weight, 400);
+  color: transparent;
+  -webkit-text-stroke: max(1.5px, 0.025em) var(--neon);
+  text-shadow:
+    0 0 0.04em var(--neon),
+    0 0 0.18em var(--neon),
+    0 0 0.45em color-mix(in srgb, var(--neon) 55%, transparent);
+  animation: ck-buzz 9s steps(1) infinite;
+}
+
+.clock-block--neon .clock-block__digit {
+  animation-name: ck-neon-in;
+}
+
+.clock-block--neon .clock-block__date {
+  color: var(--t-color2, var(--neon));
+  text-shadow: 0 0 6px color-mix(in srgb, var(--t-color2, var(--neon)) 70%, transparent);
+}
+
+@keyframes ck-neon-in {
+  from { opacity: 0; }
+  30% { opacity: 1; }
+  45% { opacity: 0.3; }
+}
+
+@keyframes ck-buzz {
+  0%, 100% { opacity: 1; }
+  80% { opacity: 0.55; }
+  81% { opacity: 1; }
+  83% { opacity: 0.7; }
+  84% { opacity: 1; }
+}
+
+/* --- Matrice ---------------------------------------------------------------- */
+
+.clock-block--matrix {
+  --clk: var(--t-size, clamp(20px, min(54cqh, calc(170cqi / var(--clk-n))), 160px));
+  --matrix: var(--t-color, #4dff88);
+  overflow: hidden;
+  color: var(--matrix);
+  text-shadow: none;
+}
+
+.clock-block--matrix:not(.glass) {
+  padding: 12px 16px;
+  border-radius: var(--block-radius, var(--radius-lg));
+  background: rgba(2, 14, 6, 0.72);
+}
+
+.ck-matrix__rain {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--t-color2, #1fbf55);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.clock-block--matrix .clock-block__time {
+  position: relative;
+  font-family: var(--t-font, "Cascadia Mono", Consolas, monospace);
+  font-weight: var(--t-weight, 500);
+  letter-spacing: var(--t-tracking, 0);
+  color: var(--matrix);
+  text-shadow: 0 0 0.2em color-mix(in srgb, var(--matrix) 70%, transparent);
+}
+
+.clock-block--matrix .clock-block__digit {
+  animation-name: ck-matrix-in;
+  animation-timing-function: steps(4);
+}
+
+.clock-block--matrix .clock-block__date {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  color: var(--t-color2, color-mix(in srgb, var(--matrix) 70%, transparent));
+}
+
+@keyframes ck-matrix-in {
+  from { opacity: 0; transform: translateY(-60%); }
 }

@@ -51,3 +51,10 @@
 @keyframes inspector-in {
   from { opacity: 0; transform: translateX(24px); }
 }
+
+/* Styles d'horloge : une grille de pastilles. */
+.clock-styles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

@@ -155,3 +155,300 @@
 .shell:not([data-tab-icons]) .ptab:not(.ptab--new) {
   min-width: 84px;
 }
+
+/* --- Largeur de l'adresse ----------------------------------------------------- */
+
+/* Réduite au repos (60 % de moins qu’avant pour « moyenne »), elle s’élargit pendant la saisie. */
+.shell[data-address="s"] { --address-basis: 7%; --address-max: 130px; }
+.shell[data-address="m"] { --address-basis: 10%; --address-max: 185px; }
+.shell[data-address="l"] { --address-basis: 18%; --address-max: 320px; }
+
+/*
+ * Barre sans fond : la barre disparaît mais chaque élément garde une pastille de verre,
+ * pour rester lisible sur n'importe quel fond d'écran ou image.
+ */
+.shell[data-bar-surface="none"] .pane__bar {
+  gap: 8px;
+  padding: 0;
+}
+
+.shell[data-bar-surface="none"] .pane__nav,
+.shell[data-bar-surface="none"] .pane__detach,
+.shell[data-bar-surface="none"] .pane__who,
+.shell[data-bar-surface="none"] .ptab,
+.shell[data-bar-surface="none"] .tgroup__chip,
+.shell[data-bar-surface="none"] .pane__choices,
+.shell[data-bar-surface="none"] .pane__bar .window-controls {
+  background: rgba(var(--glass-rgb), 0.55);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: inset 0 0 0 1px var(--glass-border), 0 4px 14px rgba(0, 10, 30, 0.18);
+}
+
+.shell[data-bar-surface="none"] .pane__nav,
+.shell[data-bar-surface="none"] .pane__choices,
+.shell[data-bar-surface="none"] .pane__bar .window-controls {
+  height: 38px;
+  padding: 0 4px;
+  border-radius: 999px;
+}
+
+/* Pastille autonome : plus de séparateur à gauche, boutons ronds centrés. */
+.shell[data-bar-surface="none"] .pane__bar .window-controls {
+  margin-left: 0;
+  border-left: none;
+}
+
+.shell[data-bar-surface="none"] .pane__bar .wc {
+  width: 30px;
+  border-radius: 50%;
+}
+
+.shell[data-bar-surface="none"] .pane__detach {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+}
+
+.shell[data-bar-surface="none"] .pane__address {
+  height: 38px;
+  background: rgba(var(--glass-rgb), 0.7);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: inset 0 0 0 1px var(--glass-border), 0 4px 14px rgba(0, 10, 30, 0.18);
+}
+
+.shell[data-bar-surface="none"] .ptab {
+  height: 34px;
+}
+
+.shell[data-bar-surface="none"] .ptab--active {
+  background: rgba(var(--glass-rgb), 0.9);
+}
+
+/* La barre d'onglets n'a plus de fond : ses onglets s'espacent comme des pastilles. */
+.shell[data-bar-surface="none"] .strip {
+  gap: 6px;
+}
+
+/* --- Plein écran (F11) -------------------------------------------------------- */
+
+.shell.shell--fullscreen {
+  /* La barre latérale est masquée : une seule colonne, sinon le contenu se logeait dans la sienne (0 px). */
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: 0;
+  padding: 0;
+}
+
+.shell--fullscreen .rail,
+.shell--fullscreen .pane__bar {
+  display: none;
+}
+
+.shell--fullscreen .pane,
+.shell--fullscreen .panes {
+  gap: 2px;
+}
+
+.shell--fullscreen .pane__content {
+  border-radius: 0;
+}
+
+/* Badge du profil : seul élément visible, estompé ; au survol, il propose de sortir. */
+.fullscreen-exit {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 44px;
+  height: 44px;
+  padding: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--text);
+  /* Discret mais toujours repérable, sur une page claire comme sombre. */
+  opacity: 0.35;
+  background: rgba(var(--glass-rgb), 0.35);
+  box-shadow: inset 0 0 0 1px var(--glass-border);
+  transition: opacity 220ms var(--ease), width 260ms var(--ease), background 220ms var(--ease);
+}
+
+.fullscreen-exit--open {
+  width: 236px;
+  opacity: 1;
+  background: rgba(var(--glass-rgb), 0.9);
+  box-shadow: inset 0 0 0 1px var(--glass-border), 0 6px 20px rgba(0, 10, 30, 0.25);
+}
+
+.fullscreen-exit__label {
+  opacity: 0;
+  transition: opacity 200ms var(--ease);
+}
+
+.fullscreen-exit--open .fullscreen-exit__label {
+  opacity: 1;
+}
+
+.fullscreen-exit[hidden] {
+  display: none;
+}
+
+/* --- Barre latérale « bord renflé » ---------------------------------------------
+ * Un liseré longe le bord gauche de la fenêtre ; à hauteur des boutons, il se renfle en une bosse arrondie,
+ * raccordée au liseré par deux congés concaves (masques radiaux, pour que le verre et la couleur s'y appliquent).
+ * Surface (data-edge) : couleur choisie, verre, ou sans fond.
+ */
+.shell[data-rail="edge"] {
+  --edge-line: 6px;
+  /* Congé + coin de la bosse ne doivent pas dépasser la largeur de la bosse (58 - 6 px) : chacun en prend au plus la moitié. */
+  --edge-curve: clamp(10px, var(--rail-radius, 26px), 26px);
+  padding-left: 0;
+}
+
+.shell[data-edge="color"] {
+  --edge-fill: var(--edge-color, #0b0d10);
+}
+
+.shell[data-edge="glass"] {
+  --edge-fill: rgba(var(--glass-rgb), var(--edge-alpha, var(--glass-alpha)));
+}
+
+.shell[data-edge="none"] {
+  --edge-fill: transparent;
+}
+
+.shell[data-rail="edge"]::after,
+.shell[data-rail="edge"] .rail,
+.shell[data-rail="edge"] .rail::before,
+.shell[data-rail="edge"] .rail::after {
+  background: var(--edge-fill);
+}
+
+.shell[data-edge="glass"]::after,
+.shell[data-edge="glass"] .rail,
+.shell[data-edge="glass"] .rail::before,
+.shell[data-edge="glass"] .rail::after {
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+}
+
+.shell[data-rail="edge"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--edge-line);
+  pointer-events: none;
+}
+
+.shell[data-edge="none"]::after {
+  display: none;
+}
+
+.shell[data-rail="edge"] .rail {
+  z-index: 1;
+  align-self: center;
+  width: 58px;
+  padding: 16px 0;
+  gap: 4px;
+  border: none;
+  border-radius: 0 var(--edge-curve) var(--edge-curve) 0;
+  box-shadow: 6px 0 24px rgba(0, 0, 0, 0.16);
+  transition: width 320ms var(--ease), padding 320ms var(--ease);
+}
+
+.shell[data-edge="color"] .rail {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.shell[data-edge="none"] .rail {
+  box-shadow: none;
+  text-shadow: var(--hero-shadow);
+}
+
+/* Couleur sombre : contenu clair (data-edge-tone posé par App selon la couleur choisie). */
+.shell[data-edge-tone="light"] .rail {
+  --text: rgba(255, 255, 255, 0.94);
+  --text-dim: rgba(255, 255, 255, 0.72);
+  --text-faint: rgba(255, 255, 255, 0.45);
+  --line: rgba(255, 255, 255, 0.14);
+  --glass-fill-active: rgba(255, 255, 255, 0.12);
+  --strong-fill: rgba(255, 255, 255, 0.92);
+  --strong-text: #0b0d10;
+}
+
+.shell[data-edge-tone="dark"] .rail {
+  --text: #14213a;
+  --text-dim: rgba(20, 33, 58, 0.72);
+  --text-faint: rgba(20, 33, 58, 0.45);
+  --line: rgba(20, 33, 58, 0.14);
+  --glass-fill-active: rgba(20, 33, 58, 0.08);
+  --strong-fill: #14213a;
+  --strong-text: #fff;
+}
+
+/* La bosse s'arrondit un peu plus au survol, comme une goutte. */
+.shell[data-rail="edge"] .rail:hover {
+  width: 62px;
+}
+
+/* Congés : au-dessus et au-dessous de la bosse, du liseré vers la bosse. */
+.shell[data-rail="edge"] .rail::before,
+.shell[data-rail="edge"] .rail::after {
+  content: "";
+  position: absolute;
+  inset: auto;
+  left: var(--edge-line);
+  width: var(--edge-curve);
+  height: var(--edge-curve);
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  opacity: 1;
+  pointer-events: none;
+}
+
+.shell[data-rail="edge"] .rail::before {
+  top: calc(-1 * var(--edge-curve));
+  -webkit-mask: radial-gradient(circle at 100% 0, transparent calc(var(--edge-curve) - 0.5px), #000 var(--edge-curve));
+  mask: radial-gradient(circle at 100% 0, transparent calc(var(--edge-curve) - 0.5px), #000 var(--edge-curve));
+}
+
+.shell[data-rail="edge"] .rail::after {
+  bottom: calc(-1 * var(--edge-curve));
+  -webkit-mask: radial-gradient(circle at 100% 100%, transparent calc(var(--edge-curve) - 0.5px), #000 var(--edge-curve));
+  mask: radial-gradient(circle at 100% 100%, transparent calc(var(--edge-curve) - 0.5px), #000 var(--edge-curve));
+}
+
+.shell[data-edge="none"] .rail::before,
+.shell[data-edge="none"] .rail::after {
+  display: none;
+}
+
+.shell[data-rail="edge"] .rail__resize,
+.shell[data-rail="edge"] .rail__spacer {
+  display: none;
+}
+
+.shell[data-rail="edge"] .rail-btn {
+  width: 40px;
+  height: 38px;
+  border-radius: 50%;
+}
+
+/* Plein écran : pas de barre, donc pas de liseré. */
+.shell--fullscreen[data-rail="edge"]::after {
+  display: none;
+}
+
+/* Plein écran : la page touche les bords, sans la marge basse du conteneur. */
+.shell--fullscreen .page {
+  padding: 0;
+}

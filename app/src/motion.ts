@@ -29,6 +29,8 @@ export function installPointerEffects() {
     frame = requestAnimationFrame(() => {
       frame = 0;
       if (!last) return;
+      // Décor caché par les pages : inutile de le déplacer.
+      if (document.documentElement.hasAttribute("data-browsing")) return;
       root.setProperty("--px", (last.clientX / innerWidth - 0.5).toFixed(3));
       root.setProperty("--py", (last.clientY / innerHeight - 0.5).toFixed(3));
       const glass = (last.target as Element | null)?.closest?.(".glass") as HTMLElement | null;

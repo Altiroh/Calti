@@ -28,3 +28,24 @@
   background: var(--strong-fill);
   box-shadow: var(--shadow-soft);
 }
+
+/* Dégradés : le texte reste lisible sur les couleurs vives. */
+.badge--gradient,
+.badge--mesh {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 3px 12px rgba(20, 30, 60, 0.25);
+}
+
+/* Le dégradé multicolore tourne doucement au survol. */
+.badge--mesh {
+  background-size: 160% 160% !important;
+  transition: background-position 1.2s var(--ease);
+}
+
+:hover > .badge--mesh {
+  background-position: 100% 100% !important;
+}
+
+.badge--image {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35), 0 3px 10px rgba(20, 30, 60, 0.22);
+}

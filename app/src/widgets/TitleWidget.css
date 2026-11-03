@@ -3,14 +3,27 @@
   flex-direction: column;
   justify-content: flex-end;
   padding: 0 4px 6px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   color: var(--hero-text);
   text-shadow: var(--hero-shadow);
+  /* La taille du texte suit celle du bloc. */
+  container-type: size;
+}
+
+.title-block.glass {
+  padding: 18px 24px;
+  border-radius: var(--block-radius, var(--radius-xl));
+  color: var(--text);
+  text-shadow: none;
 }
 
 .title-block__title {
   font-family: var(--t-font, var(--font-headline));
   font-weight: var(--t-weight, var(--headline-weight));
-  font-size: var(--t-size, clamp(44px, 6vw, 92px));
+  /* Largeur : ~1,9 caractère par em ; hauteur : le titre prend au plus 70 % du bloc. */
+  font-size: var(--t-size, clamp(20px, min(190cqi / var(--title-chars, 14), 62cqh), 150px));
   line-height: 0.98;
   letter-spacing: var(--t-tracking, -0.025em);
 }

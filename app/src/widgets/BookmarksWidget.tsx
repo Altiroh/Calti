@@ -6,7 +6,7 @@ import { Icon } from "../components/Icon";
 import { hostname, siteIcon } from "../components/siteIcon";
 import "./BookmarksWidget.css";
 
-const MAX_ITEMS = 6;
+const MAX_ITEMS = 12;
 
 /** Premiers liens de la barre de favoris Brave. */
 function barLinks(tree: BookmarkNode[] | null): BookmarkNode[] {

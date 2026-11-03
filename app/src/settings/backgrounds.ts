@@ -52,6 +52,18 @@ export async function saveBackground(key: string, file: File): Promise<number> {
   return luminance(canvas, canvas.width, canvas.height);
 }
 
+/** Image de profil : recadrée au carré, 256 px, comme une photo de compte. */
+export async function saveAvatar(key: string, file: File): Promise<void> {
+  const bitmap = await createImageBitmap(file);
+  const side = Math.min(bitmap.width, bitmap.height);
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 256;
+  canvas.getContext("2d")!.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, 256, 256);
+  const blob = await new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("conversion impossible"))), "image/jpeg", 0.9));
+  await run("readwrite", (s) => s.put(blob, key));
+}
+
 export async function deleteBackground(key: string): Promise<void> {
   await run("readwrite", (s) => s.delete(key));
 }

@@ -2,6 +2,7 @@ import { blockLabel, type Block, type BlockStyle, type Surface, type TextFont } 
 import { Check, ColorField, Section, Segmented, Slider } from "./Controls";
 import { Icon } from "./Icon";
 import { textFonts } from "./RichText";
+import { clockStyles } from "../widgets/clockStyles";
 import "./Inspector.css";
 
 interface Props {
@@ -112,10 +113,28 @@ export function Inspector({ block, onChange, onClose, titlePlaceholder }: Props)
           </Section>
         )}
 
+        {block.kind === "title" && (
+          <Section title="Accueil">
+            <Check label="Nom du profil après la salutation" checked={s.showProfile !== false}
+              onChange={(show) => set({ showProfile: show ? undefined : false })} />
+            <p className="settings__hint">Sans taille choisie (Typographie), le texte s'adapte à la taille du bloc.</p>
+          </Section>
+        )}
+
         {block.kind === "clock" && (
           <Section title="Horloge">
+            <div className="clock-styles">
+              {clockStyles.map(([value, label]) => (
+                <button key={value} className={`chip-btn${(s.clockStyle ?? "classic") === value ? " chip-btn--on" : ""}`}
+                  onClick={() => set({ clockStyle: value === "classic" ? undefined : value })}>
+                  {label}
+                </button>
+              ))}
+            </div>
             <Check label="Afficher la date" checked={s.showDate !== false}
               onChange={(show) => set({ showDate: show ? undefined : false })} />
+            <Check label="Afficher les secondes" checked={s.showSeconds ?? s.clockStyle === "labels"}
+              onChange={(showSeconds) => set({ showSeconds })} />
           </Section>
         )}
 

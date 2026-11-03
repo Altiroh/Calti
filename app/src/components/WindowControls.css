@@ -1,5 +1,6 @@
 .window-controls {
   display: flex;
+  align-items: center;
   flex: 0 0 auto;
   gap: 2px;
   margin-left: 6px;
@@ -53,4 +54,8 @@
 
 @keyframes toast-in {
   from { opacity: 0; transform: translate(-50%, 10px); }
+}
+
+.toast--info {
+  color: var(--text);
 }

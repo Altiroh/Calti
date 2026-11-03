@@ -34,6 +34,17 @@ export interface HomeTheme {
 
 export type BarSurface = "glass" | "solid" | "none";
 
+/** Widgets proposés en raccourci dans la barre latérale. */
+export const barWidgetLabels = {
+  clipboard: "Copies récentes",
+  history: "Historique",
+  tabs: "Onglets",
+  bookmarks: "Favoris",
+  notes: "Notes",
+  ruler: "Règle et grille",
+} as const;
+export type BarWidget = keyof typeof barWidgetLabels;
+
 /** Réglages d'interface : tout l'habillage autour des pages. */
 export interface ChromeSettings {
   /** Barre du haut flottante (détachée des bords) ou collée au bord de la fenêtre. */
@@ -41,8 +52,20 @@ export interface ChromeSettings {
   barSurface: BarSurface;
   barRadius: number;
   barHeight: number;
+  /** Largeur de la barre d'adresse (elle s'élargit pendant la saisie). */
+  addressWidth: "s" | "m" | "l";
+  /** Boutons affichés dans la barre du haut. */
+  barButtons: { nav: boolean; reload: boolean; star: boolean; detach: boolean };
+  /** Widgets en raccourci dans la barre latérale : un clic ouvre le widget à côté de la page. */
+  railWidgets: BarWidget[];
   /** Barre latérale : mêmes choix. */
-  railStyle: "floating" | "attached";
+  /** « edge » : fin liseré noir collé au bord, renflé là où sont les boutons. */
+  railStyle: "floating" | "attached" | "edge";
+  /** Bord renflé : couleur choisie, verre ou sans fond. */
+  edgeSurface: "color" | "glass" | "none";
+  edgeColor: string;
+  /** Opacité du bord (couleur ou verre) ; null = opaque en couleur, opacité du verre de l’interface en verre. */
+  edgeOpacity: number | null;
   railSurface: BarSurface;
   railRadius: number;
   /** Onglets. */
@@ -67,7 +90,13 @@ export const defaultChrome: ChromeSettings = {
   barSurface: "glass",
   barRadius: 16,
   barHeight: 48,
-  railStyle: "floating",
+  addressWidth: "m",
+  barButtons: { nav: true, reload: true, star: true, detach: true },
+  railWidgets: ["clipboard", "history", "notes"],
+  railStyle: "edge",
+  edgeSurface: "color",
+  edgeColor: "#0b0d10",
+  edgeOpacity: null,
   railSurface: "glass",
   railRadius: 28,
   tabRadius: 10,
@@ -128,6 +157,23 @@ export const searchEngines: Record<SearchEngine, { label: string; url: string }>
   ecosia: { label: "Ecosia", url: "https://www.ecosia.org/search?q=" },
 };
 
+export type AvatarKind = "color" | "gradient" | "mesh" | "image";
+
+/** Dégradés multicolores proposés pour les pastilles de profil. */
+export const meshes = {
+  aurore: ["#7cf5d0", "#3a7bd5", "#a259ff", "#ff6fd8"],
+  couchant: ["#ffb347", "#ff5f6d", "#c23bd4", "#ffd86f"],
+  ocean: ["#00c6ff", "#0072ff", "#1de9b6", "#3949ab"],
+  bonbon: ["#ff9a9e", "#fecfef", "#a18cd1", "#fbc2eb"],
+  arcenciel: ["#ff3b3b", "#ffb800", "#3ddc84", "#2d9cff", "#a259ff"],
+  foret: ["#c6f36b", "#1f8c4d", "#0f5132", "#62d2a2"],
+  nuit: ["#0f2027", "#2c5364", "#7f00ff", "#e100ff"],
+} as const;
+export type MeshName = keyof typeof meshes;
+
+/** Clé IndexedDB de l'image d'un profil. */
+export const profileImageKey = (id: string) => `profile-${id}`;
+
 /** Icônes proposées pour un profil (vide = deux premières lettres du nom). */
 export const profileIcons = ["", "🏠", "💼", "🧑‍💻", "🎮", "🎨", "📚", "🧪", "🎵", "🛒", "✈️", "🌙", "☀️", "🚀", "❤️", "⭐"];
 
@@ -139,6 +185,14 @@ export interface ProfileSettings {
   icon: string;
   /** Couleur de repère (sélecteur, liseré du volet). */
   color: string;
+  /** Pastille : icône sur la couleur, dégradé classique, dégradé multicolore ou image. */
+  avatar?: AvatarKind;
+  /** Seconde couleur du dégradé classique. */
+  color2?: string;
+  /** Palette du dégradé multicolore. */
+  mesh?: MeshName;
+  /** Change à chaque nouvelle image (stockée dans IndexedDB, clé `profile-<id>`). */
+  image?: number | null;
   search: SearchEngine;
   /** Page d'un nouvel onglet : « home » = accueil de Calti, sinon une adresse. */
   startPage: string;
@@ -204,12 +258,20 @@ interface SettingsContext {
   createProfile: (name: string) => string;
   /** Retire un profil de la liste (ses données de navigation restent sur le disque). */
   deleteProfile: (id: string) => void;
+  /** Aperçu d'un préréglage : appliqué à l'affichage seulement, jamais enregistré. */
+  preview: ThemePreview | null;
+  setPreview: (preview: ThemePreview | null) => void;
+  /** Clé IndexedDB de l'image de fond affichée (celle d'un préréglage pendant son aperçu). */
+  backgroundKey: string;
 }
+
+export type ThemePreview = Partial<HomeTheme> & { backgroundKey?: string };
 
 const Context = createContext<SettingsContext | null>(null);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState(load);
+  const [preview, setPreview] = useState<ThemePreview | null>(null);
 
   // Plusieurs fenêtres : un réglage changé dans l'une s'applique aussitôt aux autres.
   useEffect(() => {
@@ -228,10 +290,16 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     // Anciennes cases « Blocs affichés » : reprises comme blocs masqués.
     for (const id of builtinIds) if (!t.layout && t.blocks?.[id] === false) layout[id] = { ...layout[id], hidden: true };
     const { blocks: _legacy, ...rest } = t;
-    const theme: HomeTheme = { ...defaultTheme, ...rest, layout, chrome: { ...defaultChrome, ...rest.chrome } };
+    const theme: HomeTheme = { ...defaultTheme, ...rest, layout, chrome: { ...defaultChrome, ...rest.chrome, barButtons: { ...defaultChrome.barButtons, ...rest.chrome?.barButtons },
+      railWidgets: (rest.chrome?.railWidgets ?? defaultChrome.railWidgets).filter((w) => w in barWidgetLabels) } };
+    const { backgroundKey, ...previewed } = preview ?? {};
     return {
-      theme,
+      theme: preview ? { ...theme, ...previewed, chrome: { ...theme.chrome, ...previewed.chrome }, layout: theme.layout } : theme,
+      // Les changements partent toujours du style enregistré, pas de l'aperçu.
       updateTheme: (patch) => setSettings((s) => ({ ...s, theme: { ...theme, ...patch } })),
+      preview,
+      setPreview,
+      backgroundKey: backgroundKey ?? BACKGROUND_KEY,
       profileIds: settings.profileOrder,
       profile: (id) => {
         const p: ProfileSettings = {
@@ -264,7 +332,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         return { ...s, profileOrder: s.profileOrder.filter((p) => p !== id), profiles };
       }),
     };
-  }, [settings]);
+  }, [settings, preview]);
 
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

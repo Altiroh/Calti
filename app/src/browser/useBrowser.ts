@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { recordSearch } from "./library";
 
 /** Identifiant d'un profil (aussi nom de son dossier de données). */
 export type ProfileId = string;
@@ -15,9 +16,30 @@ export interface BrowserTab {
   url: string;
   title: string;
   loading: boolean;
+  /** En veille (caché depuis longtemps) ou pas encore chargé (session restaurée). */
+  sleeping: boolean;
 }
 
-export type NavAction = "back" | "forward" | "reload" | "stop";
+export type NavAction = "back" | "forward" | "reload" | "hard-reload" | "empty-cache-reload" | "stop";
+
+/** Raccourcis du navigateur, captés dans l'interface ou dans une page (événement `browser:shortcut`). */
+export type Shortcut =
+  | "reload" | "hard-reload" | "new-tab" | "close-tab" | "address" | "new-window" | "bookmark" | "next-tab" | "previous-tab" | "fullscreen";
+
+/** Demandes adressées à un volet (événement DOM, détail = profil) : saisie d'adresse, favori. */
+export const PANE_EVENT = { address: "calti:address", bookmark: "calti:bookmark" } as const;
+/** Bascule du plein écran (F11), pour la fenêtre. */
+export const FULLSCREEN_EVENT = "calti:fullscreen";
+
+/** Zone de la fenêtre que les pages laissent voir (badge du plein écran, dialogue), en pixels CSS. */
+export interface Cutout {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Arrondi des coins ; absent = pilule. */
+  radius?: number;
+}
 
 export interface PaneState {
   /** Onglet affiché ; null = page d'accueil du volet. */
@@ -64,7 +86,7 @@ export interface Browser {
   secondary: ProfileId;
   setSecondary: (profile: ProfileId) => void;
   /** Saisie de la barre d'adresse : adresse ou recherche, dans l'onglet affiché ou un nouvel onglet. */
-  go: (input: string, profile?: ProfileId, newTab?: boolean) => void;
+  go: (input: string, profile?: ProfileId, newTab?: boolean, background?: boolean) => void;
   activate: (id: number) => void;
   close: (id: number) => void;
   /** Accueil de Calti dans le volet du profil. */
@@ -77,7 +99,9 @@ export interface Browser {
   /** Masque les pages (éditeur de disposition…). */
   setSuspended: (suspended: boolean) => void;
   /** Nouvelle fenêtre sur un profil ; avec `detach`, les onglets de ce profil y partent. */
-  newWindow: (profile: ProfileId, detach?: boolean) => void;
+  newWindow: (profile: ProfileId, detach?: boolean, tab?: number) => void;
+  /** Déplace un onglet juste avant un autre (null : à la fin). */
+  move: (id: number, before: number | null) => void;
   /** Onglets d'un profil dans l'ordre d'affichage, regroupés. */
   strip: (profile: ProfileId) => TabStripItem[];
   groups: TabGroup[];
@@ -94,12 +118,17 @@ export interface Browser {
   error: string | null;
 }
 
-const STORAGE_KEY = "calti.browser";
 /** Fenêtre courante : « main » au démarrage, « calti-n » pour les suivantes. */
 const WINDOW_LABEL = getCurrentWindow().label;
 const IS_MAIN = WINDOW_LABEL === "main";
+/** Session de chaque fenêtre : « calti.browser » pour la principale, « calti.browser.calti-n » pour les autres. */
+const SESSION_PREFIX = "calti.browser.";
+const STORAGE_KEY = IS_MAIN ? "calti.browser" : SESSION_PREFIX + WINDOW_LABEL;
+const PARAMS = new URLSearchParams(location.search);
 /** Profil demandé à l'ouverture d'une fenêtre secondaire (?profile=pro). */
-const INITIAL_PROFILE = new URLSearchParams(location.search).get("profile");
+const INITIAL_PROFILE = PARAMS.get("profile");
+/** Session d'une fenêtre secondaire à rouvrir au lancement (?session=calti.browser.calti-n). */
+const RESTORE_KEY = PARAMS.get("session");
 const EMPTY_PANE: PaneState = { activeTab: null, lastTab: null };
 
 /** Adresse si la saisie en a l'air (web, file:///, chemin Windows), sinon recherche. */
@@ -119,21 +148,24 @@ interface Saved {
   split: boolean;
   focused: ProfileId;
   secondary?: ProfileId;
-  tabs: { profile: ProfileId; url: string; active: boolean; group?: string }[];
+  tabs: { profile: ProfileId; url: string; title?: string; active: boolean; group?: string }[];
   groups?: TabGroup[];
 }
 
 function loadSaved(fallback: ProfileId): Saved {
-  // Seule la fenêtre principale garde sa session d'une ouverture à l'autre.
-  if (!IS_MAIN) return { split: false, focused: INITIAL_PROFILE ?? fallback, tabs: [] };
+  // Fenêtre secondaire : sa session n'est relue que si la principale la rouvre au lancement.
+  const key = IS_MAIN ? STORAGE_KEY : RESTORE_KEY;
+  if (!key) return { split: false, focused: INITIAL_PROFILE ?? fallback, tabs: [] };
   try {
-    return { split: false, focused: fallback, tabs: [], ...JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") };
+    return { split: false, focused: INITIAL_PROFILE ?? fallback, tabs: [], ...JSON.parse(localStorage.getItem(key) ?? "{}") };
   } catch {
     return { split: false, focused: fallback, tabs: [] };
   }
 }
 
-export function useBrowser(profileIds: ProfileId[], prefsOf: (profile: ProfileId) => ProfilePrefs, pageRadius = 16): Browser {
+export function useBrowser(
+  profileIds: ProfileId[], prefsOf: (profile: ProfileId) => ProfilePrefs, pageRadius = 16, cutouts: Cutout[] = [],
+): Browser {
   const saved = useMemo(() => loadSaved(profileIds[0]), []);
   const [allTabs, setAllTabs] = useState<BrowserTab[]>([]);
   // Chaque fenêtre ne voit que ses onglets.
@@ -173,11 +205,13 @@ export function useBrowser(profileIds: ProfileId[], prefsOf: (profile: ProfileId
     const subscriptions = Promise.all([
       listen<BrowserTab[]>("browser:tabs", (e) => setAllTabs(e.payload)),
       // Lien « nouvelle fenêtre » : le nouvel onglet s'affiche dans le volet de l'onglet d'origine.
-      listen<[number, number]>("browser:opened", (e) => {
-        const [id, opener] = e.payload;
+      // Troisième valeur : ouvert en arrière-plan (clic molette, Ctrl+clic) — le volet reste sur sa page.
+      listen<[number, number, boolean]>("browser:opened", (e) => {
+        const [id, opener, background] = e.payload;
         // Comme dans Brave : un onglet ouvert depuis un groupe rejoint ce groupe.
         const group = membershipRef.current[opener];
         if (group) setMembership((m) => ({ ...m, [id]: group }));
+        if (background) return;
         setAllTabs((current) => {
           const tab = current.find((t) => t.id === id && t.window === WINDOW_LABEL);
           if (tab) show(tab.profile, id);
@@ -224,10 +258,10 @@ export function useBrowser(profileIds: ProfileId[], prefsOf: (profile: ProfileId
     });
   }, [tabs]);
 
-  const openUrl = useCallback(async (url: string, profile: ProfileId) => {
+  const openUrl = useCallback(async (url: string, profile: ProfileId, background = false) => {
     try {
       const id = await invoke<number>("browser_open", { profile, url });
-      show(profile, id);
+      if (!background) show(profile, id);
       return id;
     } catch (e) {
       fail(e);
@@ -242,7 +276,7 @@ export function useBrowser(profileIds: ProfileId[], prefsOf: (profile: ProfileId
     (async () => {
       const existing = (await invoke<BrowserTab[]>("browser_tabs").catch(() => [] as BrowserTab[]))
         .filter((t) => t.window === WINDOW_LABEL);
-      if (!IS_MAIN) {
+      if (!IS_MAIN && !RESTORE_KEY) {
         // Fenêtre détachée : on affiche d'emblée le dernier onglet reçu de chaque profil.
         for (const t of existing) show(t.profile, t.id);
         return;
@@ -257,23 +291,44 @@ export function useBrowser(profileIds: ProfileId[], prefsOf: (profile: ProfileId
         return;
       }
       for (const t of saved.tabs.filter((s) => profileIds.includes(s.profile))) {
-        const id = await invoke<number>("browser_open", { profile: t.profile, url: t.url }).catch(() => null);
+        // Seuls les onglets affichés se chargent ; les autres attendent qu'on les ouvre.
+        const lazyTitle = t.active ? null : t.title ?? "";
+        const id = await invoke<number>("browser_open", { profile: t.profile, url: t.url, lazyTitle }).catch(() => null);
         if (id == null) continue;
         if (t.active) show(t.profile, id);
         if (t.group) setMembership((m) => ({ ...m, [id]: t.group! }));
       }
+      // Session reprise sous un autre nom de fenêtre : l'ancienne est oubliée (celle-ci s'enregistre sous le sien).
+      if (RESTORE_KEY && RESTORE_KEY !== STORAGE_KEY) localStorage.removeItem(RESTORE_KEY);
+      if (!IS_MAIN) return;
+      // Fenêtres secondaires encore ouvertes à la dernière fermeture : rouvertes avec leurs onglets.
+      for (const key of Object.keys(localStorage).filter((k) => k.startsWith(SESSION_PREFIX))) {
+        try {
+          const other: Saved = JSON.parse(localStorage.getItem(key) ?? "{}");
+          const first = other.tabs?.find((t) => profileIds.includes(t.profile));
+          if (!first) { localStorage.removeItem(key); continue; }
+          await invoke("browser_new_window", { profile: other.focused ?? first.profile, detach: false, session: key });
+        } catch { /* session illisible : ignorée */ }
+      }
     })();
   }, [saved, show]);
 
-  // Sauvegarde de la session.
+  // Fenêtre secondaire fermée par l'utilisateur : ses onglets ne seront pas rouverts.
   useEffect(() => {
-    if (!restored.current || !IS_MAIN) return;
+    if (IS_MAIN) return;
+    const unlisten = getCurrentWindow().onCloseRequested(() => localStorage.removeItem(STORAGE_KEY));
+    return () => { unlisten.then((u) => u()); };
+  }, []);
+
+  // Sauvegarde de la session (chaque fenêtre sous sa propre clé).
+  useEffect(() => {
+    if (!restored.current) return;
     const data: Saved = {
       split,
       focused,
       secondary,
       tabs: tabs.filter((t) => /^(https?|file):/.test(t.url)).map((t) => ({
-        profile: t.profile, url: t.url, active: panes[t.profile]?.activeTab === t.id, group: membership[t.id],
+        profile: t.profile, url: t.url, title: t.title, active: panes[t.profile]?.activeTab === t.id, group: membership[t.id],
       })),
       groups: Object.values(groupMap).filter((g) => tabs.some((t) => membership[t.id] === g.id)),
     };
@@ -287,10 +342,14 @@ export function useBrowser(profileIds: ProfileId[], prefsOf: (profile: ProfileId
       const el = slots.current[profile];
       if (id == null || !el) return [];
       const r = el.getBoundingClientRect();
-      return [{ id, x: r.left, y: r.top, width: r.width, height: r.height, radius: pageRadius }];
+      // Une découpe ne concerne que la page qu'elle chevauche, en coordonnées de cette page.
+      const holes = cutouts
+        .filter((c) => c.x < r.right && c.x + c.width > r.left && c.y < r.bottom && c.y + c.height > r.top)
+        .map((c) => ({ ...c, x: c.x - r.left, y: c.y - r.top }));
+      return [{ id, x: r.left, y: r.top, width: r.width, height: r.height, radius: pageRadius, cutouts: holes }];
     });
     invoke("browser_layout", { visible }).catch(fail);
-  }, [suspended, visibleProfiles.join("|"), panes, pageRadius, fail]);
+  }, [suspended, visibleProfiles.join("|"), panes, pageRadius, JSON.stringify(cutouts), fail]);
 
   const frame = useRef(0);
   const scheduleLayout = useCallback(() => {
@@ -325,6 +384,8 @@ export function useBrowser(profileIds: ProfileId[], prefsOf: (profile: ProfileId
     scheduleLayout();
   }, [scheduleLayout]);
 
+  const tabsRef = useRef(tabs);
+  tabsRef.current = tabs;
   const tabsOf = useCallback((profile: ProfileId) => tabs.filter((t) => t.profile === profile), [tabs]);
 
   // --- Groupes d'onglets ---------------------------------------------------------
@@ -378,14 +439,17 @@ export function useBrowser(profileIds: ProfileId[], prefsOf: (profile: ProfileId
     setGroupMap(({ [groupId]: _removed, ...g }) => g);
   }, []);
 
-  const go = useCallback((input: string, profile: ProfileId = focused, newTab = false) => {
-    const url = toUrl(input, prefsOf(profile).searchUrl);
+  const go = useCallback((input: string, profile: ProfileId = focused, newTab = false, background = false) => {
+    const { searchUrl } = prefsOf(profile);
+    const url = toUrl(input, searchUrl);
     if (!url) return;
+    // Recherche (et non adresse) : mémorisée pour les suggestions.
+    if (url.startsWith(searchUrl)) recordSearch(profile, input);
     const id = panes[profile]?.activeTab;
     if (id != null && !newTab) {
       invoke("browser_navigate", { id, url }).catch(fail);
     } else {
-      openUrl(url, profile);
+      openUrl(url, profile, background);
     }
   }, [focused, panes, prefsOf, openUrl, fail]);
 
@@ -442,35 +506,95 @@ export function useBrowser(profileIds: ProfileId[], prefsOf: (profile: ProfileId
     setSecondaryState(profile);
   }, [focused, secondary]);
 
-  const newWindow = useCallback((profile: ProfileId, detach = false) => {
-    invoke("browser_new_window", { profile, detach })
+  const newWindow = useCallback((profile: ProfileId, detach = false, tab?: number) => {
+    invoke("browser_new_window", { profile, detach, session: null, tab: tab ?? null })
       .then(() => {
+        if (tab != null) {
+          // Onglet sorti seul : son volet passe à l'onglet voisin.
+          const own = tabs.filter((t) => t.profile === profile && t.id !== tab);
+          if (panes[profile]?.activeTab === tab) show(profile, own[own.length - 1]?.id ?? null);
+          removeFromGroup(tab);
+          return;
+        }
         if (!detach) return;
         // Le profil détaché quitte cette fenêtre : on garde un autre profil, seul.
         setSplitState(false);
         if (profile === focused) setFocused(profileIds.find((p) => p !== profile) ?? profile);
       })
       .catch(fail);
-  }, [fail, focused, profileIds]);
+  }, [fail, focused, profileIds, tabs, panes, show, removeFromGroup]);
 
-  // Raccourcis : Ctrl+T nouvel onglet, Ctrl+W fermer, Ctrl+N nouvelle fenêtre (profil principal).
+  const move = useCallback((id: number, before: number | null) => {
+    invoke("browser_move", { id, before }).catch(fail);
+  }, [fail]);
+
+  const runShortcut = useCallback((key: Shortcut, profile: ProfileId = focused) => {
+    const active = panes[profile]?.activeTab ?? null;
+    switch (key) {
+      case "reload":
+      case "hard-reload":
+        if (active != null) invoke("browser_action", { id: active, action: key }).catch(fail);
+        return;
+      case "new-tab": return newTab(profile);
+      case "close-tab": if (active != null) close(active); return;
+      case "new-window": return newWindow(profile);
+      case "fullscreen":
+        window.dispatchEvent(new Event(FULLSCREEN_EVENT));
+        return;
+      case "address":
+      case "bookmark":
+        window.dispatchEvent(new CustomEvent(PANE_EVENT[key], { detail: profile }));
+        return;
+      case "next-tab":
+      case "previous-tab": {
+        const own = tabs.filter((t) => t.profile === profile);
+        if (!own.length) return;
+        const index = own.findIndex((t) => t.id === active);
+        const step = key === "next-tab" ? 1 : -1;
+        activate(own[(index + step + own.length) % own.length].id);
+      }
+    }
+  }, [focused, panes, tabs, newTab, close, newWindow, activate, fail]);
+  const runShortcutRef = useRef(runShortcut);
+  runShortcutRef.current = runShortcut;
+
+  // Raccourcis captés dans une page : seulement ceux des onglets de cette fenêtre.
+  useEffect(() => {
+    const unlisten = listen<[number, Shortcut]>("browser:shortcut", (e) => {
+      const [id, key] = e.payload;
+      const tab = tabsRef.current.find((t) => t.id === id);
+      if (tab) runShortcutRef.current(key, tab.profile);
+    });
+    return () => { unlisten.then((u) => u()); };
+  }, []);
+
+  // Les mêmes raccourcis quand l'interface a le focus (profil du volet principal).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!e.ctrlKey || e.shiftKey || e.altKey) return;
       const key = e.key.toLowerCase();
-      if (key === "n") newWindow(focused);
-      else if (key === "t") newTab(focused);
-      else if (key === "w" && panes[focused]?.activeTab != null) close(panes[focused].activeTab!);
-      else return;
+      let shortcut: Shortcut | null = null;
+      if (key === "f5") shortcut = e.ctrlKey || e.shiftKey ? "hard-reload" : "reload";
+      else if (key === "f6") shortcut = "address";
+      else if (key === "f11") shortcut = "fullscreen";
+      else if (e.ctrlKey && !e.altKey) {
+        if (key === "tab") shortcut = e.shiftKey ? "previous-tab" : "next-tab";
+        else if (key === "r") shortcut = e.shiftKey ? "hard-reload" : "reload";
+        else if (!e.shiftKey) {
+          const keys: Record<string, Shortcut> = { n: "new-window", t: "new-tab", w: "close-tab", l: "address", d: "bookmark" };
+          shortcut = keys[key] ?? null;
+        }
+      }
+      if (!shortcut) return;
       e.preventDefault();
+      runShortcut(shortcut);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [focused, panes, newWindow, newTab, close]);
+  }, [runShortcut]);
 
   return {
     tabs, tabsOf, pane, focused, focus, split: showSplit, setSplit: setSplitState, secondary, setSecondary,
-    go, activate, close, home, newTab, action, registerSlot, setSuspended, newWindow,
+    go, activate, close, home, newTab, action, registerSlot, setSuspended, newWindow, move,
     strip, groups: Object.values(groupMap), groupOf, createGroup, addToGroup, removeFromGroup, updateGroup, ungroup, closeGroup,
     error,
   };

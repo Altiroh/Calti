@@ -1,0 +1,66 @@
+/* Dialogue de groupe d'onglets, sous l'onglet cliqué. */
+.group-dialog {
+  position: absolute;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px 16px;
+  border-radius: 18px;
+  --glass-alpha: 0.92;
+  box-shadow: var(--glass-shadow), 0 20px 50px rgba(8, 20, 45, 0.28);
+  font-size: 14px;
+  color: var(--text);
+  animation: group-dialog-in 240ms cubic-bezier(0.2, 0.9, 0.25, 1.05) both;
+  transform-origin: top left;
+}
+
+.group-dialog__name {
+  height: 36px;
+  padding: 0 12px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-bottom: 3px solid var(--group);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.group-dialog__name:focus {
+  background: var(--surface-solid);
+}
+
+.group-dialog__colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.group-dialog__color {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+  transition: transform 160ms var(--ease), box-shadow 160ms var(--ease);
+}
+
+.group-dialog__color:hover {
+  transform: scale(1.12);
+}
+
+.group-dialog__color--on {
+  box-shadow: 0 0 0 2px var(--glass-fill-active, #fff), 0 0 0 4px currentColor;
+  color: var(--text);
+}
+
+.group-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+@keyframes group-dialog-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+}

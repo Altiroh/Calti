@@ -1,13 +1,18 @@
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import type { BookmarkNode } from "./brave/types";
 import { useBraveInstalls } from "./brave/useBraveInstalls";
 import { profileView } from "./browser/adapter";
-import { useBrowser, type ProfileId } from "./browser/useBrowser";
+import { mergeBookmarks, suggest, useCaltiBookmarks, useHistory } from "./browser/library";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { FULLSCREEN_EVENT, useBrowser, type Cutout, type ProfileId } from "./browser/useBrowser";
+import { GroupDialog, useGroupDialogRequest } from "./components/GroupDialog";
 import { BookmarksDrawer } from "./components/BookmarksDrawer";
 import { BrowserPane } from "./components/BrowserPane";
+import { ProfileBadge, readableOn } from "./components/ProfileBadge";
 import { dragWindow } from "./components/dragWindow";
-import { renderBlock } from "./components/HomeBlocks";
+import { renderBlock, type HomeContext } from "./components/HomeBlocks";
 import { HomeGrid } from "./components/HomeGrid";
 import { LayoutEditor } from "./components/LayoutEditor";
 import { SettingsDrawer, type SettingsTab } from "./components/SettingsDrawer";
@@ -16,7 +21,12 @@ import { WindowControls } from "./components/WindowControls";
 import { withTransition } from "./motion";
 import { useBackground } from "./settings/backgrounds";
 import type { Block } from "./settings/layout";
-import { applyTheme, BACKGROUND_KEY, searchEngines, useSettings } from "./settings/settings";
+import { useClipboardRecorder } from "./widgets/clipboard";
+import { useGridRuler } from "./widgets/gridRuler";
+import { useWindowIdentity } from "./browser/windowIdentity";
+import { RulerWidget } from "./widgets/RulerWidget";
+import type { BarWidget } from "./settings/settings";
+import { applyTheme, searchEngines, useSettings } from "./settings/settings";
 
 export type DrawerName = "bookmarks" | "settings" | null;
 
@@ -56,22 +66,63 @@ function useRailWidth() {
 
 export function App() {
   const settings = useSettings();
-  const { theme, profile, profileIds } = settings;
+  const { theme, profile, profileIds, updateTheme } = settings;
   const installs = useBraveInstalls();
   const prefsOf = useCallback((p: ProfileId) => {
     const s = profile(p);
     return { searchUrl: searchEngines[s.search].url, startPage: s.startPage };
   }, [profile]);
-  const browser = useBrowser(profileIds, prefsOf, theme.chrome.pageRadius);
+  // Plein écran (F11) : contenu seul ; le badge du profil, discret, permet d'en sortir.
+  const [fullscreen, setFullscreen] = useState(false);
+  const [exitHover, setExitHover] = useState(false);
+  const fullscreenRef = useRef(false);
+  const toggleFullscreen = useCallback(() => {
+    const on = !fullscreenRef.current;
+    fullscreenRef.current = on;
+    getCurrentWindow().setFullscreen(on).catch(() => {});
+    setFullscreen(on);
+    setExitHover(false);
+  }, []);
+  useEffect(() => {
+    window.addEventListener(FULLSCREEN_EVENT, toggleFullscreen);
+    return () => window.removeEventListener(FULLSCREEN_EVENT, toggleFullscreen);
+  }, [toggleFullscreen]);
+  // Plein écran demandé par une page (vidéo) : fenêtre en plein écran, cette page seule, sans badge.
+  const [pageFullscreen, setPageFullscreen] = useState<number | null>(null);
+  useEffect(() => {
+    const unlisten = listen<[number, boolean]>("browser:page-fullscreen", (e) => {
+      const [tab, on] = e.payload;
+      setPageFullscreen((current) => (on ? tab : current === tab ? null : current));
+      // La fenêtre ne quitte le plein écran que si F11 ne l'y avait pas mise.
+      if (!fullscreenRef.current) getCurrentWindow().setFullscreen(on).catch(() => {});
+    });
+    return () => { unlisten.then((u) => u()); };
+  }, []);
+  const immersive = fullscreen || pageFullscreen != null;
+  // Place du badge (voir .fullscreen-exit) : les pages y sont découpées pour le laisser voir.
+  // Dialogue de groupe d'onglets (clic droit sur un onglet), lui aussi découpé dans les pages.
+  const groupDialog = useGroupDialogRequest();
+  const [dialogRect, setDialogRect] = useState<Cutout | null>(null);
+  // Suggestions de la barre d’adresse, elles aussi découpées dans les pages.
+  const [suggestRect, setSuggestRect] = useState<Cutout | null>(null);
+  const cutouts = [
+    ...(fullscreen && pageFullscreen == null ? [{ x: 10, y: 10, width: exitHover ? 236 : 44, height: 44 }] : []),
+    ...(groupDialog.request && dialogRect ? [dialogRect] : []),
+    ...(suggestRect ? [suggestRect] : []),
+  ];
+  const browser = useBrowser(profileIds, prefsOf, immersive ? 0 : theme.chrome.pageRadius, cutouts);
   const rail = useRailWidth();
   const [drawer, setDrawer] = useState<DrawerName>(null);
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>("appearance");
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("general");
   const [editingLayout, setEditingLayout] = useState(false);
+  // Widget ouvert à côté de la page, par profil (barre du haut ou barre latérale).
+  const [panels, setPanels] = useState<Record<ProfileId, BarWidget | null>>({});
+  const setPanel = useCallback((p: ProfileId, kind: BarWidget | null) => setPanels((s) => ({ ...s, [p]: kind })), []);
   const toggle = (name: Exclude<DrawerName, null>) => setDrawer((d) => (d === name ? null : name));
 
   // Le style est celui de l'application, quel que soit le profil affiché.
   const focused = browser.focused;
-  const background = useBackground(BACKGROUND_KEY, theme.background);
+  const background = useBackground(settings.backgroundKey, theme.background);
   useEffect(() => applyTheme(theme), [theme]);
 
   // Favoris : profil Brave choisi dans les Réglages, sinon le n-ième profil Brave trouvé.
@@ -79,14 +130,65 @@ export function App() {
     const chosen = profile(p).bookmarksFrom;
     return [p, chosen === undefined ? installs[i]?.dir ?? null : chosen];
   })) as Record<ProfileId, string | null>;
-  const bookmarks = useBookmarks(sources);
+  const braveBookmarks = useBookmarks(sources);
+  const own = useCaltiBookmarks(profileIds);
+  const history = useHistory(profileIds, browser.tabs);
+  // Favoris de Calti (étoile, Ctrl+D) en tête de ceux de Brave.
+  const bookmarks = Object.fromEntries(profileIds.map((p) => [p, mergeBookmarks(own.of(p), braveBookmarks[p] ?? null)]));
+
+  // Pages affichées partout : le décor est caché derrière, ses animations et sa parallaxe s'arrêtent.
+  const browsing = !editingLayout && (browser.split ? [browser.focused, browser.secondary] : [browser.focused])
+    .every((p) => browser.pane(p).activeTab != null);
+  useEffect(() => {
+    document.documentElement.toggleAttribute("data-browsing", browsing);
+  }, [browsing]);
+  useEffect(() => {
+    // Fenêtre réduite ou cachée : plus rien ne s'anime.
+    const onVisibility = () => document.documentElement.toggleAttribute("data-hidden", document.hidden);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
 
   // Les pages (vues natives) passent au-dessus de l'interface : on les masque pendant l'édition.
   useEffect(() => browser.setSuspended(editingLayout), [editingLayout]);
 
+  useClipboardRecorder();
+
+  // Barre latérale « bord renflé » demandée : appliquée une fois aux réglages existants (modifiable ensuite).
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("calti.edge-rail")) return;
+      localStorage.setItem("calti.edge-rail", "1");
+    } catch { return; }
+    if (theme.chrome.railStyle !== "edge") updateTheme({ chrome: { ...theme.chrome, railStyle: "edge" } });
+  }, []);
+
+  // Mots de passe repris de Brave au lancement : on en donne le résultat.
+  const [importNotice, setImportNotice] = useState<string | null>(null);
+  useEffect(() => {
+    invoke<{ profile: string; imported: number; already: number; error: string | null }[] | null>("password_import_result")
+      .then((results) => results && setImportNotice(results.map((r) => r.error
+        ? `${profile(r.profile).name} : import des mots de passe impossible (${r.error})`
+        : `${profile(r.profile).name} : ${r.imported} mot(s) de passe importé(s), ${r.already} déjà présent(s)`).join(" · ")))
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    if (!importNotice) return;
+    const timer = setTimeout(() => setImportNotice(null), 9000);
+    return () => clearTimeout(timer);
+  }, [importNotice]);
+
+  const homeContext = (p: ProfileId): HomeContext => ({
+    brave: profileView(browser, p, bookmarks[p] ?? null),
+    theme,
+    profile: profile(p),
+    history: { entries: history.of(p), clear: () => history.clear(p), remove: (at) => history.remove(p, at) },
+    onShowAllBookmarks: () => setDrawer("bookmarks"),
+  });
+
   const homeFor = (p: ProfileId) => {
-    const view = profileView(browser, p, bookmarks[p] ?? null);
-    return <HomeGrid layout={theme.layout} render={(block: Block) => renderBlock(block, view, theme, () => setDrawer("bookmarks"))} />;
+    const context = homeContext(p);
+    return <HomeGrid layout={theme.layout} render={(block: Block) => renderBlock(block, context)} />;
   };
 
   const tint = parseInt(theme.tint.slice(1), 16);
@@ -98,11 +200,17 @@ export function App() {
   } as CSSProperties;
 
   const visiblePanes = browser.split ? [focused, browser.secondary] : [focused];
+  // Barre des tâches : badge du profil affiché et titre de sa page.
+  const shownTab = browser.tabs.find((t) => t.id === browser.pane(focused).activeTab);
+  useWindowIdentity(profile(focused), shownTab?.title || null);
+  // Règle et grille : dessinées dans les pages affichées quand l’outil est activé.
+  const visibleTabs = visiblePanes.map((p) => browser.pane(p).activeTab).filter((id): id is number => id != null);
+  useGridRuler(browser, visibleTabs);
 
   // Habillage (Réglages → Interface) : variables et attributs lus par styles/chrome.css.
   const c = theme.chrome;
   const chromeVars = {
-    "--rail-width": `${rail.width}px`,
+    "--rail-width": c.railStyle === "edge" ? "58px" : `${rail.width}px`,
     "--win-pad": `${c.windowPadding}px`,
     "--ui-gap": `${c.gap}px`,
     "--bar-radius": `${c.barRadius}px`,
@@ -111,14 +219,19 @@ export function App() {
     "--tab-radius": `${c.tabRadius}px`,
     "--tab-max": `${c.tabMaxWidth}px`,
     "--page-radius": `${c.pageRadius}px`,
+    "--edge-color": c.edgeOpacity == null ? c.edgeColor
+      : `rgba(${parseInt(c.edgeColor.slice(1, 3), 16)}, ${parseInt(c.edgeColor.slice(3, 5), 16)}, ${parseInt(c.edgeColor.slice(5, 7), 16)}, ${c.edgeOpacity})`,
+    ...(c.edgeOpacity != null ? { "--edge-alpha": c.edgeOpacity } : {}),
   } as CSSProperties;
   const profiles = profileIds.map(profile);
 
   return (
-    <div className={`shell tone-${theme.tone}${drawer ? " shell--drawer" : ""}${rail.resizing ? " shell--resizing" : ""}${c.motion ? "" : " no-motion"}`}
+    <div className={`shell tone-${theme.tone}${immersive ? " shell--fullscreen" : ""}${pageFullscreen != null ? " shell--page-fullscreen" : ""}${drawer ? " shell--drawer" : ""}${rail.resizing ? " shell--resizing" : ""}${c.motion ? "" : " no-motion"}`}
       style={chromeVars}
-      data-bar={c.barStyle} data-bar-surface={c.barSurface}
+      data-bar={c.barStyle} data-bar-surface={c.barSurface} data-address={c.addressWidth}
       data-rail={c.railStyle} data-rail-surface={c.railSurface}
+      data-edge={c.railStyle === "edge" ? c.edgeSurface : undefined}
+      data-edge-tone={c.railStyle === "edge" && c.edgeSurface === "color" ? (readableOn(c.edgeColor) === "#fff" ? "light" : "dark") : undefined}
       data-tab-close={c.tabClose} data-tab-active={c.tabActive} data-tab-icons={c.tabIconsOnly || undefined}>
       {c.customCss.trim() && <style>{c.customCss}</style>}
       <div className="scenery" aria-hidden="true" style={ambiance}>
@@ -139,16 +252,17 @@ export function App() {
         {theme.grain > 0 && <div className="scenery__grain" />}
       </div>
 
-      <Sidebar width={rail.width} onResize={rail.onResize}
+      <Sidebar width={c.railStyle === "edge" ? RAIL_NARROW : rail.width} onResize={rail.onResize}
         profiles={profiles} focused={focused} tabCount={(p) => browser.tabsOf(p).length}
         onProfile={(p) => withTransition(() => browser.focus(p))}
+        onProfileWindow={(p) => browser.newWindow(p)}
         onManageProfiles={() => { setSettingsTab("profiles"); setDrawer("settings"); }}
         items={browser.strip(focused)} activeTab={browser.pane(focused).activeTab}
         onToggleGroup={(g) => browser.updateGroup(g, { collapsed: !browser.groups.find((x) => x.id === g)?.collapsed })}
         onActivate={browser.activate} onCloseTab={browser.close}
-        drawer={drawer} onToggle={toggle} split={browser.split}
-        onToggleSplit={() => withTransition(() => browser.setSplit(!browser.split))}
-        onHome={() => browser.home()} onNewTab={() => browser.newTab()} />
+        drawer={drawer} onToggle={toggle}
+        onHome={() => browser.home()} onNewTab={() => browser.newTab()}
+        widgets={c.railWidgets} panel={panels[focused] ?? null} onPanel={(kind) => setPanel(focused, kind)} />
 
       <div className="page">
         {editingLayout ? (
@@ -156,22 +270,43 @@ export function App() {
             <div className="drag-bar" onMouseDown={dragWindow}><WindowControls /></div>
             <div className="page__inner">
               <LayoutEditor
-                render={(block) => renderBlock(block, profileView(browser, focused, bookmarks[focused] ?? null), theme, () => {})}
+                render={(block) => renderBlock(block, { ...homeContext(focused), onShowAllBookmarks: () => {} })}
                 onClose={() => setEditingLayout(false)} />
             </div>
           </>
         ) : (
-          <div className={`panes${browser.split ? " panes--split" : ""}`}>
-            {visiblePanes.map((p, i) => (
+          <div className={`panes${browser.split && pageFullscreen == null ? " panes--split" : ""}`}>
+            {/* Vidéo en plein écran : seul le volet de sa page reste. */}
+            {(pageFullscreen != null ? visiblePanes.filter((v) => browser.pane(v).activeTab === pageFullscreen) : visiblePanes).map((p, i) => (
               <BrowserPane key={p} browser={browser} profile={profile(p)} split={browser.split} choices={profiles}
                 onChooseProfile={(chosen) => withTransition(() => (i === 0 ? browser.focus(chosen) : browser.setSecondary(chosen)))}
-                home={homeFor(p)} controls={i === visiblePanes.length - 1 ? <WindowControls /> : null} />
+                home={homeFor(p)} controls={i === visiblePanes.length - 1 ? <WindowControls /> : null}
+                isBookmarked={(url) => own.has(p, url)} onToggleBookmark={(url, title) => own.toggle(p, url, title)}
+                onMoreSettings={() => { setSettingsTab("appearance"); setDrawer("settings"); }}
+                panel={panels[p] ?? null} onPanel={(kind) => setPanel(p, kind)}
+                suggest={(input) => suggest(p, input, own.of(p), prefsOf(p).searchUrl)} onSuggestRect={setSuggestRect}
+                renderWidget={(kind) => kind === "ruler"
+                  ? <RulerWidget visibleTabs={visibleTabs} />
+                  : renderBlock({ kind, x: 0, y: 0, w: 4, h: 8 }, homeContext(p))} />
             ))}
           </div>
         )}
       </div>
 
+      {/* Toujours présent (caché hors plein écran) : l’image du profil est déjà chargée quand il apparaît. */}
+      <button className={`fullscreen-exit${exitHover ? " fullscreen-exit--open" : ""}`} hidden={!fullscreen || pageFullscreen != null} onClick={toggleFullscreen}
+        onMouseEnter={() => setExitHover(true)} onMouseLeave={() => setExitHover(false)} title="Quitter le plein écran (F11)">
+        <ProfileBadge profile={profile(focused)} size={36} />
+        <span className="fullscreen-exit__label">Quitter le plein écran</span>
+      </button>
+
+      {groupDialog.request && (
+        <GroupDialog key={JSON.stringify(groupDialog.request)} request={groupDialog.request} browser={browser}
+          onClose={groupDialog.close} onRect={setDialogRect} />
+      )}
+
       {browser.error && <div className="toast glass">{browser.error}</div>}
+      {importNotice && !browser.error && <div className="toast toast--info glass">{importNotice}</div>}
 
       <BookmarksDrawer open={drawer === "bookmarks"} bookmarks={bookmarks[focused] ?? null}
         send={(c) => c.type === "openUrl" && browser.go(c.url, focused, true)}

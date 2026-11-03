@@ -1,7 +1,7 @@
 import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import type { DrawerName } from "../App";
 import type { BrowserTab, TabGroup, TabStripItem } from "../browser/useBrowser";
-import type { ProfileSettings } from "../settings/settings";
+import { barWidgetLabels, type BarWidget, type ProfileSettings } from "../settings/settings";
 import { dragWindow } from "./dragWindow";
 import { Favicon } from "./Favicon";
 import { Icon, type IconName } from "./Icon";
@@ -21,6 +21,8 @@ interface Props {
   focused: string;
   tabCount: (profile: string) => number;
   onProfile: (id: string) => void;
+  /** Clic molette sur un profil : il s’ouvre dans une nouvelle fenêtre. */
+  onProfileWindow: (id: string) => void;
   onManageProfiles: () => void;
   /** Onglets (et groupes) du profil principal, affichés quand la barre est large. */
   items: TabStripItem[];
@@ -30,11 +32,15 @@ interface Props {
   onCloseTab: (id: number) => void;
   drawer: DrawerName;
   onToggle: (name: Exclude<DrawerName, null>) => void;
-  split: boolean;
-  onToggleSplit: () => void;
   onHome: () => void;
   onNewTab: () => void;
+  /** Widgets en raccourci : ouverts à côté de la page du profil principal. */
+  widgets: BarWidget[];
+  panel: BarWidget | null;
+  onPanel: (kind: BarWidget | null) => void;
 }
+
+const widgetIcons = { clipboard: "clipboard", history: "history", tabs: "tabs", bookmarks: "star", notes: "notes", ruler: "ruler" } as const;
 
 function RailButton({ icon, label, on, wide, onClick }:
   { icon: IconName; label: string; on?: boolean; wide: boolean; onClick: () => void }) {
@@ -49,7 +55,7 @@ function RailButton({ icon, label, on, wide, onClick }:
 
 /** Barre latérale : sélecteur de profil, navigation, onglets (en large) et réglages. */
 export function Sidebar(props: Props) {
-  const { width, profiles, focused, drawer, onToggle, split } = props;
+  const { width, profiles, focused, drawer, onToggle } = props;
   const wide = width >= RAIL_WIDE_MIN;
   const [switching, setSwitching] = useState(false);
   const drag = useRef<{ x: number; width: number } | null>(null);
@@ -101,29 +107,37 @@ export function Sidebar(props: Props) {
             </>
           )}
         </button>
-        {switching && (
+        {/* Toujours présent : la hauteur s’anime à l’ouverture comme à la fermeture. */}
+        <div className="switcher__drawer" aria-hidden={!switching}>
           <div className="switcher__menu" role="menu">
-            {profiles.filter((p) => p.id !== current.id).map((p) => (
-              <button key={p.id} role="menuitem" className="switcher__item" title={p.name}
-                onClick={() => { props.onProfile(p.id); setSwitching(false); }}>
+            {profiles.filter((p) => p.id !== current.id).map((p, i) => (
+              <button key={p.id} role="menuitem" className="switcher__item" title={p.name} tabIndex={switching ? 0 : -1}
+                style={{ "--i": i } as CSSProperties}
+                onClick={() => { props.onProfile(p.id); setSwitching(false); }}
+                onMouseDown={(e) => e.button === 1 && e.preventDefault()}
+                onAuxClick={(e) => { if (e.button === 1) { props.onProfileWindow(p.id); setSwitching(false); } }}>
                 <ProfileBadge profile={p} size={wide ? 28 : 34} count={props.tabCount(p.id)} />
                 {wide && <span className="switcher__item-name">{p.name}</span>}
               </button>
             ))}
-            <button className="switcher__item switcher__item--manage" title="Gérer les profils"
+            <button className="switcher__item switcher__item--manage" title="Gérer les profils" tabIndex={switching ? 0 : -1}
+              style={{ "--i": profiles.length - 1 } as CSSProperties}
               onClick={() => { props.onManageProfiles(); setSwitching(false); }}>
               <span className="switcher__plus"><Icon name="plus" size={15} /></span>
               {wide && <span className="switcher__item-name">Gérer les profils</span>}
             </button>
           </div>
-        )}
+        </div>
       </div>
 
       <span className="rail__sep" />
       <RailButton icon="plus" label="Nouvel onglet" wide={wide} onClick={props.onNewTab} />
       <RailButton icon="home" label="Accueil" wide={wide} onClick={() => { if (drawer) onToggle(drawer); props.onHome(); }} />
-      <RailButton icon="split" label="Côte à côte" on={split} wide={wide} onClick={props.onToggleSplit} />
-      <RailButton icon="star" label="Favoris" on={drawer === "bookmarks"} wide={wide} onClick={() => onToggle("bookmarks")} />
+      {props.widgets.length > 0 && <span className="rail__sep" />}
+      {props.widgets.map((kind) => (
+        <RailButton key={kind} icon={widgetIcons[kind]} label={barWidgetLabels[kind]} on={props.panel === kind} wide={wide}
+          onClick={() => props.onPanel(props.panel === kind ? null : kind)} />
+      ))}
 
       {wide ? (
         <div className="rail__tabs">

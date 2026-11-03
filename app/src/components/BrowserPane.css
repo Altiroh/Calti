@@ -38,6 +38,7 @@
 .pane__nav {
   display: flex;
   flex: 0 0 auto;
+  align-items: center;
 }
 
 .pane__nav .icon-btn {
@@ -46,22 +47,25 @@
 }
 
 .pane__address {
-  flex: 0 1 36%;
+  flex: 0 1 var(--address-basis, 10%);
+  max-width: var(--address-max, 185px);
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 200px;
+  min-width: 110px;
   height: 34px;
   padding: 0 14px;
   border-radius: 999px;
   background: var(--surface);
   border: 1px solid var(--surface-border);
-  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease), flex-basis 360ms var(--ease);
+  padding-right: 6px;
+  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease), flex-basis 360ms var(--ease), max-width 360ms var(--ease);
 }
 
 /* L'adresse s'élargit pendant la saisie. */
 .pane__address:focus-within {
   flex-basis: 60%;
+  max-width: 820px;
   background: var(--surface-solid);
   box-shadow: 0 0 0 4px var(--accent-soft);
 }
@@ -223,4 +227,137 @@
 
 @keyframes pane-in {
   from { opacity: 0; transform: translateY(8px); }
+}
+
+/* Étoile des favoris, au bout de la barre d'adresse. */
+.pane__star {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: var(--text-faint);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease), transform 220ms cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.pane__star:hover {
+  color: var(--text);
+  background: var(--line);
+}
+
+.pane__star--on {
+  color: #f5b301;
+}
+
+.pane__star--on svg {
+  fill: currentColor;
+}
+
+.pane__star:active {
+  transform: scale(0.85);
+}
+
+
+/* Widget ouvert depuis la barre latérale, à côté de la page. */
+.pane__body {
+  display: flex;
+  gap: calc(var(--ui-gap, 14px) * 0.7);
+  flex: 1;
+  min-height: 0;
+}
+
+.pane__content {
+  min-width: 0;
+}
+
+.pane__panel {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 min(340px, 40%);
+  min-height: 0;
+  animation: panel-in 320ms var(--ease) both;
+}
+
+.pane__panel > * {
+  flex: 1;
+  min-height: 0;
+}
+
+@keyframes panel-in {
+  from { opacity: 0; transform: translateX(16px); }
+}
+
+/* Suggestions de la barre d'adresse (recherches passées, favoris, historique). */
+.pane__address {
+  position: relative;
+}
+
+.suggest {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  width: max(100%, 460px);
+  padding: 6px;
+  border-radius: 16px;
+  --glass-alpha: 0.94;
+  box-shadow: var(--glass-shadow), 0 18px 44px rgba(8, 20, 45, 0.26);
+  animation: suggest-in 180ms var(--ease) both;
+}
+
+.suggest__item {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--text-dim);
+  cursor: default;
+}
+
+.suggest__item:hover,
+.suggest__item--on {
+  background: var(--surface-hover, var(--surface));
+  color: var(--text);
+}
+
+.suggest__icon {
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+}
+
+.suggest__text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.suggest__text strong {
+  font-weight: 650;
+  color: var(--text);
+}
+
+.suggest__url {
+  max-width: 200px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+@keyframes suggest-in {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+
+/* La liste de suggestions déborde de la barre : la barre passe au-dessus du contenu du volet. */
+.pane__bar {
+  z-index: 5;
 }
