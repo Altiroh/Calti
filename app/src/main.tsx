@@ -4,6 +4,7 @@ import "./styles/base.css";
 import "./styles/glass.css";
 import "./styles/layout.css";
 import "./styles/motion.css";
+import "./styles/chrome.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";

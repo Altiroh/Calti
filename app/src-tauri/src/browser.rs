@@ -17,11 +17,29 @@ use tauri::{
 use windows_sys::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
 use windows_sys::Win32::UI::WindowsAndMessaging::GetParent;
 
-/// Arrondi des pages, en pixels logiques (comme les cartes de l'interface).
+/// Arrondi des pages par défaut, en pixels logiques (réglable dans l'interface).
 const CORNER_RADIUS: f64 = 16.0;
 
-/// Profils de navigation : cookies, connexions et historique séparés.
-pub const PROFILES: [&str; 2] = ["personnel", "pro"];
+fn default_radius() -> f64 {
+    CORNER_RADIUS
+}
+
+/// Identifiant de profil valide (nom du dossier de données) : minuscules, chiffres et tirets.
+fn valid_profile(id: &str) -> bool {
+    (1..=40).contains(&id.len()) && id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+}
+
+/// Mots de passe et formulaires : WebView2 propose de les enregistrer, puis les remplit (par profil).
+fn enable_autofill(webview: &Webview) {
+    let _ = webview.with_webview(|platform| unsafe {
+        use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Settings4;
+        use windows::core::Interface;
+        let Ok(core) = platform.controller().CoreWebView2() else { return };
+        let Ok(settings) = core.Settings().and_then(|s| s.cast::<ICoreWebView2Settings4>()) else { return };
+        let _ = settings.SetIsPasswordAutosaveEnabled(true);
+        let _ = settings.SetIsGeneralAutofillEnabled(true);
+    });
+}
 
 #[derive(Default)]
 pub struct Browser(Mutex<State>);
@@ -52,6 +70,9 @@ pub struct Placement {
     y: f64,
     width: f64,
     height: f64,
+    /// Arrondi des coins de la page.
+    #[serde(default = "default_radius")]
+    radius: f64,
 }
 
 fn label(id: u64) -> String {
@@ -68,11 +89,11 @@ fn web_url(input: &str) -> Result<Url, String> {
 
 /// Découpe la vue native avec des coins arrondis. La région ne s'applique qu'à une fenêtre enfant,
 /// jamais à la fenêtre principale de Calti.
-fn round_corners(webview: &Webview, width: f64, height: f64) {
+fn round_corners(webview: &Webview, width: f64, height: f64, radius: f64) {
     let scale = webview.window().scale_factor().unwrap_or(1.0);
     let w = (width * scale).round() as i32;
     let h = (height * scale).round() as i32;
-    let r = (CORNER_RADIUS * 2.0 * scale).round() as i32;
+    let r = (radius.max(0.0) * 2.0 * scale).round() as i32;
     let _ = webview.with_webview(move |platform| unsafe {
         let mut parent = windows::Win32::Foundation::HWND::default();
         if platform.controller().ParentWindow(&mut parent).is_err() {
@@ -116,8 +137,8 @@ fn webview(app: &AppHandle, id: u64) -> Result<Webview, String> {
 
 /// Crée l'onglet (masqué : l'interface l'affiche ensuite à sa place).
 fn open_tab(app: &AppHandle, window_label: &str, profile: &str, url: Url) -> Result<u64, String> {
-    if !PROFILES.contains(&profile) {
-        return Err("profil inconnu".into());
+    if !valid_profile(profile) {
+        return Err("profil invalide".into());
     }
     let id = {
         let state = app.state::<Browser>();
@@ -172,6 +193,9 @@ fn open_tab(app: &AppHandle, window_label: &str, profile: &str, url: Url) -> Res
     let created = window
         .add_child(builder, LogicalPosition::new(0.0, 0.0), LogicalSize::new(1.0, 1.0))
         .and_then(|w| w.hide().map(|_| w));
+    if let Ok(w) = &created {
+        enable_autofill(w);
+    }
     if let Err(e) = created {
         app.state::<Browser>().0.lock().unwrap().tabs.retain(|t| t.id != id);
         return Err(e.to_string());
@@ -220,7 +244,7 @@ pub async fn browser_layout(app: AppHandle, window: Window, visible: Vec<Placeme
             size: LogicalSize::new(width, height).into(),
         })
         .map_err(|e| e.to_string())?;
-        round_corners(&w, width, height);
+        round_corners(&w, width, height, p.radius);
         w.show().map_err(|e| e.to_string())?;
     }
     for id in &ids {
@@ -258,8 +282,8 @@ static NEXT_WINDOW: AtomicU64 = AtomicU64::new(1);
 /// la fenêtre appelante pour la nouvelle, sans être rechargés.
 #[tauri::command]
 pub async fn browser_new_window(app: AppHandle, window: Window, profile: String, detach: bool) -> Result<String, String> {
-    if !PROFILES.contains(&profile.as_str()) {
-        return Err("profil inconnu".into());
+    if !valid_profile(&profile) {
+        return Err("profil invalide".into());
     }
     let label = format!("calti-{}", NEXT_WINDOW.fetch_add(1, Ordering::Relaxed));
     let url = WebviewUrl::App(format!("index.html?profile={profile}").into());

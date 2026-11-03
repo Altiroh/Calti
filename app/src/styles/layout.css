@@ -184,3 +184,13 @@
     transition: none !important;
   }
 }
+
+/* La barre latérale change de largeur en douceur, sauf pendant qu'on la tire. */
+.shell {
+  transition: grid-template-columns 320ms var(--ease);
+}
+
+.shell--resizing {
+  transition: none;
+  cursor: ew-resize;
+}

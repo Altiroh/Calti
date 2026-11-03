@@ -1,0 +1,157 @@
+/*
+ * Habillage réglable (Réglages → Interface). Les valeurs arrivent en variables et attributs sur .shell ;
+ * les sélecteurs sont préfixés par .shell pour passer devant les feuilles des composants.
+ */
+
+.shell {
+  padding: var(--win-pad, 16px);
+  column-gap: var(--win-pad, 16px);
+}
+
+.shell .panes {
+  gap: var(--ui-gap, 14px);
+}
+
+.shell .pane {
+  gap: calc(var(--ui-gap, 14px) * 0.7);
+}
+
+/* --- Barre du haut ---------------------------------------------------------- */
+
+.shell .pane__bar {
+  height: var(--bar-height, 48px);
+  border-radius: var(--bar-radius, 16px);
+}
+
+.shell[data-bar-surface="solid"] .pane__bar {
+  --glass-alpha: 0.92;
+  backdrop-filter: none;
+}
+
+.shell[data-bar-surface="none"] .pane__bar {
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.shell[data-bar-surface="none"] .pane__bar::before,
+.shell[data-bar-surface="none"] .pane__bar::after {
+  display: none;
+}
+
+/* Collée : la barre rejoint le bord haut de la fenêtre (et le bord droit pour le dernier volet). */
+.shell[data-bar="attached"] .pane__bar {
+  margin-top: calc(-1 * var(--win-pad, 16px));
+  border-top-color: transparent;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.shell[data-bar="attached"] .pane:last-child .pane__bar {
+  margin-right: calc(-1 * var(--win-pad, 16px));
+  border-right-color: transparent;
+  border-bottom-right-radius: 0;
+}
+
+/* --- Barre latérale --------------------------------------------------------- */
+
+.shell .rail {
+  border-radius: var(--rail-radius, 28px);
+}
+
+.shell[data-rail-surface="solid"] .rail {
+  --glass-alpha: 0.92;
+  backdrop-filter: none;
+}
+
+.shell[data-rail-surface="none"] .rail {
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.shell[data-rail-surface="none"] .rail::before,
+.shell[data-rail-surface="none"] .rail::after {
+  display: none;
+}
+
+.shell[data-rail="attached"] .rail {
+  margin: calc(-1 * var(--win-pad, 16px)) 0 calc(-1 * var(--win-pad, 16px)) calc(-1 * var(--win-pad, 16px));
+  border-color: transparent;
+  border-right-color: var(--glass-border);
+  border-radius: 0 var(--rail-radius, 28px) var(--rail-radius, 28px) 0;
+}
+
+/* --- Onglets ---------------------------------------------------------------- */
+
+.shell .ptab {
+  flex-basis: var(--tab-max, 190px);
+  border-radius: var(--tab-radius, 10px);
+}
+
+.shell .vtab {
+  border-radius: var(--tab-radius, 10px);
+}
+
+.shell[data-tab-icons] .ptab:not(.ptab--new) {
+  flex: 0 0 auto;
+  padding: 0 8px;
+}
+
+.shell[data-tab-icons] .ptab__title {
+  display: none;
+}
+
+.shell[data-tab-close="always"] .ptab__close,
+.shell[data-tab-close="always"] .vtab__close {
+  opacity: 1;
+}
+
+.shell[data-tab-close="never"] .ptab__close,
+.shell[data-tab-close="never"] .vtab__close {
+  display: none;
+}
+
+.shell[data-tab-active="outline"] .ptab--active,
+.shell[data-tab-active="outline"] .vtab--active {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--accent-border);
+}
+
+.shell[data-tab-active="underline"] .ptab--active {
+  background: transparent;
+  box-shadow: inset 0 -2.5px 0 var(--accent-fg);
+  border-bottom-left-radius: 2px;
+  border-bottom-right-radius: 2px;
+}
+
+.shell[data-tab-active="underline"] .vtab--active {
+  background: transparent;
+  box-shadow: inset 3px 0 0 var(--accent-fg);
+}
+
+/* --- Pages ------------------------------------------------------------------ */
+
+.shell .pane__content {
+  border-radius: var(--page-radius, 16px);
+}
+
+/* --- Animations désactivées ------------------------------------------------- */
+
+.shell.no-motion *,
+.shell.no-motion *::before,
+.shell.no-motion *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Le bouton « nouvel onglet » garde sa taille ; les onglets restent lisibles, la barre défile au-delà. */
+.shell .ptab--new {
+  flex: 0 0 32px;
+}
+
+.shell:not([data-tab-icons]) .ptab:not(.ptab--new) {
+  min-width: 84px;
+}

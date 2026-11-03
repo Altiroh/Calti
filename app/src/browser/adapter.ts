@@ -27,7 +27,7 @@ function favicon(url: string): string | null {
 }
 
 export function profileView(browser: Browser, profile: ProfileId, bookmarks: BookmarkNode[] | null): Brave {
-  const pane = browser.panes[profile];
+  const pane = browser.pane(profile);
   const shown = pane.activeTab ?? pane.lastTab;
   const tabs: Tab[] = browser.tabsOf(profile).map((t, index) => ({
     id: t.id,
@@ -48,7 +48,7 @@ export function profileView(browser: Browser, profile: ProfileId, bookmarks: Boo
     switch (command.type) {
       case "activateTab": return browser.activate(command.tabId);
       case "closeTab": return browser.close(command.tabId);
-      case "newTab": return browser.home(profile);
+      case "newTab": return browser.newTab(profile);
       case "openUrl": return browser.go(command.url, profile, true);
       case "search": return browser.go(command.text, profile, true);
       case "navigate":

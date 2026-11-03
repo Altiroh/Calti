@@ -128,3 +128,30 @@ Demande : naviguer dans Calti, onglets dans Calti, deux navigateurs simultanés,
   garde que son nom, sa couleur de repère (pastille, liseré du volet) et la source de ses favoris.
   Réglages au format `calti.settings.v3` ; l'ancien `calti.settings` est conservé. Migration : le style de
   Personnel devient celui de l'application, l'image de fond passe sous la clé `app`.
+
+## 2026-11-03 — Version installée
+
+- L'icône épinglée « Nopro Cockpit » pointait vers `target\debug\deps\nopro_cockpit.exe` (ancien nom, version
+  de développement qui charge l'interface depuis Vite) : rien ne pouvait démarrer.
+- Version autonome compilée (`npx tauri build --no-bundle`, profil release avec `strip`), installée par
+  `scripts/install.ps1` dans `%LOCALAPPDATA%\Programs\Calti`, raccourci du menu Démarrer, icône épinglée redirigée.
+- Réglages, image de fond et session repris de l'origine de développement (`localhost:1420`) vers celle de la
+  version installée (`tauri.localhost`) par export/import CDP. Vérifié : lancement depuis l'icône épinglée,
+  interface et données affichées.
+- Mots de passe et formulaires : enregistrement et remplissage automatiques WebView2 activés sur chaque onglet
+  (`ICoreWebView2Settings4`), séparés par profil. Non vérifié sur un vrai site (pas de connexion faite pendant les tests).
+- Profils en nombre libre (`calti.settings.v3` : `profileOrder`, préférences par profil : nom, icône, couleur,
+  moteur de recherche, page de nouvel onglet, favoris). Côté Rust, tout identifiant [a-z0-9-] est accepté.
+  Vérifié : création d'un profil, bascule par le sélecteur, recherche DuckDuckGo dans son propre dossier de données.
+- Interface : une seule barre par volet (navigation, adresse, onglets, fenêtre), barre latérale redimensionnable
+  (64 px → 360 px ; large = libellés et onglets verticaux), sélecteur de profil dépliant, Réglages en deux onglets
+  (Apparence, Profils), sélecteur de couleur intégré (palette, teinte/saturation/luminosité, hexadécimal).
+- Les menus se déplient sur place : un menu flottant passerait sous les pages, qui sont des vues natives.
+- Groupes d'onglets façon Brave : nom, couleur (9 couleurs Brave), repli ; clic droit sur un onglet ou un groupe
+  pour les actions (affichées sur place dans la barre) ; un onglet ouvert depuis un groupe y entre ; groupes
+  gardés dans la session ; groupes aussi dans la liste verticale de la barre latérale large.
+- Réglages → Interface : barre du haut et barre latérale flottantes ou collées, fond verre/plein/aucun, arrondis,
+  hauteur ; onglets (actif plein/contour/souligné, fermeture, icônes seules, arrondi, largeur) ; marges,
+  espacements, arrondi des pages (aussi appliqué aux vues natives), animations ; CSS personnalisé appliqué en direct.
+- Vérifié dans une instance isolée (WEBVIEW2_USER_DATA_FOLDER, profil jetable) : création, nommage, couleur,
+  ajout, repli du groupe, session ; barre collée sans fond. Corrigé : bouton « + » étiré et onglets écrasés.

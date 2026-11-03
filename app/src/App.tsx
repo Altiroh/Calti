@@ -1,32 +1,33 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { BookmarkNode } from "./brave/types";
 import { useBraveInstalls } from "./brave/useBraveInstalls";
 import { profileView } from "./browser/adapter";
-import { PROFILE_IDS, useBrowser, type ProfileId } from "./browser/useBrowser";
+import { useBrowser, type ProfileId } from "./browser/useBrowser";
 import { BookmarksDrawer } from "./components/BookmarksDrawer";
 import { BrowserPane } from "./components/BrowserPane";
+import { dragWindow } from "./components/dragWindow";
 import { renderBlock } from "./components/HomeBlocks";
 import { HomeGrid } from "./components/HomeGrid";
 import { LayoutEditor } from "./components/LayoutEditor";
-import { SettingsDrawer } from "./components/SettingsDrawer";
-import { Sidebar } from "./components/Sidebar";
-import { dragWindow } from "./components/dragWindow";
+import { SettingsDrawer, type SettingsTab } from "./components/SettingsDrawer";
+import { RAIL_NARROW, Sidebar } from "./components/Sidebar";
 import { WindowControls } from "./components/WindowControls";
 import { withTransition } from "./motion";
 import { useBackground } from "./settings/backgrounds";
 import type { Block } from "./settings/layout";
-import { applyTheme, BACKGROUND_KEY, useSettings } from "./settings/settings";
+import { applyTheme, BACKGROUND_KEY, searchEngines, useSettings } from "./settings/settings";
 
 export type DrawerName = "bookmarks" | "settings" | null;
 
+const RAIL_KEY = "calti.rail";
+
 /** Favoris de chaque profil, lus dans le profil Brave associé (Réglages). */
 function useBookmarks(sources: Record<ProfileId, string | null>) {
-  const [bookmarks, setBookmarks] = useState<Record<ProfileId, BookmarkNode[] | null>>({ personnel: null, pro: null });
+  const [bookmarks, setBookmarks] = useState<Record<ProfileId, BookmarkNode[] | null>>({});
   const key = JSON.stringify(sources);
   useEffect(() => {
-    for (const profile of PROFILE_IDS) {
-      const dir = sources[profile];
+    for (const [profile, dir] of Object.entries(sources)) {
       if (!dir) {
         setBookmarks((b) => ({ ...b, [profile]: null }));
         continue;
@@ -39,11 +40,32 @@ function useBookmarks(sources: Record<ProfileId, string | null>) {
   return bookmarks;
 }
 
+/** Largeur de la barre latérale, retenue d'une ouverture à l'autre. */
+function useRailWidth() {
+  const [width, setWidth] = useState(() => {
+    try { return Number(localStorage.getItem(RAIL_KEY)) || RAIL_NARROW; } catch { return RAIL_NARROW; }
+  });
+  const [resizing, setResizing] = useState(false);
+  const onResize = useCallback((w: number, done: boolean) => {
+    setWidth(w);
+    setResizing(!done);
+    if (done) try { localStorage.setItem(RAIL_KEY, String(w)); } catch { /* non persisté */ }
+  }, []);
+  return { width, resizing, onResize };
+}
+
 export function App() {
-  const browser = useBrowser();
+  const settings = useSettings();
+  const { theme, profile, profileIds } = settings;
   const installs = useBraveInstalls();
-  const { theme, profile } = useSettings();
+  const prefsOf = useCallback((p: ProfileId) => {
+    const s = profile(p);
+    return { searchUrl: searchEngines[s.search].url, startPage: s.startPage };
+  }, [profile]);
+  const browser = useBrowser(profileIds, prefsOf, theme.chrome.pageRadius);
+  const rail = useRailWidth();
   const [drawer, setDrawer] = useState<DrawerName>(null);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("appearance");
   const [editingLayout, setEditingLayout] = useState(false);
   const toggle = (name: Exclude<DrawerName, null>) => setDrawer((d) => (d === name ? null : name));
 
@@ -53,7 +75,7 @@ export function App() {
   useEffect(() => applyTheme(theme), [theme]);
 
   // Favoris : profil Brave choisi dans les Réglages, sinon le n-ième profil Brave trouvé.
-  const sources = Object.fromEntries(PROFILE_IDS.map((p, i) => {
+  const sources = Object.fromEntries(profileIds.map((p, i) => {
     const chosen = profile(p).bookmarksFrom;
     return [p, chosen === undefined ? installs[i]?.dir ?? null : chosen];
   })) as Record<ProfileId, string | null>;
@@ -62,9 +84,8 @@ export function App() {
   // Les pages (vues natives) passent au-dessus de l'interface : on les masque pendant l'édition.
   useEffect(() => browser.setSuspended(editingLayout), [editingLayout]);
 
-  const labelOf = (p: ProfileId) => profile(p).name;
   const homeFor = (p: ProfileId) => {
-    const view = profileView(browser, p, bookmarks[p]);
+    const view = profileView(browser, p, bookmarks[p] ?? null);
     return <HomeGrid layout={theme.layout} render={(block: Block) => renderBlock(block, view, theme, () => setDrawer("bookmarks"))} />;
   };
 
@@ -76,10 +97,30 @@ export function App() {
     "--grain": theme.grain,
   } as CSSProperties;
 
-  const visiblePanes = browser.split ? PROFILE_IDS : [focused];
+  const visiblePanes = browser.split ? [focused, browser.secondary] : [focused];
+
+  // Habillage (Réglages → Interface) : variables et attributs lus par styles/chrome.css.
+  const c = theme.chrome;
+  const chromeVars = {
+    "--rail-width": `${rail.width}px`,
+    "--win-pad": `${c.windowPadding}px`,
+    "--ui-gap": `${c.gap}px`,
+    "--bar-radius": `${c.barRadius}px`,
+    "--bar-height": `${c.barHeight}px`,
+    "--rail-radius": `${c.railRadius}px`,
+    "--tab-radius": `${c.tabRadius}px`,
+    "--tab-max": `${c.tabMaxWidth}px`,
+    "--page-radius": `${c.pageRadius}px`,
+  } as CSSProperties;
+  const profiles = profileIds.map(profile);
 
   return (
-    <div className={`shell tone-${theme.tone}${drawer ? " shell--drawer" : ""}`}>
+    <div className={`shell tone-${theme.tone}${drawer ? " shell--drawer" : ""}${rail.resizing ? " shell--resizing" : ""}${c.motion ? "" : " no-motion"}`}
+      style={chromeVars}
+      data-bar={c.barStyle} data-bar-surface={c.barSurface}
+      data-rail={c.railStyle} data-rail-surface={c.railSurface}
+      data-tab-close={c.tabClose} data-tab-active={c.tabActive} data-tab-icons={c.tabIconsOnly || undefined}>
+      {c.customCss.trim() && <style>{c.customCss}</style>}
       <div className="scenery" aria-hidden="true" style={ambiance}>
         {background ? (
           <div className="scenery__image" key={background}
@@ -98,10 +139,16 @@ export function App() {
         {theme.grain > 0 && <div className="scenery__grain" />}
       </div>
 
-      <Sidebar profiles={PROFILE_IDS.map((p) => ({ id: p, label: labelOf(p), accent: profile(p).color, tabs: browser.tabsOf(p).length }))}
-        focused={focused} onProfile={(p) => withTransition(() => browser.focus(p as ProfileId))}
+      <Sidebar width={rail.width} onResize={rail.onResize}
+        profiles={profiles} focused={focused} tabCount={(p) => browser.tabsOf(p).length}
+        onProfile={(p) => withTransition(() => browser.focus(p))}
+        onManageProfiles={() => { setSettingsTab("profiles"); setDrawer("settings"); }}
+        items={browser.strip(focused)} activeTab={browser.pane(focused).activeTab}
+        onToggleGroup={(g) => browser.updateGroup(g, { collapsed: !browser.groups.find((x) => x.id === g)?.collapsed })}
+        onActivate={browser.activate} onCloseTab={browser.close}
         drawer={drawer} onToggle={toggle} split={browser.split}
-        onHome={() => browser.home()} onToggleSplit={() => withTransition(() => browser.setSplit(!browser.split))} />
+        onToggleSplit={() => withTransition(() => browser.setSplit(!browser.split))}
+        onHome={() => browser.home()} onNewTab={() => browser.newTab()} />
 
       <div className="page">
         {editingLayout ? (
@@ -109,14 +156,15 @@ export function App() {
             <div className="drag-bar" onMouseDown={dragWindow}><WindowControls /></div>
             <div className="page__inner">
               <LayoutEditor
-                render={(block) => renderBlock(block, profileView(browser, focused, bookmarks[focused]), theme, () => {})}
+                render={(block) => renderBlock(block, profileView(browser, focused, bookmarks[focused] ?? null), theme, () => {})}
                 onClose={() => setEditingLayout(false)} />
             </div>
           </>
         ) : (
           <div className={`panes${browser.split ? " panes--split" : ""}`}>
             {visiblePanes.map((p, i) => (
-              <BrowserPane key={p} browser={browser} profile={p} label={labelOf(p)} accent={profile(p).color}
+              <BrowserPane key={p} browser={browser} profile={profile(p)} split={browser.split} choices={profiles}
+                onChooseProfile={(chosen) => withTransition(() => (i === 0 ? browser.focus(chosen) : browser.setSecondary(chosen)))}
                 home={homeFor(p)} controls={i === visiblePanes.length - 1 ? <WindowControls /> : null} />
             ))}
           </div>
@@ -125,10 +173,11 @@ export function App() {
 
       {browser.error && <div className="toast glass">{browser.error}</div>}
 
-      <BookmarksDrawer open={drawer === "bookmarks"} bookmarks={bookmarks[focused]}
+      <BookmarksDrawer open={drawer === "bookmarks"} bookmarks={bookmarks[focused] ?? null}
         send={(c) => c.type === "openUrl" && browser.go(c.url, focused, true)}
         onClose={() => setDrawer(null)} />
-      <SettingsDrawer open={drawer === "settings"} installs={installs} bookmarkSources={sources}
+      <SettingsDrawer open={drawer === "settings"} tab={settingsTab} onTab={setSettingsTab}
+        installs={installs} bookmarkSources={sources}
         onClose={() => setDrawer(null)}
         onEditLayout={() => {
           setDrawer(null);

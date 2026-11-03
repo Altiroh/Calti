@@ -8,3 +8,7 @@ debug = 0
 
 [profile.dev.package."*"]
 debug = 0
+
+# Version installée : exécutable plus léger, sans symboles de débogage.
+[profile.release]
+strip = true

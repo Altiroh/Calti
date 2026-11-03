@@ -1,56 +1,127 @@
 .pane {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   flex: 1;
   min-width: 0;
   min-height: 0;
   animation: pane-in 460ms var(--ease) both;
 }
 
-/* Barre d'onglets */
+/* Barre unique : profil (vue partagée), navigation, adresse, onglets, fenêtre. */
 .pane__bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 42px;
-  padding: 0 6px 0 14px;
+  gap: 6px;
+  height: 48px;
+  padding: 0 6px;
   border-radius: var(--radius-md);
+  transition: border-color 300ms var(--ease);
 }
 
 .pane--focused .pane__bar {
-  border-color: color-mix(in srgb, var(--pane-accent) 45%, transparent);
+  border-color: color-mix(in srgb, var(--pane-accent) 50%, transparent);
 }
 
-.pane__profile {
+.pane__who {
+  display: flex;
+  flex: 0 0 auto;
+  padding: 3px;
+  border-radius: 50%;
+  transition: transform 220ms cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.pane__who:hover {
+  transform: scale(1.08);
+}
+
+.pane__nav {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.pane__nav .icon-btn {
+  width: 32px;
+  height: 32px;
+}
+
+.pane__address {
+  flex: 0 1 36%;
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 0 0 auto;
-  font-size: 12.5px;
-  font-weight: 600;
+  min-width: 200px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease), flex-basis 360ms var(--ease);
+}
+
+/* L'adresse s'élargit pendant la saisie. */
+.pane__address:focus-within {
+  flex-basis: 60%;
+  background: var(--surface-solid);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.pane__address input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  font-size: 13px;
   color: var(--text);
 }
 
-.pane__dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--pane-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pane-accent) 22%, transparent);
+.pane__address input::placeholder {
+  color: var(--text-faint);
 }
 
-.pane__tabs {
+.pane__lock {
+  display: flex;
+  color: var(--ok);
+}
+
+.pane__lock--off {
+  color: var(--text-faint);
+}
+
+.pane__tabs,
+.pane__choices {
   flex: 1;
   display: flex;
+  align-items: center;
   gap: 4px;
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
 }
 
+.pane__choices {
+  animation: tab-in 260ms var(--ease) both;
+}
+
+.pane__choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px 0 5px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--surface);
+  white-space: nowrap;
+  transition: background var(--dur) var(--ease);
+}
+
+.pane__choice:hover {
+  background: var(--surface-solid);
+}
+
 .ptab {
-  flex: 0 1 200px;
+  flex: 0 1 190px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -112,59 +183,10 @@
   color: var(--text);
 }
 
-/* Barre d'outils et adresse */
-.pane__toolbar {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  height: 44px;
-  padding: 0 6px;
-  border-radius: var(--radius-md);
-}
-
-.pane__toolbar .icon-btn {
-  width: 34px;
-  height: 34px;
-}
-
-.pane__address {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 34px;
-  margin-left: 6px;
-  padding: 0 14px;
-  border-radius: 999px;
-  background: var(--surface);
-  border: 1px solid var(--surface-border);
-  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
-}
-
-.pane__address:focus-within {
-  background: var(--surface-solid);
-  box-shadow: 0 0 0 4px var(--accent-soft);
-}
-
-.pane__address input {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  font-size: 13.5px;
-  color: var(--text);
-}
-
-.pane__address input::placeholder {
-  color: var(--text-faint);
-}
-
-.pane__lock {
-  display: flex;
-  color: var(--ok);
-}
-
-.pane__lock--off {
-  color: var(--text-faint);
+.pane__detach {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
 }
 
 /* Contenu : la page web est posée par-dessus cette zone (vue native). */

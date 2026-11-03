@@ -1,5 +1,6 @@
 // Contrôles de réglage partagés par le tiroir Réglages et l'inspecteur de l'éditeur.
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { ColorPicker } from "./ColorPicker";
 import "./Controls.css";
 
 export function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -36,17 +37,23 @@ export function Segmented<T extends string>({ value, options, onChange }:
   );
 }
 
-/** Couleur facultative : vide = couleur par défaut du thème. */
-export function ColorField({ label, value, onChange }:
-  { label: string; value?: string; onChange: (v: string | undefined) => void }) {
+/**
+ * Couleur : une pastille qui déplie le sélecteur de Calti. Avec `optional`, la couleur peut revenir
+ * à « Auto » (valeur par défaut du thème).
+ */
+export function ColorField({ label, value, onChange, optional = true }:
+  { label: string; value?: string; onChange: (v: string | undefined) => void; optional?: boolean }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="color-field">
-      <span>{label}</span>
-      <label className={`color-field__swatch${value ? "" : " color-field__swatch--auto"}`} style={{ background: value }}>
-        <input type="color" value={value ?? "#ffffff"} onChange={(e) => onChange(e.target.value)} />
-      </label>
-      {value ? <button className="color-field__clear" onClick={() => onChange(undefined)}>Auto</button>
-        : <span className="color-field__auto">Auto</span>}
+    <div className="color-field-wrap">
+      <div className="color-field">
+        <span>{label}</span>
+        <button className={`color-field__swatch${value ? "" : " color-field__swatch--auto"}`} style={{ background: value }}
+          aria-expanded={open} aria-label={`${label} : ${value ?? "auto"}`} onClick={() => setOpen((o) => !o)} />
+        <span className="color-field__value">{value?.toUpperCase() ?? "Auto"}</span>
+        {optional && value && <button className="color-field__clear" onClick={() => onChange(undefined)}>Auto</button>}
+      </div>
+      {open && <ColorPicker value={value ?? "#2f5fa8"} onChange={onChange} />}
     </div>
   );
 }
