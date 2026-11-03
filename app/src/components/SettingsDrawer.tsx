@@ -14,6 +14,7 @@ import { Check, ColorField, Section, Segmented, Slider } from "./Controls";
 import { Drawer } from "./Drawer";
 import { Icon, type IconName } from "./Icon";
 import { ProfileBadge } from "./ProfileBadge";
+import { ProfileData, SystemSettings, ZoomSettings } from "./PrivacySettings";
 
 /** Général (extensions, raccourcis), Profils, Apparence (cohérence graphique de toute l'application). */
 export type SettingsTab = "general" | "profiles" | "appearance";
@@ -68,7 +69,9 @@ const extensions: { id: BarWidget; icon: IconName; colors: [string, string]; des
 const shortcuts: [string, string][] = [
   ["Ctrl+T", "Nouvel onglet"], ["Ctrl+W", "Fermer l'onglet"], ["Ctrl+Tab", "Onglet suivant"], ["Ctrl+L · F6", "Barre d'adresse"],
   ["F5 · Ctrl+R", "Recharger"], ["Ctrl+F5", "Recharger sans le cache"], ["Ctrl+D", "Favori"], ["Ctrl+N", "Nouvelle fenêtre"],
-  ["F11", "Plein écran"], ["Clic molette", "Lien en arrière-plan"],
+  ["F11", "Plein écran"], ["Clic molette", "Lien en arrière-plan"], ["Ctrl+Maj+T", "Rouvrir l'onglet fermé"],
+  ["Ctrl+K · Ctrl+Maj+K", "Palette de commandes (depuis une page : Ctrl+Maj+K)"], ["Ctrl+J", "Téléchargements"], ["Ctrl+H", "Historique"], ["Ctrl+1…9", "Aller à l'onglet n°"],
+  ["Ctrl+molette · Ctrl+0", "Zoom (mémorisé par site)"],
 ];
 
 function General() {
@@ -122,7 +125,11 @@ function General() {
         </p>
       </Section>
 
+      <ZoomSettings />
+
       <ClipboardRetention />
+
+      <SystemSettings />
 
       <Section title="Raccourcis clavier">
         <dl className="keys">
@@ -265,7 +272,6 @@ function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
           <Check label="Précédent / suivant" checked={c.barButtons.nav} onChange={(nav) => setChrome({ barButtons: { ...c.barButtons, nav } })} />
           <Check label="Recharger" checked={c.barButtons.reload} onChange={(reload) => setChrome({ barButtons: { ...c.barButtons, reload } })} />
           <Check label="Favori ★" checked={c.barButtons.star} onChange={(star) => setChrome({ barButtons: { ...c.barButtons, star } })} />
-          <Check label="Détacher" checked={c.barButtons.detach} onChange={(detach) => setChrome({ barButtons: { ...c.barButtons, detach } })} />
         </div>
       </Group>
 
@@ -438,6 +444,13 @@ function Profiles({ installs, bookmarkSources }: { installs: BraveInstall[]; boo
                       <input className="field" value={p.startPage} placeholder="https://…" spellCheck={false}
                         onChange={(e) => update({ startPage: e.target.value })} />
                     )}
+                  </Block>
+
+                  <Block title="Confidentialité">
+                    <Check label="Bloquer les publicités et les traqueurs" checked={p.blockAds !== false}
+                      onChange={(blockAds) => update({ blockAds })} />
+                    <p className="settings__hint">Le bouclier de la barre d'adresse compte les éléments bloqués et suspend le blocage sur un site.</p>
+                    <ProfileData profile={id} />
                   </Block>
 
                   <Block title="Brave">

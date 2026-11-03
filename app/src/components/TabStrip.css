@@ -93,3 +93,27 @@
 .strip:has(.ptab--dragging) {
   overflow: visible;
 }
+
+/* Onglet qui joue du son : bouton pour le couper. */
+.ptab__sound {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.ptab__sound:hover {
+  color: var(--text);
+  background: var(--line);
+}
+
+.ptab__sound--muted {
+  color: var(--text-faint);
+}

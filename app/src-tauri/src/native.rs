@@ -30,6 +30,15 @@ fn shortcut(key: u32, ctrl: bool, shift: bool) -> Option<&'static str> {
         (0x7A, false, false) => "fullscreen",                            // F11
         (0x09, true, false) => "next-tab",                               // Ctrl+Tab
         (0x09, true, true) => "previous-tab",                            // Ctrl+Maj+Tab
+        (0x54, true, true) => "reopen-tab",                              // Ctrl+Maj+T
+        // Ctrl+K reste aux sites qui l’utilisent (GitHub, Slack…) : depuis une page, la palette est sur Ctrl+Maj+K.
+        (0x4B, true, true) => "palette",                                 // Ctrl+Maj+K
+        (0x4A, true, false) => "downloads",                              // Ctrl+J
+        (0x48, true, false) => "history",                                // Ctrl+H
+        (0xBB | 0x6B, true, _) => "zoom-in",                             // Ctrl+= / Ctrl+Plus (pavé)
+        (0xBD | 0x6D, true, _) => "zoom-out",                            // Ctrl+Moins (pavé)
+        (0x30 | 0x60, true, false) => "zoom-reset",                      // Ctrl+0
+        (0x31..=0x39, true, false) => ["tab-1", "tab-2", "tab-3", "tab-4", "tab-5", "tab-6", "tab-7", "tab-8", "tab-last"][(key - 0x31) as usize], // Ctrl+1…9
         _ => return None,
     })
 }
@@ -53,9 +62,12 @@ pub fn install_shortcuts(app: &AppHandle, webview: &Webview, tab: u64) {
             match action {
                 "reload" => sender.CoreWebView2()?.Reload()?,
                 "hard-reload" => reload_ignoring_cache(&sender.CoreWebView2()?)?,
+                "zoom-in" => crate::features::zoom_step(&app, tab, 1),
+                "zoom-out" => crate::features::zoom_step(&app, tab, -1),
+                "zoom-reset" => crate::features::zoom_step(&app, tab, 0),
                 _ => {
                     // Saisie d'adresse, nouvel onglet : le focus clavier repasse à l'interface de la fenêtre.
-                    if action == "address" || action == "new-tab" {
+                    if matches!(action, "address" | "new-tab" | "palette") {
                         if let Some(window) = crate::browser::tab_window(&app, tab) {
                             if let Some(ui) = app.get_webview(&window) {
                                 let _ = ui.set_focus();
@@ -145,6 +157,12 @@ pub const LINK_SCRIPT: &str = r#"(() => {
   };
   addEventListener("auxclick", (e) => e.button === 1 && open(e), true);
   addEventListener("click", (e) => e.button === 0 && (e.ctrlKey || e.metaKey) && open(e), true);
+  // Ctrl+molette (et pincement du pavé tactile) : zoom de Calti, retenu pour le site.
+  addEventListener("wheel", (e) => {
+    if (!e.ctrlKey || !e.deltaY) return;
+    e.preventDefault();
+    window.chrome.webview.postMessage(JSON.stringify({ calti: "zoom", step: e.deltaY < 0 ? 1 : -1 }));
+  }, { capture: true, passive: false });
 })();"#;
 
 pub fn install_link_handling(app: &AppHandle, webview: &Webview, tab: u64) {
@@ -160,6 +178,12 @@ pub fn install_link_handling(app: &AppHandle, webview: &Webview, tab: u64) {
             }
             let text = take_pwstr(raw);
             let Ok(message) = serde_json::from_str::<serde_json::Value>(&text) else { return Ok(()) };
+            if message["calti"] == "zoom" {
+                let step = message["step"].as_i64().unwrap_or(0).signum() as i32;
+                if step != 0 {
+                    crate::features::zoom_step(&app_msg, tab, step);
+                }
+            }
             if message["calti"] == "open-background" {
                 if let Some(url) = message["url"].as_str() {
                     crate::browser::open_from_tab(&app_msg, tab, url, true);

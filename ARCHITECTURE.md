@@ -18,35 +18,28 @@ historique) dans `%LOCALAPPDATA%\fr.calti.app\profiles\`. Ils s’affichent seul
 Les pages sont des vues natives au-dessus de l’interface : les tiroirs repoussent les volets, et l’éditeur de
 disposition masque les pages. Recherche : Brave Search.
 
-## Pont Brave (en sommeil)
+## Fonctions de navigateur (`app/src-tauri/src/features.rs`)
 
-L’extension, l’hôte Native Messaging et le pipe restent dans le dépôt mais l’interface ne les utilise plus.
+Installées sur chaque onglet (événements WebView2) :
+- **Téléchargements** : le petit panneau de WebView2 est masqué, Calti suit chaque fichier (progression, fin,
+  annulation) et l’affiche dans son panneau (Ctrl+J).
+- **Blocage des publicités et traqueurs** : requêtes vers une liste de domaines publicitaires et de mesure
+  d’audience refusées (sauf la page elle-même) ; activé par profil, suspendu site par site (bouclier de la barre).
+- **Zoom** mémorisé par site et par profil (`zoom.json`), réappliqué à chaque changement de page.
+- **Son** : onglet qui joue du son, son coupé.
+- **Données du profil** : effacement (historique, cookies, cache…) et autorisations des sites (caméra, micro…).
 
-## Chaîne de communication (pont Brave)
+## Lancement (`app/src-tauri/src/launch.rs`)
 
-```
-Brave (profil Personnel) ─ extension MV3 ─ stdio ─ calti-host.exe ─┐
-                                                                     ├─ pipe \\.\pipe\calti ─ calti.exe (Tauri) ─ événements ─ React
-Brave (profil Pro)       ─ extension MV3 ─ stdio ─ calti-host.exe ─┘
-```
+Une seule instance : relancé avec un lien (navigateur par défaut), Calti l’ouvre dans un onglet de la fenêtre
+principale. « Faire de Calti le navigateur par défaut » (Réglages → Général) le déclare à Windows (HKCU), puis
+ouvre les paramètres de Windows, seuls à pouvoir fixer ce choix.
 
-| Élément | Dossier | Rôle |
-|---|---|---|
-| Extension MV3 | `extension/` | Lit onglets et favoris, observe leurs changements, exécute les commandes (activer, fermer, ouvrir, rechercher, naviguer). Un identifiant de profil stable est généré une fois (`chrome.storage.local`). |
-| Hôte Native Messaging | `host/` | Lancé par Brave pour chaque profil. Relaie les trames JSON entre stdin/stdout et le pipe nommé, se reconnecte toutes les secondes si l'application est fermée. |
-| Crate partagée | `crates/bridge/` | Nom du pipe, ID d'extension, lecture/écriture des trames, vérification des processus. |
-| Application | `app/src-tauri/` | Serveur du pipe, un état par profil Brave, commandes `brave_state` / `brave_send`, événements `brave:profiles` / `brave:error`. |
-| Interface | `app/src/` | React + CSS. Voir « Interface » ci-dessous. |
+## Brave
 
-## Sécurité de la liaison
-
-- Aucun port réseau : pipe nommé local, `reject_remote_clients`, `first_pipe_instance` (pas d'usurpation du nom).
-- L'application n'accepte comme client que `calti-host.exe` situé dans **son propre dossier** ; l'hôte n'accepte comme
-  serveur que `calti.exe` situé dans **son propre dossier** (vérification par PID → chemin de l'exécutable).
-- Le manifeste de l'hôte limite `allowed_origins` à l'extension ; l'hôte revérifie l'origine passée par Brave.
-- Les trames sont limitées (8 Mio, 1 Mio vers l'extension) et doivent être du JSON valide.
-- Côté Rust, les messages sont typés (`protocol.rs`) ; les commandes refusent les champs inconnus,
-  les URL non http(s) et les recherches vides. L'extension revalide aussi chaque commande.
+Brave n’est plus relié en direct (l’ancien pont extension + hôte Native Messaging a été retiré le 2026-11-03).
+Calti lit seulement ses fichiers pour reprendre favoris, historique, sites fréquents et mots de passe
+(`brave_import.rs`, `setup.rs`).
 
 ## Interface (`app/src/`)
 

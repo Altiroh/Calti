@@ -5,31 +5,20 @@ import { invoke } from "@tauri-apps/api/core";
 export interface BraveInstall {
   dir: string;
   name: string;
-  extensionInstalled: boolean;
-  profileIds: string[];
-  /** Dernière erreur Native Messaging signalée par l'extension. */
-  nativeError: string | null;
 }
 
-const REFRESH_MS = 4000;
-
-/** Profils Brave et présence de l'extension, rafraîchis pour suivre l'installation en direct. */
+/** Profils Brave installés, relus quand la fenêtre reprend le focus (un profil a pu être créé entre-temps). */
 export function useBraveInstalls(): BraveInstall[] {
   const [installs, setInstalls] = useState<BraveInstall[]>([]);
   useEffect(() => {
     let alive = true;
     const refresh = () => invoke<BraveInstall[]>("brave_profiles").then((list) => alive && setInstalls(list)).catch(() => {});
     refresh();
-    const timer = setInterval(refresh, REFRESH_MS);
+    window.addEventListener("focus", refresh);
     return () => {
       alive = false;
-      clearInterval(timer);
+      window.removeEventListener("focus", refresh);
     };
   }, []);
   return installs;
-}
-
-/** Nom du profil Brave correspondant à une connexion Calti. */
-export function braveNameOf(installs: BraveInstall[], profileId: string): string | undefined {
-  return installs.find((i) => i.profileIds.includes(profileId))?.name;
 }

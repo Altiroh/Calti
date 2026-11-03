@@ -346,3 +346,40 @@ Demande : naviguer dans Calti, onglets dans Calti, deux navigateurs simultanés,
 - Copies récentes : durée de conservation réglable (1 heure, 1 jour, 7 jours par défaut, 30 jours, sans limite),
   Réglages → Général ; au-delà, suppression automatique (au lancement, toutes les dix minutes, à chaque copie et au
   changement de durée), images comprises. Vérifié : avec 1 heure, une copie de 3 heures est supprimée.
+
+## 2026-11-03 — Fonctions de navigateur, navigateur par défaut, nettoyage
+
+Suite de l'audit (« Fais tout ce que tu peux faire ») :
+- Téléchargements : suivis par Calti (`features.rs`, événements WebView2), panneau Ctrl+J (progression, ouvrir,
+  afficher dans le dossier, annuler, effacer la liste) ; un message signale chaque téléchargement lancé.
+- Blocage des publicités et traqueurs : requêtes vers ~180 domaines publicitaires et de mesure d'audience
+  refusées (pas la page elle-même), cadres compris. Activé par profil (Réglages → Profils → Confidentialité) ;
+  bouclier dans la barre d'adresse avec le nombre d'éléments bloqués, clic = suspendre sur ce site.
+  Limite : une liste de domaines ne bloque pas les publicités servies par le site lui-même (YouTube).
+- Zoom mémorisé par site et par profil (Ctrl+molette, Ctrl+plus/moins, Ctrl+0, menu de la barre), pastille
+  « 125 % » dans la barre (clic = 100 %).
+- Son : icône sur l'onglet qui joue du son, clic pour couper ; aussi dans les menus.
+- Onglets fermés (25 derniers, communs aux fenêtres) : Ctrl+Maj+T, menus de l'onglet et de la barre, palette.
+- Ctrl+1…8 (n-ième onglet), Ctrl+9 (dernier), Ctrl+H (historique), Ctrl+J, Ctrl+K, y compris depuis une page.
+- Palette de commandes (Ctrl+K) : onglets ouverts, commandes, onglets fermés, historique, favoris, recherche.
+- Confidentialité par profil : effacement des données choisies (confirmation sur place), autorisations des sites
+  (autorisé, bloqué, redemander).
+- Navigateur par défaut : instance unique (un second lancement passe ses liens à la fenêtre principale),
+  liens et fichiers reçus en argument ouverts dans des onglets ; bouton qui déclare Calti à Windows (HKCU) puis
+  ouvre « Applications par défaut ». Une instance d'essai (dossier WebView2 isolé) reste indépendante.
+- Sauvegarde des réglages : export et import d'un fichier JSON (sessions d'onglets et images exclues).
+- Nettoyage : pont Brave en sommeil retiré (`crates/bridge`, `host`, `extension`, `brave.rs`, `protocol.rs`,
+  `register-host.ps1`) ; la liste des profils Brave n'est plus relue toutes les 4 secondes (au focus seulement).
+- Tests dans le projet : `scripts/tests/` (`run.ps1` lance une instance isolée, `cdp.cjs` la pilote,
+  `features.test.cjs` vérifie les fonctions ci-dessus).
+- Zoom : WebView2 ne signale pas les changements de zoom de ces vues, et Ctrl+molette y est désactivé. Calti gère
+  donc lui-même Ctrl+molette (script de page), Ctrl+Plus/Moins (pavé compris) et Ctrl+0, et retient le zoom aussitôt.
+  Réglages → Général → « Zoom des pages » : zoom par défaut, sites qui ont leur propre zoom (« Oublier ») ; menu
+  « Zoom de la page » dans le clic droit de la barre du haut.
+- Ctrl+K reste aux sites qui l'utilisent (GitHub, Slack…) : depuis une page, la palette s'ouvre avec Ctrl+Maj+K.
+  Ctrl+1…9 suivent la touche physique (clavier AZERTY).
+- Bouton « Détacher » retiré de la barre (l'action reste dans le clic droit de la barre).
+- Vérifié (`scripts/tests/run.ps1 features.test.cjs`) : 19/19 — lien reçu au lancement, Ctrl+2, Ctrl+W puis
+  Ctrl+Maj+T, palette (filtre, commande), zoom (suivi, réappliqué au même site, Ctrl+molette, oubli depuis les
+  réglages), son coupé, 2 traqueurs bloqués, téléchargement suivi jusqu'au bout, autorisations, effacement du cache.
+  Non vérifié par de vraies saisies : menus natifs, bouclier dans la barre, enregistrement comme navigateur par défaut.

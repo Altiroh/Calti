@@ -258,6 +258,34 @@
   transform: scale(0.85);
 }
 
+/* Zoom du site et bouclier anti-publicités, dans le champ d’adresse. */
+.pane__chip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  height: 22px;
+  padding: 0 7px;
+  font: 600 11px/1 inherit;
+  color: var(--text-dim);
+  background: var(--line);
+  border-radius: 11px;
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.pane__chip:hover {
+  color: var(--text);
+  background: var(--surface-solid);
+}
+
+.pane__shield {
+  color: #2fa86b;
+  background: none;
+}
+
+.pane__shield--off {
+  color: var(--text-faint);
+}
 
 /* Widget ouvert depuis la barre latérale, à côté de la page. */
 .pane__body {

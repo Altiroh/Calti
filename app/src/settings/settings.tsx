@@ -204,6 +204,8 @@ export interface ProfileSettings {
   startPage: string;
   /** Profil Brave (dossier) dont on lit les favoris ; null = aucun, absent = choix automatique. */
   bookmarksFrom?: string | null;
+  /** Blocage des publicités et traqueurs (absent : activé). */
+  blockAds?: boolean;
 }
 
 const profileDefaults: Record<string, Partial<ProfileSettings>> = {

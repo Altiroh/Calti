@@ -1,56 +1,42 @@
 # Calti
 
-Cockpit Liquid Glass relié à Brave (Tauri 2 + React + extension MV3 + Native Messaging).
+Navigateur Windows personnel, interface Liquid Glass (Tauri 2 + React, pages WebView2).
 Architecture : [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Prérequis
 
-Rust (MSVC), Node 20.19+, WebView2, Brave.
-
-## Première installation
-
-1. Compiler l'hôte et l'application :
-   ```
-   cargo build --workspace
-   ```
-2. Enregistrer l'hôte Native Messaging pour Brave (utilisateur courant, sans droits administrateur) :
-   ```
-   powershell -ExecutionPolicy Bypass -File scripts/register-host.ps1
-   ```
-3. Lancer Calti : la carte « Connecter Brave » liste tes profils Brave. Pour chacun, une seule fois :
-   « Ouvrir les extensions » → Mode développeur → « Charger l’extension non empaquetée » →
-   coller le chemin copié par « Dossier de l’extension ». L’identifiant doit être `djgdkiajnehmpnnnanbojdmgndcmendg`.
-   Ensuite, la connexion est automatique à chaque ouverture de Brave ou de Calti.
-4. Installer les dépendances de l'interface : `cd app && npm install`.
+Rust (MSVC), Node 20.19+, WebView2. Brave est facultatif : Calti peut reprendre ses données.
 
 ## Installer la version de tous les jours
 
-La version de développement (`targetdebugcalti.exe`) n'embarque pas l'interface : elle a besoin de
-`npm run tauri dev`. Pour l'usage quotidien, compiler puis installer la version autonome :
-
 ```
 cd app
+npm install
 npx tauri build --no-bundle
 cd ..
 powershell -ExecutionPolicy Bypass -File scripts/install.ps1
 ```
 
-Calti est copié dans `%LOCALAPPDATA%ProgramsCalticalti.exe`, avec un raccourci dans le menu Démarrer ;
+Calti est copié dans `%LOCALAPPDATA%\Programs\Calti\calti.exe`, avec un raccourci dans le menu Démarrer ;
 les icônes épinglées vers une ancienne version sont redirigées. Même commande pour chaque mise à jour
-(Calti fermé). Les réglages, l'image de fond et la session de la version installée sont séparés de ceux
-de la version de développement (origines web différentes).
+(Calti fermé). Pour l'ouvrir depuis les liens des autres applications : Réglages → Général →
+« Faire de Calti le navigateur par défaut ».
 
-## Lancer
+## Développer
 
 ```
 cd app
 npm run tauri dev
 ```
 
-Au premier lancement, ouvrir Réglages (engrenage) pour nommer chaque profil et régler son environnement.
+Les réglages et la session de la version de développement sont séparés de ceux de la version installée
+(origines web différentes).
 
-## Retirer l'hôte
+## Tester
+
+Les scénarios de `scripts/tests/` pilotent une instance isolée (dossier WebView2 temporaire, profil jetable
+« essai ») par le protocole DevTools ; ils peuvent tourner pendant que Calti est ouvert.
 
 ```
-powershell -ExecutionPolicy Bypass -File scripts/register-host.ps1 -Unregister
+powershell -ExecutionPolicy Bypass -File scripts/tests/run.ps1 features.test.cjs -AppArgs https://example.org/?lancement
 ```

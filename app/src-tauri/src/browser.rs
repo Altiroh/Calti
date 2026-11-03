@@ -57,7 +57,7 @@ struct State {
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Tab {
-    id: u64,
+    pub(crate) id: u64,
     /// Fenêtre qui affiche l'onglet.
     window: String,
     profile: String,
@@ -66,6 +66,13 @@ pub struct Tab {
     loading: bool,
     /// Onglet suspendu (caché depuis longtemps) ou pas encore chargé (session restaurée).
     sleeping: bool,
+    /// Zoom de la page (1 = 100 %).
+    pub(crate) zoom: f64,
+    /// La page joue du son ; son coupé.
+    pub(crate) audible: bool,
+    pub(crate) muted: bool,
+    /// Publicités et traqueurs bloqués sur la page affichée.
+    pub(crate) blocked: u32,
     #[serde(skip)]
     shown: bool,
     /// Incrémenté à chaque masquage : une mise en veille programmée ne s'applique qu'au dernier.
@@ -170,7 +177,7 @@ fn emit_tabs(app: &AppHandle) {
     });
 }
 
-fn update(app: &AppHandle, id: u64, change: impl FnOnce(&mut Tab)) {
+pub(crate) fn update(app: &AppHandle, id: u64, change: impl FnOnce(&mut Tab)) {
     {
         let state = app.state::<Browser>();
         let mut state = state.0.lock().unwrap();
@@ -186,6 +193,20 @@ pub(crate) fn tab_window(app: &AppHandle, id: u64) -> Option<String> {
     let state = app.state::<Browser>();
     let state = state.0.lock().unwrap();
     state.tabs.iter().find(|t| t.id == id).map(|t| t.window.clone())
+}
+
+pub(crate) fn tab_profile(app: &AppHandle, id: u64) -> Option<String> {
+    app.state::<Browser>().0.lock().unwrap().tabs.iter().find(|t| t.id == id).map(|t| t.profile.clone())
+}
+
+/// Onglets ouverts : (identifiant, profil, adresse).
+pub(crate) fn tab_pages(app: &AppHandle) -> Vec<(u64, String, String)> {
+    app.state::<Browser>().0.lock().unwrap().tabs.iter().map(|t| (t.id, t.profile.clone(), t.url.clone())).collect()
+}
+
+/// Un onglet du profil, le premier venu.
+pub(crate) fn any_tab_of(app: &AppHandle, profile: &str) -> Option<u64> {
+    app.state::<Browser>().0.lock().unwrap().tabs.iter().find(|t| t.profile == profile).map(|t| t.id)
 }
 
 fn webview(app: &AppHandle, id: u64) -> Result<Webview, String> {
@@ -223,6 +244,10 @@ fn open_tab(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy: 
             title: lazy.clone().filter(|t| !t.is_empty()).unwrap_or_else(|| url.host_str().unwrap_or_default().to_string()),
             loading: lazy.is_none(),
             sleeping: lazy.is_some(),
+            zoom: 1.0,
+            audible: false,
+            muted: false,
+            blocked: 0,
             shown: false,
             hidden_gen: 0,
             pending_url: lazy.as_ref().map(|_| url.clone()),
@@ -285,6 +310,7 @@ fn open_tab(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy: 
         crate::native::install_shortcuts(app, w, id);
         crate::native::install_link_handling(app, w, id);
         crate::native::install_fullscreen(app, w, id);
+        crate::features::install(app, w, id, profile);
     }
     if let Err(e) = created {
         app.state::<Browser>().0.lock().unwrap().tabs.retain(|t| t.id != id);
@@ -426,6 +452,14 @@ pub async fn browser_action(app: AppHandle, id: u64, action: String) -> Result<(
             Ok(())
         }
         "stop" => w.eval("window.stop()"),
+        "mute" | "unmute" => {
+            crate::features::set_muted(&w, action == "mute");
+            Ok(())
+        }
+        "zoom-in" | "zoom-out" | "zoom-reset" => {
+            crate::features::zoom_step(&app, id, match action.as_str() { "zoom-in" => 1, "zoom-out" => -1, _ => 0 });
+            Ok(())
+        }
         "focus" => w.set_focus(),
         _ => return Err("action inconnue".into()),
     };

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["app/src-tauri", "host", "crates/bridge"]
+members = ["app/src-tauri"]
 
 # Pas d'informations de débogage en dev : le disque C: est presque plein.
 [profile.dev]

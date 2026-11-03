@@ -44,11 +44,13 @@ export function TabStrip({ browser, profile }: Props) {
         ...(current ? [{ id: "ungroup-tab", text: `Retirer du groupe « ${current.name || "sans nom"} »`, action: () => browser.removeFromGroup(tab.id) }] : []),
         { item: "Separator" as const },
         { id: "reload", text: "Recharger", action: () => { invoke("browser_action", { id: tab.id, action: "reload" }).catch(() => {}); } },
+        { id: "mute", text: tab.muted ? "Réactiver le son de l'onglet" : "Couper le son de l'onglet", action: () => browser.tabAction(tab.id, tab.muted ? "unmute" : "mute") },
         { id: "duplicate", text: "Dupliquer l'onglet", action: () => browser.go(tab.url, profile, true) },
         { id: "copy", text: "Copier l'adresse", action: () => { navigator.clipboard.writeText(tab.url).catch(() => {}); } },
         { item: "Separator" as const },
         { id: "close", text: "Fermer l'onglet\tCtrl+W", action: () => browser.close(tab.id) },
         { id: "close-others", text: "Fermer les autres onglets", enabled: siblings.length > 0, action: () => siblings.forEach((t) => browser.close(t.id)) },
+        { id: "reopen", text: "Rouvrir l'onglet fermé\tCtrl+Maj+T", action: () => browser.reopen(profile) },
       ],
     }).then((menu) => menu.popup()).catch(() => {});
   };
@@ -176,6 +178,14 @@ export function TabStrip({ browser, profile }: Props) {
       onPointerCancel={endDrag}>
       {t.loading ? <span className="spinner" /> : <Favicon src={siteIcon(t.url)} size={15} />}
       <span className="ptab__title">{t.title || hostname(t.url)}</span>
+      {(t.audible || t.muted) && (
+        <button className={`ptab__sound${t.muted ? " ptab__sound--muted" : ""}`}
+          aria-label={t.muted ? "Réactiver le son" : "Couper le son"} title={t.muted ? "Réactiver le son" : "Couper le son"}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); browser.tabAction(t.id, t.muted ? "unmute" : "mute"); }}>
+          <Icon name={t.muted ? "mute" : "volume"} size={13} />
+        </button>
+      )}
       <button className="ptab__close" aria-label="Fermer l'onglet"
         onClick={(e) => { e.stopPropagation(); browser.close(t.id); }}>
         <Icon name="close" size={11} />

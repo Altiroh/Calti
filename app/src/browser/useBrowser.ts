@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "./windowEvents";
 import { availableMonitors, getCurrentWindow, PhysicalPosition, PhysicalSize } from "@tauri-apps/api/window";
 import { recordSearch } from "./library";
+import { rememberClosed, takeClosed } from "./closedTabs";
 
 /** Identifiant d'un profil (aussi nom de son dossier de données). */
 export type ProfileId = string;
@@ -18,13 +19,26 @@ export interface BrowserTab {
   loading: boolean;
   /** En veille (caché depuis longtemps) ou pas encore chargé (session restaurée). */
   sleeping: boolean;
+  /** Zoom de la page (1 = 100 %), mémorisé par site. */
+  zoom: number;
+  /** La page joue du son ; son coupé. */
+  audible: boolean;
+  muted: boolean;
+  /** Publicités et traqueurs bloqués sur la page. */
+  blocked: number;
 }
 
-export type NavAction = "back" | "forward" | "reload" | "hard-reload" | "empty-cache-reload" | "stop";
+export type NavAction = "back" | "forward" | "reload" | "hard-reload" | "empty-cache-reload" | "stop"
+  | "mute" | "unmute" | "zoom-in" | "zoom-out" | "zoom-reset";
 
 /** Raccourcis du navigateur, captés dans l'interface ou dans une page (événement `browser:shortcut`). */
 export type Shortcut =
-  | "reload" | "hard-reload" | "new-tab" | "close-tab" | "address" | "new-window" | "bookmark" | "next-tab" | "previous-tab" | "fullscreen";
+  | "reload" | "hard-reload" | "new-tab" | "close-tab" | "address" | "new-window" | "bookmark" | "next-tab" | "previous-tab" | "fullscreen"
+  | "reopen-tab" | "palette" | "downloads" | "history" | "zoom-in" | "zoom-out" | "zoom-reset"
+  | "tab-1" | "tab-2" | "tab-3" | "tab-4" | "tab-5" | "tab-6" | "tab-7" | "tab-8" | "tab-last";
+
+/** Demandes adressées à l'application (événement DOM, détail = profil) : palette, téléchargements, historique. */
+export const APP_EVENT = { palette: "calti:palette", downloads: "calti:downloads", history: "calti:history" } as const;
 
 /** Demandes adressées à un volet (événement DOM, détail = profil) : saisie d'adresse, favori. */
 export const PANE_EVENT = { address: "calti:address", bookmark: "calti:bookmark", search: "calti:search" } as const;
@@ -89,6 +103,10 @@ export interface Browser {
   go: (input: string, profile?: ProfileId, newTab?: boolean, background?: boolean) => void;
   activate: (id: number) => void;
   close: (id: number) => void;
+  /** Rouvre le dernier onglet fermé du profil (Ctrl+Maj+T), ou celui fermé à l'instant `at`. */
+  reopen: (profile?: ProfileId, at?: number) => void;
+  /** Action sur un onglet donné : son, zoom… */
+  tabAction: (id: number, action: NavAction) => void;
   /** Accueil de Calti dans le volet du profil. */
   home: (profile?: ProfileId) => void;
   /** Nouvel onglet : accueil ou page de démarrage du profil. */
@@ -557,9 +575,21 @@ export function useBrowser(
       const next = siblings[index + 1] ?? siblings[index - 1];
       show(tab.profile, next?.id ?? null);
     }
+    if (tab) rememberClosed({ profile: tab.profile, url: tab.url, title: tab.title });
     removeFromGroup(id);
     invoke("browser_close", { id }).catch(fail);
   }, [tabs, panes, show, fail, removeFromGroup]);
+
+  /** Rouvre le dernier onglet fermé du profil (ou celui fermé à l'instant `at`). */
+  const reopen = useCallback((profile: ProfileId = focused, at?: number) => {
+    const tab = takeClosed(profile, at);
+    if (tab) openUrl(tab.url, profile);
+  }, [focused, openUrl]);
+
+  /** Action sur un onglet précis (son, zoom…), pas forcément celui affiché. */
+  const tabAction = useCallback((id: number, act: NavAction) => {
+    invoke("browser_action", { id, action: act }).catch(fail);
+  }, [fail]);
 
   const closeGroup = useCallback((groupId: string) => {
     for (const t of tabs.filter((t) => membership[t.id] === groupId)) close(t.id);
@@ -619,9 +649,25 @@ export function useBrowser(
     switch (key) {
       case "reload":
       case "hard-reload":
+      case "zoom-in":
+      case "zoom-out":
+      case "zoom-reset":
         if (active != null) invoke("browser_action", { id: active, action: key }).catch(fail);
         return;
       case "new-tab": return newTab(profile);
+      case "reopen-tab": return reopen(profile);
+      case "palette":
+      case "downloads":
+      case "history":
+        window.dispatchEvent(new CustomEvent(APP_EVENT[key], { detail: profile }));
+        return;
+      case "tab-1": case "tab-2": case "tab-3": case "tab-4": case "tab-5": case "tab-6": case "tab-7": case "tab-8":
+      case "tab-last": {
+        const own = tabs.filter((t) => t.profile === profile);
+        const target = key === "tab-last" ? own[own.length - 1] : own[Number(key.slice(4)) - 1];
+        if (target) activate(target.id);
+        return;
+      }
       case "close-tab": if (active != null) close(active); return;
       case "new-window": return newWindow(profile);
       case "fullscreen":
@@ -640,7 +686,7 @@ export function useBrowser(
         activate(own[(index + step + own.length) % own.length].id);
       }
     }
-  }, [focused, panes, tabs, newTab, close, newWindow, activate, fail]);
+  }, [focused, panes, tabs, newTab, close, newWindow, activate, fail, reopen]);
   const runShortcutRef = useRef(runShortcut);
   runShortcutRef.current = runShortcut;
 
@@ -665,8 +711,17 @@ export function useBrowser(
       else if (e.ctrlKey && !e.altKey) {
         if (key === "tab") shortcut = e.shiftKey ? "previous-tab" : "next-tab";
         else if (key === "r") shortcut = e.shiftKey ? "hard-reload" : "reload";
+        else if (key === "t" && e.shiftKey) shortcut = "reopen-tab";
+        else if (key === "k" && e.shiftKey) shortcut = "palette";
+        else if (key === "=" || key === "+") shortcut = "zoom-in";
+        else if (key === "-" || e.code === "NumpadSubtract") shortcut = "zoom-out";
+        else if (e.code === "Digit0" || e.code === "Numpad0") shortcut = "zoom-reset";
+        // Touche physique (e.code) : sur un clavier AZERTY, Ctrl+1 donne « & ».
+        else if (!e.shiftKey && /^Digit[1-9]$/.test(e.code)) shortcut = e.code === "Digit9" ? "tab-last" : (`tab-${e.code.slice(5)}` as Shortcut);
         else if (!e.shiftKey) {
-          const keys: Record<string, Shortcut> = { n: "new-window", t: "new-tab", w: "close-tab", l: "address", d: "bookmark" };
+          const keys: Record<string, Shortcut> = {
+            n: "new-window", t: "new-tab", w: "close-tab", l: "address", d: "bookmark", k: "palette", j: "downloads", h: "history",
+          };
           shortcut = keys[key] ?? null;
         }
       }
@@ -680,7 +735,7 @@ export function useBrowser(
 
   return {
     tabs, tabsOf, pane, focused, focus, split: showSplit, setSplit: setSplitState, secondary, setSecondary,
-    go, activate, close, home, newTab, action, registerSlot, setSuspended, newWindow, move,
+    go, activate, close, home, newTab, action, registerSlot, setSuspended, newWindow, move, reopen, tabAction,
     strip, groups: Object.values(groupMap), groupOf, createGroup, addToGroup, removeFromGroup, updateGroup, ungroup, closeGroup,
     error,
   };

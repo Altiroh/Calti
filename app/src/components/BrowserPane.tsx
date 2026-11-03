@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { Menu } from "@tauri-apps/api/menu";
 import type { Suggestion } from "../browser/library";
 import { useSuggestions } from "../browser/webSuggestions";
-import { PANE_EVENT, type Browser, type Cutout } from "../browser/useBrowser";
+import { APP_EVENT, PANE_EVENT, type Browser, type Cutout } from "../browser/useBrowser";
+import { useSiteAllowed } from "../browser/blocker";
 import { withTransition } from "../motion";
 import { barWidgetLabels, useSettings, type BarWidget, type ChromeSettings, type ProfileSettings } from "../settings/settings";
 import { dragWindow } from "./dragWindow";
@@ -26,6 +27,8 @@ interface Props {
   /** Favoris de Calti : la page affichée y est-elle, et bascule. */
   isBookmarked: (url: string) => boolean;
   onToggleBookmark: (url: string, title: string) => void;
+  /** Ouvre les réglages du zoom (Général). */
+  onZoomSettings: () => void;
   /** Réglages → Interface. */
   onMoreSettings: () => void;
   /** Widget ouvert à côté de la page (barre du haut ou barre latérale), et son contenu. */
@@ -43,7 +46,7 @@ const OWN_MENU = "button, a, input, .ptab, .tgroup";
 
 /** Volet de navigation d'un profil : une seule barre (navigation, adresse, onglets), puis le contenu. */
 export function BrowserPane({
-  browser, profile, split, choices, onChooseProfile, home, controls, isBookmarked, onToggleBookmark, onMoreSettings, panel, onPanel, renderWidget, suggest, onSuggestRect,
+  browser, profile, split, choices, onChooseProfile, home, controls, isBookmarked, onToggleBookmark, onMoreSettings, onZoomSettings, panel, onPanel, renderWidget, suggest, onSuggestRect,
 }: Props) {
   const id = profile.id;
   const { theme, updateTheme } = useSettings();
@@ -133,8 +136,25 @@ export function BrowserPane({
           action: () => toggleBookmark.current(),
         },
         { id: "copy-url", text: "Copier l'adresse", enabled: !!active, action: () => active && navigator.clipboard.writeText(active.url).catch(() => {}) },
+        {
+          text: `Zoom de la page : ${Math.round((active?.zoom ?? 1) * 100)} %`,
+          enabled: !!active,
+          items: [
+            { id: "zoom-in", text: "Agrandir\tCtrl+molette ↑ · Ctrl+Plus", action: () => browser.action("zoom-in", id) },
+            { id: "zoom-out", text: "Réduire\tCtrl+molette ↓ · Ctrl+Moins", action: () => browser.action("zoom-out", id) },
+            { id: "zoom-reset", text: "Zoom par défaut\tCtrl+0", action: () => browser.action("zoom-reset", id) },
+            { item: "Separator" },
+            { id: "zoom-settings", text: "Réglages du zoom…", action: onZoomSettings },
+          ],
+        },
+        { id: "mute", text: active?.muted ? "Réactiver le son de l'onglet" : "Couper le son de l'onglet", enabled: !!active, action: () => browser.action(active?.muted ? "unmute" : "mute", id) },
+        { item: "Separator" },
+        { id: "palette", text: "Palette de commandes\tCtrl+K", action: () => window.dispatchEvent(new CustomEvent(APP_EVENT.palette, { detail: id })) },
+        { id: "downloads", text: "Téléchargements\tCtrl+J", action: () => window.dispatchEvent(new CustomEvent(APP_EVENT.downloads, { detail: id })) },
+        { id: "history", text: "Historique\tCtrl+H", action: () => window.dispatchEvent(new CustomEvent(APP_EVENT.history, { detail: id })) },
         { item: "Separator" },
         { id: "new-tab", text: "Nouvel onglet\tCtrl+T", action: () => browser.newTab(id) },
+        { id: "reopen", text: "Rouvrir l'onglet fermé\tCtrl+Maj+T", action: () => browser.reopen(id) },
         { id: "new-window", text: "Nouvelle fenêtre\tCtrl+N", action: () => browser.newWindow(id) },
         { id: "detach", text: "Ouvrir ce profil dans sa propre fenêtre", action: () => browser.newWindow(id, true) },
         {
@@ -148,7 +168,6 @@ export function BrowserPane({
             shown("nav", "Précédent / suivant"),
             shown("reload", "Recharger"),
             shown("star", "Favori ★"),
-            shown("detach", "Détacher"),
           ],
         },
         { id: "settings", text: "Personnaliser l'interface…", action: onMoreSettings },
@@ -157,6 +176,7 @@ export function BrowserPane({
   };
 
   const secure = active?.url.startsWith("https://");
+  const [siteAllowed, toggleSiteAllowed] = useSiteAllowed(id, active?.url);
   const others = choices.filter((p) => p.id !== id);
 
   return (
@@ -220,6 +240,22 @@ export function BrowserPane({
                 setPicked((p) => (e.key === "ArrowDown" ? (p + 1 >= n ? -1 : p + 1) : (p - 1 < -1 ? n - 1 : p - 1)));
               }
             }} />
+          {active && Math.abs(active.zoom - 1) > 0.001 && (
+            <button type="button" className="pane__chip" title="Zoom de ce site · cliquer pour revenir à 100 % (Ctrl+0)"
+              onClick={() => browser.action("zoom-reset", id)}>
+              {Math.round(active.zoom * 100)} %
+            </button>
+          )}
+          {active && siteAllowed !== null && profile.blockAds !== false && (
+            <button type="button" className={`pane__chip pane__shield${siteAllowed ? " pane__shield--off" : ""}`}
+              title={siteAllowed
+                ? "Blocage des publicités suspendu sur ce site · cliquer pour le réactiver"
+                : `${active.blocked} publicité(s) et traqueur(s) bloqué(s) · cliquer pour suspendre le blocage sur ce site`}
+              onClick={() => { toggleSiteAllowed(); browser.action("reload", id); }}>
+              <Icon name="shield" size={13} />
+              {!siteAllowed && active.blocked > 0 && <span>{active.blocked > 99 ? "99+" : active.blocked}</span>}
+            </button>
+          )}
           {show.star && active && (
             <button type="button" className={`pane__star${bookmarked ? " pane__star--on" : ""}`}
               aria-pressed={bookmarked} title={bookmarked ? "Retirer des favoris (Ctrl+D)" : "Ajouter aux favoris (Ctrl+D)"}
@@ -247,12 +283,6 @@ export function BrowserPane({
           <TabStrip browser={browser} profile={id} />
         )}
 
-        {show.detach && (
-          <button className="icon-btn pane__detach" title="Ouvrir ce profil dans sa propre fenêtre"
-            aria-label="Détacher dans une nouvelle fenêtre" onClick={() => browser.newWindow(id, true)}>
-            <Icon name="popout" size={15} />
-          </button>
-        )}
         {controls}
       </header>
 

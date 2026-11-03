@@ -6,7 +6,11 @@ import { useBraveInstalls } from "./brave/useBraveInstalls";
 import { profileView } from "./browser/adapter";
 import { mergeBookmarks, suggest, useCaltiBookmarks, useHistory } from "./browser/library";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { FULLSCREEN_EVENT, useBrowser, type Cutout, type ProfileId } from "./browser/useBrowser";
+import { APP_EVENT, FULLSCREEN_EVENT, useBrowser, type Cutout, type ProfileId } from "./browser/useBrowser";
+import { useBlockerSync } from "./browser/blocker";
+import { Drawer } from "./components/Drawer";
+import { DownloadsDrawer } from "./components/DownloadsDrawer";
+import { Palette, type PaletteCommand } from "./components/Palette";
 import { GroupDialog, useGroupDialogRequest } from "./components/GroupDialog";
 import { BookmarksDrawer } from "./components/BookmarksDrawer";
 import { BrowserPane } from "./components/BrowserPane";
@@ -28,7 +32,7 @@ import { RulerWidget } from "./widgets/RulerWidget";
 import type { BarWidget } from "./settings/settings";
 import { applyTheme, searchEngines, useSettings } from "./settings/settings";
 
-export type DrawerName = "bookmarks" | "settings" | null;
+export type DrawerName = "bookmarks" | "settings" | "downloads" | "history" | null;
 
 const RAIL_KEY = "calti.rail";
 
@@ -108,7 +112,11 @@ export function App() {
   const [dialogRect, setDialogRect] = useState<Cutout | null>(null);
   // Suggestions de la barre d’adresse, elles aussi découpées dans les pages.
   const [suggestRect, setSuggestRect] = useState<Cutout | null>(null);
+  // Palette de commandes (Ctrl+K), ouverte pour un profil ; elle aussi découpée dans les pages.
+  const [palette, setPalette] = useState<ProfileId | null>(null);
+  const [paletteRect, setPaletteRect] = useState<Cutout | null>(null);
   const cutouts = [
+    ...(palette && paletteRect ? [paletteRect] : []),
     ...(fullscreen && pageFullscreen == null ? [{ x: 10, y: 10, width: exitHover ? 236 : 44, height: 44 }] : []),
     ...(groupDialog.request && dialogRect ? [dialogRect] : []),
     ...(suggestRect ? [suggestRect] : []),
@@ -156,6 +164,37 @@ export function App() {
   useEffect(() => browser.setSuspended(editingLayout), [editingLayout]);
 
   useClipboardRecorder();
+  useBlockerSync(profileIds.filter((p) => profile(p).blockAds !== false));
+
+  // Palette, téléchargements, historique : demandés au clavier (page ou interface) ou depuis un menu.
+  useEffect(() => {
+    const onPalette = (e: Event) => setPalette((current) => (current ? null : (e as CustomEvent<ProfileId>).detail));
+    const onDownloads = () => setDrawer((d) => (d === "downloads" ? null : "downloads"));
+    const onHistory = () => setDrawer((d) => (d === "history" ? null : "history"));
+    window.addEventListener(APP_EVENT.palette, onPalette);
+    window.addEventListener(APP_EVENT.downloads, onDownloads);
+    window.addEventListener(APP_EVENT.history, onHistory);
+    return () => {
+      window.removeEventListener(APP_EVENT.palette, onPalette);
+      window.removeEventListener(APP_EVENT.downloads, onDownloads);
+      window.removeEventListener(APP_EVENT.history, onHistory);
+    };
+  }, []);
+
+  // Liens ouverts depuis d'autres applications (Calti navigateur par défaut) : nouveaux onglets de la fenêtre
+  // principale, au lancement (après la reprise de la session) puis à chaque lien reçu.
+  const browserRef = useRef(browser);
+  browserRef.current = browser;
+  useEffect(() => {
+    if (getCurrentWindow().label !== "main") return;
+    const open = (urls: string[]) => urls.forEach((url) => browserRef.current.go(url, browserRef.current.focused, true));
+    const timer = setTimeout(() => invoke<string[]>("take_launch_urls").then(open).catch(() => {}), 1200);
+    const unlisten = listen<string[]>("browser:open-urls", (e) => open(e.payload));
+    return () => {
+      clearTimeout(timer);
+      unlisten.then((u) => u());
+    };
+  }, []);
 
   // Barre latérale « bord renflé » demandée : appliquée une fois aux réglages existants (modifiable ensuite).
   useEffect(() => {
@@ -175,6 +214,11 @@ export function App() {
         : `${profile(r.profile).name} : ${r.imported} mot(s) de passe importé(s), ${r.already} déjà présent(s)`).join(" · ")))
       .catch(() => {});
   }, []);
+  // Téléchargement lancé depuis une page de cette fenêtre : signalé, le panneau reste à un raccourci.
+  useEffect(() => {
+    const unlisten = listen<number>("browser:download-started", () => setImportNotice("Téléchargement en cours · Ctrl+J pour le suivre"));
+    return () => { unlisten.then((u) => u()); };
+  }, []);
   useEffect(() => {
     if (!importNotice) return;
     const timer = setTimeout(() => setImportNotice(null), 9000);
@@ -191,6 +235,33 @@ export function App() {
     searchEngine: theme.chrome.webSuggestions
       ? (theme.chrome.suggestFrom === "profile" ? profile(p).search : theme.chrome.suggestFrom) : null,
   });
+
+  const paletteCommands = (p: ProfileId): PaletteCommand[] => {
+    const active = browser.pane(p).activeTab;
+    const tab = browser.tabs.find((t) => t.id === active);
+    const openSettings = (t: SettingsTab) => () => { setSettingsTab(t); setDrawer("settings"); };
+    return [
+      { label: "Nouvel onglet", keys: "Ctrl+T", icon: "plus", run: () => browser.newTab(p) },
+      { label: "Rouvrir l'onglet fermé", keys: "Ctrl+Maj+T", icon: "reload", run: () => browser.reopen(p) },
+      { label: "Nouvelle fenêtre", keys: "Ctrl+N", icon: "window", run: () => browser.newWindow(p) },
+      { label: "Téléchargements", keys: "Ctrl+J", icon: "download", run: () => setDrawer("downloads") },
+      { label: "Historique", keys: "Ctrl+H", icon: "history", run: () => setDrawer("history") },
+      { label: "Favoris", icon: "star", run: () => setDrawer("bookmarks") },
+      { label: "Plein écran", keys: "F11", icon: "maximize", run: toggleFullscreen },
+      { label: "Accueil", icon: "home", run: () => browser.home(p) },
+      ...(tab ? [
+        { label: "Recharger sans le cache", keys: "Ctrl+F5", icon: "reload" as const, run: () => browser.action("hard-reload", p) },
+        { label: tab.muted ? "Réactiver le son de l'onglet" : "Couper le son de l'onglet", icon: "volume" as const, run: () => browser.action(tab.muted ? "unmute" : "mute", p) },
+        { label: "Zoom : taille réelle", keys: "Ctrl+0", icon: "search" as const, run: () => browser.action("zoom-reset", p) },
+        { label: "Fermer l'onglet", keys: "Ctrl+W", icon: "close" as const, run: () => browser.close(tab.id) },
+      ] : []),
+      { label: "Réglages généraux", icon: "settings", run: openSettings("general") },
+      { label: "Profils", icon: "user", run: openSettings("profiles") },
+      { label: "Apparence", icon: "palette", run: openSettings("appearance") },
+      { label: "Confidentialité et données des sites", icon: "shield", run: openSettings("general") },
+      { label: "Modifier la disposition de l'accueil", icon: "layout", run: () => withTransition(() => setEditingLayout(true)) },
+    ];
+  };
 
   const homeFor = (p: ProfileId) => {
     const context = homeContext(p);
@@ -290,6 +361,7 @@ export function App() {
                 home={homeFor(p)} controls={i === visiblePanes.length - 1 ? <WindowControls /> : null}
                 isBookmarked={(url) => own.has(p, url)} onToggleBookmark={(url, title) => own.toggle(p, url, title)}
                 onMoreSettings={() => { setSettingsTab("appearance"); setDrawer("settings"); }}
+                onZoomSettings={() => { setSettingsTab("general"); setDrawer("settings"); }}
                 panel={panels[p] ?? null} onPanel={(kind) => setPanel(p, kind)}
                 suggest={(input) => suggest(p, input, own.of(p), prefsOf(p).searchUrl)} onSuggestRect={setSuggestRect}
                 renderWidget={(kind) => kind === "ruler"
@@ -307,6 +379,12 @@ export function App() {
         <span className="fullscreen-exit__label">Quitter le plein écran</span>
       </button>
 
+      {palette && (
+        <Palette browser={browser} profile={palette} onClose={() => setPalette(null)} onRect={setPaletteRect}
+          suggest={(input) => suggest(palette, input, own.of(palette), prefsOf(palette).searchUrl)}
+          commands={paletteCommands(palette)} />
+      )}
+
       {groupDialog.request && (
         <GroupDialog key={JSON.stringify(groupDialog.request)} request={groupDialog.request} browser={browser}
           onClose={groupDialog.close} onRect={setDialogRect} />
@@ -318,6 +396,10 @@ export function App() {
       <BookmarksDrawer open={drawer === "bookmarks"} bookmarks={bookmarks[focused] ?? null}
         send={(c) => c.type === "openUrl" && browser.go(c.url, focused, true)}
         onClose={() => setDrawer(null)} />
+      <DownloadsDrawer open={drawer === "downloads"} onClose={() => setDrawer(null)} />
+      <Drawer open={drawer === "history"} title="Historique" onClose={() => setDrawer(null)}>
+        {drawer === "history" && renderBlock({ kind: "history", x: 0, y: 0, w: 4, h: 12 }, homeContext(focused))}
+      </Drawer>
       <SettingsDrawer open={drawer === "settings"} tab={settingsTab} onTab={setSettingsTab}
         installs={installs} bookmarkSources={sources}
         onClose={() => setDrawer(null)}

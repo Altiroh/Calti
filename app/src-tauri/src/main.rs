@@ -2,12 +2,12 @@
 
 use tauri::Manager;
 
-mod brave;
 mod brave_import;
 mod clipboard;
+mod features;
+mod launch;
 mod browser;
 mod native;
-mod protocol;
 mod setup;
 mod suggest;
 
@@ -31,11 +31,16 @@ fn main() {
     }
     // Mots de passe repris de Brave, mis de côté : importés avant que WebView2 n’ouvre les profils.
     brave_import::run_pending_imports();
-    tauri::Builder::default()
-        .manage(brave::BraveLink::default())
+    let cwd = std::env::current_dir().map(|d| d.to_string_lossy().to_string()).unwrap_or_default();
+    launch::remember(launch::urls_from_args(&args, &cwd));
+    let mut builder = tauri::Builder::default();
+    // Instance d'essai (dossier WebView2 isolé) : indépendante de celle déjà ouverte.
+    if std::env::var_os("WEBVIEW2_USER_DATA_FOLDER").is_none() {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, cwd| launch::second_instance(app, args, cwd)));
+    }
+    builder
         .manage(browser::Browser::default())
         .setup(|app| {
-            brave::start(app.handle().clone());
             clipboard::watch(app.handle().clone());
             Ok(())
         })
@@ -45,8 +50,6 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            brave::brave_send,
-            brave::brave_state,
             browser::browser_tabs,
             browser::browser_open,
             browser::browser_close,
@@ -63,13 +66,22 @@ fn main() {
             brave_import::restart_app,
             native::taskbar_overlay,
             native::window_identity,
+            features::blocker_configure,
+            features::zoom_settings,
+            features::zoom_set,
+            features::downloads_list,
+            features::download_cancel,
+            features::download_open,
+            features::downloads_clear,
+            features::site_permissions,
+            features::site_permission_set,
+            features::clear_browsing_data,
+            launch::take_launch_urls,
+            launch::register_default_browser,
             clipboard::clipboard_image,
             clipboard::clipboard_pause,
             setup::brave_profiles,
             setup::brave_bookmarks,
-            setup::open_brave_extensions,
-            setup::launch_brave,
-            setup::reveal_extension_folder,
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application");

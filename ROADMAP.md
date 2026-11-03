@@ -12,5 +12,12 @@
 - [x] Environnement d'accueil personnalisable par profil
 - [x] Validation avec le vrai Brave : deux profils connectés (2026-11-02)
 
+## Étape 2 — Navigateur autonome *(2026-11-03)*
+- [x] Onglets WebView2, profils séparés, plusieurs fenêtres, session reprise
+- [x] Téléchargements, blocage des publicités, zoom par site, son par onglet
+- [x] Onglets fermés (Ctrl+Maj+T), palette (Ctrl+K), Ctrl+1…9
+- [x] Autorisations des sites, effacement des données, sauvegarde des réglages
+- [x] Navigateur par défaut, instance unique
+
 ## Pistes (non engagées)
-Météo, tâches, notes, citation, lecteur audio, onglets récemment fermés (`chrome.sessions`), démarrage avec Windows.
+Recherche dans la page, mode lecture, capture de page entière, espaces de travail, notes par page, démarrage avec Windows.

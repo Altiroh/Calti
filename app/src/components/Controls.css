@@ -878,3 +878,32 @@ select.field option {
   right: 6px;
   width: 22%;
 }
+
+/* Confidentialité d’un profil : données à effacer, autorisations des sites. */
+.privacy__kinds {
+  display: grid;
+  gap: 4px;
+}
+
+.privacy__perms {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.privacy__perms li {
+  display: grid;
+  grid-template-columns: 1fr auto 120px;
+  align-items: center;
+  gap: 8px;
+}
+
+.privacy__origin {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
