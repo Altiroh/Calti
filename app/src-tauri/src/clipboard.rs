@@ -109,6 +109,15 @@ fn read_image(clip: &Open) -> Option<Vec<u8>> {
 pub fn watch(app: AppHandle) {
     std::thread::spawn(move || {
         let mut last = unsafe { GetClipboardSequenceNumber() };
+        // Empreinte du dernier contenu signalé : certains outils (capture d'écran…) remplissent le presse-papiers
+        // en deux temps pour une seule copie ; le même contenu n'est signalé qu'une fois.
+        let mut last_content = 0u64;
+        let fingerprint = |bytes: &[u8]| {
+            use std::hash::{Hash, Hasher};
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            bytes.hash(&mut h);
+            h.finish()
+        };
         loop {
             std::thread::sleep(Duration::from_millis(700));
             let seq = unsafe { GetClipboardSequenceNumber() };
@@ -123,11 +132,19 @@ pub fn watch(app: AppHandle) {
             if private(&clip) {
                 continue;
             }
+            // Seule la fenêtre principale enregistre les copies.
             if let Some(text) = read_text(&clip) {
-                // Seule la fenêtre principale enregistre les copies.
-                let _ = app.emit_to("main", "clipboard:text", text);
-            } else if unsafe { IsClipboardFormatAvailable(CF_DIB) } != 0 {
-                let _ = app.emit_to("main", "clipboard:image", seq);
+                let print = fingerprint(text.as_bytes());
+                if print != last_content {
+                    last_content = print;
+                    let _ = app.emit_to("main", "clipboard:text", text);
+                }
+            } else if let Some(dib) = clip.bytes(CF_DIB) {
+                let print = fingerprint(&dib);
+                if print != last_content {
+                    last_content = print;
+                    let _ = app.emit_to("main", "clipboard:image", seq);
+                }
             }
         }
     });

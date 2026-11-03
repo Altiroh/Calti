@@ -187,6 +187,9 @@ export function App() {
     profile: profile(p),
     history: { entries: history.of(p), clear: () => history.clear(p), remove: (at) => history.remove(p, at) },
     onShowAllBookmarks: () => setDrawer("bookmarks"),
+    suggest: (input) => suggest(p, input, own.of(p), prefsOf(p).searchUrl),
+    searchEngine: theme.chrome.webSuggestions
+      ? (theme.chrome.suggestFrom === "profile" ? profile(p).search : theme.chrome.suggestFrom) : null,
   });
 
   const homeFor = (p: ProfileId) => {

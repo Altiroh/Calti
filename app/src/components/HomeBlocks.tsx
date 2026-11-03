@@ -1,4 +1,5 @@
 import type { Brave } from "../browser/adapter";
+import type { Suggestion } from "../browser/library";
 import type { Block } from "../settings/layout";
 import type { HomeTheme } from "../settings/settings";
 import { ActiveTabWidget } from "../widgets/ActiveTabWidget";
@@ -13,6 +14,10 @@ import { SearchBar } from "./SearchBar";
 
 /** Ce que les blocs de l'accueil d'un profil affichent. */
 export interface HomeContext {
+  /** Suggestions de la recherche (recherches passées, favoris, historique du profil). */
+  suggest: (input: string) => Suggestion[];
+  /** Moteur pour les suggestions en ligne, ou null si elles sont désactivées. */
+  searchEngine: string | null;
   brave: Brave;
   theme: HomeTheme;
   profile: { id: string; name: string };
@@ -21,11 +26,11 @@ export interface HomeContext {
 }
 
 /** Contenu de chaque bloc de l'accueil. Pour ajouter un type de bloc : layout.ts puis ici. */
-export function renderBlock(block: Block, { brave, theme, profile, history, onShowAllBookmarks }: HomeContext) {
+export function renderBlock(block: Block, { brave, theme, profile, history, onShowAllBookmarks, suggest, searchEngine }: HomeContext) {
   switch (block.kind) {
     case "title": return <TitleWidget theme={theme} block={block} profileName={profile.name} />;
     case "clock": return <ClockWidget block={block} />;
-    case "search": return <SearchBar send={brave.send} style={block.style} />;
+    case "search": return <SearchBar send={brave.send} style={block.style} suggest={suggest} engine={searchEngine} />;
     case "activeTab": return <ActiveTabWidget brave={brave} />;
     case "tabs": return <TabsWidget brave={brave} />;
     case "bookmarks": return <BookmarksWidget brave={brave} onShowAll={onShowAllBookmarks} />;

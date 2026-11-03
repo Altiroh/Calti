@@ -8,6 +8,7 @@ import {
   type SearchEngine,
 } from "../settings/settings";
 import { AppearancePresets } from "./AppearancePresets";
+import { retentionChoices, useClipboardHistory } from "../widgets/clipboard";
 import { BraveImport } from "./BraveImport";
 import { Check, ColorField, Section, Segmented, Slider } from "./Controls";
 import { Drawer } from "./Drawer";
@@ -99,6 +100,30 @@ function General() {
         <p className="settings__hint">Une extension activée a son raccourci dans la barre latérale ; elle s'ouvre à côté de la page.</p>
       </Section>
 
+      <Section title="Recherche">
+        <Check label="Suggestions du moteur pendant la saisie" checked={c.webSuggestions}
+          onChange={(webSuggestions) => updateTheme({ chrome: { ...c, webSuggestions } })} />
+        {c.webSuggestions && (
+          <label className="pblock__field">
+            <span>Fournies par</span>
+            <select className="field" value={c.suggestFrom}
+              onChange={(e) => updateTheme({ chrome: { ...c, suggestFrom: e.target.value as ChromeSettings["suggestFrom"] } })}>
+              <option value="profile">Le moteur de chaque profil (sauf Brave et Qwant)</option>
+              <option value="duckduckgo">DuckDuckGo</option>
+              <option value="google">Google</option>
+              <option value="bing">Bing</option>
+              <option value="ecosia">Ecosia</option>
+            </select>
+          </label>
+        )}
+        <p className="settings__hint">
+          Comme dans un navigateur, la saisie est envoyée au moteur de recherche du profil pour proposer des suites.
+          Désactivé, seules vos recherches passées, vos favoris et votre historique sont proposés.
+        </p>
+      </Section>
+
+      <ClipboardRetention />
+
       <Section title="Raccourcis clavier">
         <dl className="keys">
           {shortcuts.map(([keys, label]) => (
@@ -115,6 +140,24 @@ function General() {
         </p>
       </Section>
     </>
+  );
+}
+
+/** Durée de conservation des copies récentes ; au-delà, elles sont supprimées automatiquement. */
+function ClipboardRetention() {
+  const { retention, setRetention } = useClipboardHistory();
+  return (
+    <Section title="Copies récentes">
+      <label className="pblock__field">
+        <span>Conservation</span>
+        <select className="field" value={retention} onChange={(e) => setRetention(Number(e.target.value))}>
+          {retentionChoices.map(([hours, label]) => <option key={hours} value={hours}>{label}</option>)}
+        </select>
+      </label>
+      <p className="settings__hint">
+        Au-delà, les copies (textes, liens, images) sont supprimées automatiquement. Les 40 dernières au plus sont gardées.
+      </p>
+    </Section>
   );
 }
 

@@ -18,6 +18,28 @@ const LIST_KEY = "calti.clipboard";
 const PAUSE_KEY = "calti.clipboard.paused";
 const CHANGED = "calti:clipboard";
 const MAX = 40;
+const RETENTION_KEY = "calti.clipboard.retention";
+const HOUR = 3_600_000;
+
+/** Durées de conservation proposées, en heures (0 : sans limite de durée, les 40 dernières seulement). */
+export const retentionChoices: [number, string][] = [[1, "1 heure"], [24, "1 jour"], [168, "7 jours"], [720, "30 jours"], [0, "Sans limite"]];
+
+function readRetention(): number {
+  const saved = Number(localStorage.getItem(RETENTION_KEY));
+  return retentionChoices.some(([h]) => h === saved) && localStorage.getItem(RETENTION_KEY) != null ? saved : 168;
+}
+
+/** Retire les copies plus anciennes que la durée de conservation (et leurs images). */
+function prune() {
+  const hours = readRetention();
+  if (!hours) return;
+  const limit = Date.now() - hours * HOUR;
+  const list = read();
+  const kept = list.filter((c) => c.at >= limit);
+  if (kept.length === list.length) return;
+  for (const old of list) if (old.at < limit && old.kind === "image") run("readwrite", (s) => s.delete(clipImageKey(old.id))).catch(() => {});
+  save(kept);
+}
 const THUMB = 640;
 
 export const clipImageKey = (id: string) => `clip-${id}`;
@@ -38,6 +60,7 @@ function add(clip: Clip) {
   const next = [clip, ...kept];
   for (const old of next.slice(MAX)) if (old.kind === "image") run("readwrite", (s) => s.delete(clipImageKey(old.id))).catch(() => {});
   save(next.slice(0, MAX));
+  prune();
 }
 
 /** Image copiée (BMP envoyé par Rust) réduite en JPEG. */
@@ -61,6 +84,9 @@ export function useClipboardRecorder() {
   useEffect(() => {
     if (getCurrentWindow().label !== "main") return;
     try { invoke("clipboard_pause", { paused: localStorage.getItem(PAUSE_KEY) === "1" }); } catch { /* sans effet */ }
+    // Copies trop anciennes supprimées au lancement, puis toutes les dix minutes.
+    prune();
+    const pruning = window.setInterval(prune, 10 * 60_000);
     const subscriptions = Promise.all([
       listen<string>("clipboard:text", (e) => {
         const text = e.payload;
@@ -74,7 +100,10 @@ export function useClipboardRecorder() {
         } catch { /* image illisible : ignorée */ }
       }),
     ]);
-    return () => { subscriptions.then((u) => u.forEach((f) => f())); };
+    return () => {
+      clearInterval(pruning);
+      subscriptions.then((u) => u.forEach((f) => f()));
+    };
   }, []);
 }
 
@@ -82,11 +111,13 @@ export function useClipboardRecorder() {
 export function useClipboardHistory() {
   const [clips, setClips] = useState<Clip[]>(read);
   const [paused, setPaused] = useState(() => localStorage.getItem(PAUSE_KEY) === "1");
+  const [retention, setRetentionState] = useState(readRetention);
   useEffect(() => {
     const reload = () => setClips(read());
     const onStorage = (e: StorageEvent) => {
       if (e.key === LIST_KEY) reload();
       if (e.key === PAUSE_KEY) setPaused(e.newValue === "1");
+      if (e.key === RETENTION_KEY) setRetentionState(readRetention());
     };
     window.addEventListener(CHANGED, reload);
     window.addEventListener("storage", onStorage);
@@ -111,7 +142,14 @@ export function useClipboardHistory() {
     setPaused(next);
   }, [paused]);
 
-  return { clips, paused, remove, clear, togglePause };
+  /** Nouvelle durée : les copies déjà trop anciennes partent tout de suite. */
+  const setRetention = useCallback((hours: number) => {
+    try { localStorage.setItem(RETENTION_KEY, String(hours)); } catch { /* non persisté */ }
+    setRetentionState(hours);
+    prune();
+  }, []);
+
+  return { clips, paused, remove, clear, togglePause, retention, setRetention };
 }
 
 /** Recopie une entrée dans le presse-papiers. */

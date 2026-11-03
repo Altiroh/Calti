@@ -83,6 +83,10 @@ export interface ChromeSettings {
   motion: boolean;
   /** CSS libre, appliqué en dernier : pour ajuster le moindre détail. */
   customCss: string;
+  /** Suggestions du moteur de recherche pendant la saisie (la saisie lui est envoyée). */
+  webSuggestions: boolean;
+  /** Qui fournit ces suggestions : le moteur de chaque profil, ou un moteur choisi (Brave et Qwant n'en fournissent pas). */
+  suggestFrom: "profile" | "duckduckgo" | "google" | "bing" | "ecosia";
 }
 
 export const defaultChrome: ChromeSettings = {
@@ -109,6 +113,8 @@ export const defaultChrome: ChromeSettings = {
   gap: 14,
   motion: true,
   customCss: "",
+  webSuggestions: true,
+  suggestFrom: "profile",
 };
 
 export type FontName = "moderne" | "editorial" | "condense";

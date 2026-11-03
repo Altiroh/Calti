@@ -1,4 +1,4 @@
-// Identité de la fenêtre dans Windows : icône de la barre des tâches = badge du profil affiché,
+// Identité de la fenêtre dans Windows : icône de Calti avec la pastille du profil affiché,
 // titre (survol de la barre des tâches, Alt+Tab) = « Calti — page affichée ».
 import { useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -75,11 +75,10 @@ export function useWindowIdentity(profile: ProfileSettings, pageTitle: string | 
   useEffect(() => {
     // Image du profil pas encore chargée : on attend plutôt que d'afficher un badge provisoire.
     if (profile.avatar === "image" && profile.image && !image) return;
-    badgePng(profile, image).then((png) => {
-      getCurrentWindow().setIcon(png).catch(() => {});
-      // Calti épinglé : Windows garde l’icône du raccourci, le badge y est superposé.
-      invoke("taskbar_overlay", { png: Array.from(png), label: profile.name }).catch(() => {});
-    }).catch(() => {});
+    // L'icône reste celle de Calti : le badge du profil y est seulement superposé, en pastille.
+    badgePng(profile, image)
+      .then((png) => invoke("taskbar_overlay", { png: Array.from(png), label: profile.name }))
+      .catch(() => {});
   }, [look]);
 
   useEffect(() => {

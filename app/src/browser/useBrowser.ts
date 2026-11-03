@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "./windowEvents";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { availableMonitors, getCurrentWindow, PhysicalPosition, PhysicalSize } from "@tauri-apps/api/window";
 import { recordSearch } from "./library";
 
 /** Identifiant d'un profil (aussi nom de son dossier de données). */
@@ -27,7 +27,7 @@ export type Shortcut =
   | "reload" | "hard-reload" | "new-tab" | "close-tab" | "address" | "new-window" | "bookmark" | "next-tab" | "previous-tab" | "fullscreen";
 
 /** Demandes adressées à un volet (événement DOM, détail = profil) : saisie d'adresse, favori. */
-export const PANE_EVENT = { address: "calti:address", bookmark: "calti:bookmark" } as const;
+export const PANE_EVENT = { address: "calti:address", bookmark: "calti:bookmark", search: "calti:search" } as const;
 /** Bascule du plein écran (F11), pour la fenêtre. */
 export const FULLSCREEN_EVENT = "calti:fullscreen";
 
@@ -144,12 +144,39 @@ export function toUrl(input: string, searchUrl: string): string | null {
   return searchUrl + encodeURIComponent(text);
 }
 
+/** Place de la fenêtre à l'écran, en pixels physiques. */
+interface Bounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  maximized: boolean;
+}
+
 interface Saved {
   split: boolean;
   focused: ProfileId;
   secondary?: ProfileId;
   tabs: { profile: ProfileId; url: string; title?: string; active: boolean; group?: string }[];
   groups?: TabGroup[];
+  bounds?: Bounds;
+  /** Fermeture de la fenêtre (ms) : absente si elle était ouverte quand l'application s'est arrêtée. */
+  closedAt?: number;
+}
+
+/** Fenêtres fermées au plus dix minutes avant la principale : fermées en quittant Calti, donc rouvertes. */
+const QUIT_WINDOW = 10 * 60_000;
+
+/** Remet la fenêtre à sa place, si cette place est encore sur un écran branché. */
+async function applyBounds(b: Bounds) {
+  const win = getCurrentWindow();
+  const monitors = await availableMonitors().catch(() => []);
+  const visible = monitors.some(({ position: p, size: z }) =>
+    b.x + 80 < p.x + z.width && b.x + b.width - 80 > p.x && b.y >= p.y - 20 && b.y + 40 < p.y + z.height);
+  if (!visible) return;
+  await win.setPosition(new PhysicalPosition(b.x, b.y)).catch(() => {});
+  if (b.maximized) await win.maximize().catch(() => {});
+  else await win.setSize(new PhysicalSize(b.width, b.height)).catch(() => {});
 }
 
 function loadSaved(fallback: ProfileId): Saved {
@@ -309,27 +336,49 @@ export function useBrowser(
       // Session reprise sous un autre nom de fenêtre : l'ancienne est oubliée (celle-ci s'enregistre sous le sien).
       if (RESTORE_KEY && RESTORE_KEY !== STORAGE_KEY) localStorage.removeItem(RESTORE_KEY);
       if (!IS_MAIN) return;
-      // Fenêtres secondaires encore ouvertes à la dernière fermeture : rouvertes avec leurs onglets.
+      // Fenêtres secondaires ouvertes quand Calti s'est arrêté, ou fermées en le quittant : rouvertes à leur place,
+      // avec leur état et leurs onglets. Une fenêtre fermée bien avant de quitter reste fermée.
+      const quitAt = saved.closedAt;
       for (const key of Object.keys(localStorage).filter((k) => k.startsWith(SESSION_PREFIX))) {
         try {
           const other: Saved = JSON.parse(localStorage.getItem(key) ?? "{}");
-          const first = other.tabs?.find((t) => profileIds.includes(t.profile));
-          if (!first) { localStorage.removeItem(key); continue; }
-          await invoke("browser_new_window", { profile: other.focused ?? first.profile, detach: false, session: key });
+          const profile = [other.focused, ...(other.tabs ?? []).map((t) => t.profile)].find((p) => p && profileIds.includes(p));
+          const closedWithApp = other.closedAt == null || quitAt == null || other.closedAt >= quitAt - QUIT_WINDOW;
+          if (!profile || !closedWithApp) { localStorage.removeItem(key); continue; }
+          await invoke("browser_new_window", { profile, detach: false, session: key });
         } catch { /* session illisible : ignorée */ }
       }
     })();
   }, [saved, show]);
 
-  // Fenêtre secondaire fermée par l'utilisateur : ses onglets ne seront pas rouverts.
+  // Place de la fenêtre : remise au lancement, suivie ensuite (déplacement, taille, agrandissement).
+  const [bounds, setBounds] = useState<Bounds | undefined>(saved.bounds);
   useEffect(() => {
-    if (IS_MAIN) return;
-    const unlisten = getCurrentWindow().onCloseRequested(() => {
-      // Écriture en attente annulée : sinon la fermeture réenregistrerait la session qu'on oublie.
-      clearTimeout(sessionTimer.current);
-      pendingSession.current = null;
-      localStorage.removeItem(STORAGE_KEY);
-    });
+    if (saved.bounds) applyBounds(saved.bounds);
+    const win = getCurrentWindow();
+    let timer = 0;
+    const track = () => {
+      clearTimeout(timer);
+      timer = window.setTimeout(async () => {
+        const [position, size, maximized, minimized] = await Promise.all([
+          win.outerPosition(), win.innerSize(), win.isMaximized(), win.isMinimized(),
+        ]).catch(() => [null, null, false, true] as const);
+        // Réduite ou agrandie : on garde la dernière taille normale, seul l'état « agrandie » change.
+        if (!position || !size || minimized) return;
+        setBounds((b) => (maximized && b ? { ...b, maximized: true }
+          : { x: position.x, y: position.y, width: size.width, height: size.height, maximized }));
+      }, 400);
+    };
+    const listeners = Promise.all([win.onMoved(track), win.onResized(track)]);
+    track();
+    return () => { clearTimeout(timer); listeners.then((u) => u.forEach((f) => f())); };
+  }, []);
+
+  // Fermeture : la session part tout de suite, datée. Au lancement suivant, les fenêtres fermées en même temps que
+  // l'application sont rouvertes ; une fenêtre fermée bien avant ne l'est pas.
+  const closing = useRef<() => void>(() => {});
+  useEffect(() => {
+    const unlisten = getCurrentWindow().onCloseRequested(() => closing.current());
     return () => { unlisten.then((u) => u()); };
   }, []);
 
@@ -344,12 +393,18 @@ export function useBrowser(
         profile: t.profile, url: t.url, title: t.title, active: panes[t.profile]?.activeTab === t.id, group: membership[t.id],
       })),
       groups: Object.values(groupMap).filter((g) => tabs.some((t) => membership[t.id] === g.id)),
+      bounds,
+    };
+    closing.current = () => {
+      clearTimeout(sessionTimer.current);
+      pendingSession.current = null;
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...data, closedAt: Date.now() })); } catch { /* non persisté */ }
     };
     // Écriture regroupée : pendant un chargement, titres et adresses changent plusieurs fois par seconde.
     pendingSession.current = JSON.stringify(data);
     clearTimeout(sessionTimer.current);
     sessionTimer.current = window.setTimeout(flushSession, 400);
-  }, [tabs, panes, split, focused, secondary, membership, groupMap]);
+  }, [tabs, panes, split, focused, secondary, membership, groupMap, bounds]);
   // Fermeture de la fenêtre : la dernière session part tout de suite.
   useEffect(() => {
     window.addEventListener("pagehide", flushSession);
@@ -517,6 +572,8 @@ export function useBrowser(
     const start = prefsOf(profile).startPage;
     if (start && start !== "home") openUrl(start, profile);
     else show(profile, null);
+    // Comme dans un navigateur : on peut taper tout de suite (recherche de l'accueil, sinon barre d'adresse).
+    window.dispatchEvent(new CustomEvent(PANE_EVENT.search, { detail: profile }));
   }, [focused, prefsOf, openUrl, show]);
 
   const action = useCallback((act: NavAction, profile: ProfileId = focused) => {

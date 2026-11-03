@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent, type ReactNode } from "react";
 import { Menu } from "@tauri-apps/api/menu";
 import type { Suggestion } from "../browser/library";
+import { useSuggestions } from "../browser/webSuggestions";
 import { PANE_EVENT, type Browser, type Cutout } from "../browser/useBrowser";
 import { withTransition } from "../motion";
 import { barWidgetLabels, useSettings, type BarWidget, type ChromeSettings, type ProfileSettings } from "../settings/settings";
@@ -56,7 +57,8 @@ export function BrowserPane({
   // Suggestions : seulement une fois que l’on tape (pas pour l’adresse affichée au focus).
   const [typed, setTyped] = useState(false);
   const [picked, setPicked] = useState(-1);
-  const suggestions = typed && draft?.trim() ? suggest(draft) : [];
+  const query = typed ? draft ?? "" : "";
+  const suggestions = useSuggestions(query.trim() ? suggest(query) : [], query, c.webSuggestions ? (c.suggestFrom === "profile" ? profile.search : c.suggestFrom) : null);
   const [menu, setMenu] = useState<"profiles" | null>(null);
   const shownPanel = panel;
 
@@ -68,6 +70,7 @@ export function BrowserPane({
     return () => window.removeEventListener("keydown", onKey);
   }, [shownPanel, onPanel]);
   const address = useRef<HTMLInputElement>(null);
+  const root = useRef<HTMLElement>(null);
   const bookmarked = !!active && isBookmarked(active.url);
   const toggleBookmark = useRef(() => {});
   toggleBookmark.current = () => active && onToggleBookmark(active.url, active.title);
@@ -80,11 +83,21 @@ export function BrowserPane({
       address.current?.select();
     };
     const onBookmark = (e: Event) => (e as CustomEvent).detail === id && toggleBookmark.current();
+    // Nouvel onglet : le curseur va dans la recherche de l'accueil (une fois affiché), sinon dans l'adresse.
+    const onSearch = (e: Event) => {
+      if ((e as CustomEvent).detail !== id) return;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const home = root.current?.querySelector<HTMLInputElement>(".pane__home .search__input");
+        (home ?? address.current)?.focus();
+      }));
+    };
+    window.addEventListener(PANE_EVENT.search, onSearch);
     window.addEventListener(PANE_EVENT.address, onAddress);
     window.addEventListener(PANE_EVENT.bookmark, onBookmark);
     return () => {
       window.removeEventListener(PANE_EVENT.address, onAddress);
       window.removeEventListener(PANE_EVENT.bookmark, onBookmark);
+      window.removeEventListener(PANE_EVENT.search, onSearch);
     };
   }, [id]);
 
@@ -147,7 +160,7 @@ export function BrowserPane({
   const others = choices.filter((p) => p.id !== id);
 
   return (
-    <section className={`pane${focused ? " pane--focused" : ""}`} style={{ "--pane-accent": profile.color } as CSSProperties}>
+    <section ref={root} className={`pane${focused ? " pane--focused" : ""}`} style={{ "--pane-accent": profile.color } as CSSProperties}>
       <header className="pane__bar glass" onMouseDown={dragWindow} onContextMenu={onContextMenu}>
         {split && (
           <button className="pane__who" title={`${profile.name} · changer le profil de ce volet`}
@@ -269,7 +282,7 @@ function highlight(text: string, query: string): ReactNode {
 }
 
 /** Suggestions sous la barre d’adresse ; la page est découpée à leur place (onRect) pour les laisser voir. */
-function SuggestionList({ items, picked, query, onPick, onRect }: {
+export function SuggestionList({ items, picked, query, onPick, onRect }: {
   items: Suggestion[];
   picked: number;
   query: string;

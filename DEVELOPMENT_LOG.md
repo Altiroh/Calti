@@ -313,3 +313,36 @@ Demande : naviguer dans Calti, onglets dans Calti, deux navigateurs simultanés,
   l'interface qui ferme la fenêtre (`destroy`), permission absente des capacités. `core:window:allow-destroy`
   ajoutée. Installation faite après arrêt forcé de la fenêtre bloquée ; au relancement, les deux fenêtres sont
   revenues avec leurs onglets.
+- Recherche de l'accueil : mêmes suggestions que la barre d'adresse (recherches passées, favoris, historique).
+- Suggestions en ligne, comme un navigateur : demandées par Rust (WinHTTP, en-tête Accept JSON, adresse fixe par
+  moteur, délais courts), car les pages ne peuvent pas les obtenir elles-mêmes (CORS). Réponses obtenues :
+  Google, DuckDuckGo, Bing, Ecosia. Brave renvoie sa page HTML à tout client qui n'est pas un navigateur ; Calti
+  ne se fait pas passer pour un autre : réglage « Fournies par » (moteur du profil, ou DuckDuckGo, Google, Bing,
+  Ecosia), désactivables. Vérifié : « chat gpt » et « meteo par » proposent les suggestions de DuckDuckGo.
+- Copies récentes en double : certains outils remplissent le presse-papiers en deux temps pour une seule copie.
+  Le même contenu (empreinte du texte ou de l'image) n'est signalé qu'une fois. Vérifié : même image copiée deux
+  fois, une seule entrée.
+- Nouvel onglet (bouton +, Ctrl+T, y compris depuis une page) : le curseur va dans la recherche de l'accueil,
+  ou dans la barre d'adresse si l'accueil n'en a pas ou si le nouvel onglet ouvre une adresse ; depuis une page,
+  le focus clavier repasse d'abord à l'interface. Vérifié : focus sur la recherche après « + » et après Ctrl+T.
+- Nouvelle icône : C fin ouvert vers le haut, dégradé bleu → violet → rose, point rose dans l'ouverture (choisi
+  parmi plusieurs propositions). Dessinée par `scripts/icon.cjs` (PNG 1024 px, sans dépendance), déclinée par
+  `npx tauri icon`.
+- Fenêtres rouvertes au lancement à leur place : chaque fenêtre enregistre sa position, sa taille et son état
+  agrandi ; à la fermeture, sa session est datée. Au lancement, les fenêtres ouvertes à l'arrêt ou fermées dans la
+  minute précédant la fermeture de la principale (donc en quittant Calti) sont rouvertes avec leur état, leurs
+  onglets et leur place (si l'écran est encore branché) ; une fenêtre fermée bien avant reste fermée.
+- Disque plein : dossier `target/debug` supprimé (régénérable, ~2 Go) ; tests faits avec la version finale.
+- Taille des fenêtres rouvertes : la taille extérieure était rendue comme taille intérieure (+16 × +9 px à chaque
+  lancement) ; c'est la taille intérieure qui est enregistrée. Vérifié avant correction : position exacte des
+  deux fenêtres rouvertes, onglets à leur place.
+- L'icône de la fenêtre reste celle de Calti ; le badge du profil n'est plus qu'une pastille superposée.
+- Icône épinglée restée l'ancienne (cache de Windows) : `scripts/install.ps1` réenregistre désormais le raccourci
+  épinglé et notifie l'Explorateur (`SHChangeNotify`). Vérifié en capture : nouvelle icône et pastille du profil.
+- Fenêtre secondaire perdue au relancement : lors de l'installation précédente, c'est l'ancienne version qui a été
+  fermée, et elle oubliait toute fenêtre secondaire fermée. Avec la nouvelle : une fenêtre rouverte reprend son nom
+  (donc sa clé de session ; les suivantes sont numérotées après), et la tolérance « fermée en quittant » passe à
+  10 minutes. Vérifié dans les deux ordres de fermeture : fenêtre rouverte, même nom, même position, son onglet.
+- Copies récentes : durée de conservation réglable (1 heure, 1 jour, 7 jours par défaut, 30 jours, sans limite),
+  Réglages → Général ; au-delà, suppression automatique (au lancement, toutes les dix minutes, à chaque copie et au
+  changement de durée), images comprises. Vérifié : avec 1 heure, une copie de 3 heures est supprimée.

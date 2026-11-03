@@ -54,8 +54,8 @@ pub fn install_shortcuts(app: &AppHandle, webview: &Webview, tab: u64) {
                 "reload" => sender.CoreWebView2()?.Reload()?,
                 "hard-reload" => reload_ignoring_cache(&sender.CoreWebView2()?)?,
                 _ => {
-                    // Saisie d'adresse : le focus repasse à l'interface de la fenêtre.
-                    if action == "address" {
+                    // Saisie d'adresse, nouvel onglet : le focus clavier repasse à l'interface de la fenêtre.
+                    if action == "address" || action == "new-tab" {
                         if let Some(window) = crate::browser::tab_window(&app, tab) {
                             if let Some(ui) = app.get_webview(&window) {
                                 let _ = ui.set_focus();

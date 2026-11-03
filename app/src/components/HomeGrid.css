@@ -162,3 +162,8 @@
 .grid-block[data-radius] .glass {
   border-radius: var(--block-radius);
 }
+
+/* Liste de suggestions ouverte : la recherche passe au-dessus des blocs voisins. */
+.grid-block:focus-within {
+  z-index: 10;
+}

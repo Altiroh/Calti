@@ -9,6 +9,7 @@ mod browser;
 mod native;
 mod protocol;
 mod setup;
+mod suggest;
 
 fn main() {
     // `calti --import-brave-passwords <profil Brave> <profil Calti>` : à lancer Calti fermé.
@@ -56,6 +57,7 @@ fn main() {
             browser::browser_eval,
             browser::browser_move,
             brave_import::brave_history,
+            suggest::search_suggestions,
             brave_import::queue_password_import,
             brave_import::password_import_result,
             brave_import::restart_app,

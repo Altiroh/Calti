@@ -32,7 +32,14 @@ Get-ChildItem $pins -Filter *.lnk -ErrorAction SilentlyContinue | ForEach-Object
     if ($target -match "\\(calti|nopro[-_]cockpit)\.exe$" -and $target -ne $exe) {
         Set-Shortcut $_.FullName
         Write-Host "Icône épinglée redirigée : $($_.Name)"
+    } elseif ($target -eq $exe) {
+        # Réenregistrée pour que Windows relise l'icône de la nouvelle version (sinon elle reste en cache).
+        Set-Shortcut $_.FullName
     }
 }
+
+# Icônes rafraîchies dans l'Explorateur et la barre des tâches (SHCNE_ASSOCCHANGED).
+Add-Type 'using System; using System.Runtime.InteropServices; public static class CaltiShell { [DllImport("shell32.dll")] public static extern void SHChangeNotify(int e, uint f, IntPtr a, IntPtr b); }'
+[CaltiShell]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero)
 
 Write-Host "Calti installé : $exe"

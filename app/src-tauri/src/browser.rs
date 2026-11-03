@@ -471,7 +471,19 @@ pub async fn browser_new_window(
     }
     // `session` : clé de stockage de la session à rouvrir (fenêtre encore ouverte à la dernière fermeture).
     let session = session.filter(|s| s.starts_with("calti.browser.calti-") && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-'));
-    let label = format!("calti-{}", NEXT_WINDOW.fetch_add(1, Ordering::Relaxed));
+    // Fenêtre rouverte : elle reprend son nom (donc sa clé de session), et les suivantes sont numérotées après elle,
+    // pour qu'aucune nouvelle fenêtre n'écrase la session d'une autre.
+    let reopened = session.as_deref()
+        .and_then(|key| key.strip_prefix("calti.browser.calti-"))
+        .and_then(|n| n.parse::<u64>().ok())
+        .filter(|n| app.get_webview_window(&format!("calti-{n}")).is_none());
+    let label = match reopened {
+        Some(n) => {
+            NEXT_WINDOW.fetch_max(n + 1, Ordering::Relaxed);
+            format!("calti-{n}")
+        }
+        None => format!("calti-{}", NEXT_WINDOW.fetch_add(1, Ordering::Relaxed)),
+    };
     let query = match &session {
         Some(key) => format!("index.html?profile={profile}&session={key}"),
         None => format!("index.html?profile={profile}"),
