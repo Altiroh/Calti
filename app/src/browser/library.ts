@@ -13,10 +13,18 @@ export interface LibraryEntry {
 const HISTORY_MAX = 1000;
 const keyOf = (kind: "bookmarks" | "history", profile: ProfileId) => `calti.${kind}.${profile}`;
 
+/** Listes déjà lues : relues seulement quand leur texte stocké change (suggestions à chaque frappe). */
+const parsed = new Map<string, { raw: string; list: LibraryEntry[] }>();
+
 function read(key: string): LibraryEntry[] {
+  const raw = localStorage.getItem(key) ?? "[]";
+  const cached = parsed.get(key);
+  if (cached?.raw === raw) return cached.list;
   try {
-    const list = JSON.parse(localStorage.getItem(key) ?? "[]");
-    return Array.isArray(list) ? list : [];
+    const list = JSON.parse(raw);
+    const result = Array.isArray(list) ? list : [];
+    parsed.set(key, { raw, list: result });
+    return result;
   } catch {
     return [];
   }

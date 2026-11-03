@@ -289,3 +289,27 @@ Demande : naviguer dans Calti, onglets dans Calti, deux navigateurs simultanés,
   sa place (`browser_move`, ordre gardé dans la session ; posé dans un groupe, il le rejoint). Tiré loin de la
   barre ou hors de la fenêtre, il part seul dans une nouvelle fenêtre. Vérifié avec des mouvements de souris
   simulés : « un deux trois » → « deux trois un », puis « deux » sorti dans sa propre fenêtre.
+
+## 2026-11-03 — Audit : fenêtres liées à leur contenu, performance
+
+- Plein écran d'une vidéo : toutes les fenêtres passaient en plein écran et masquaient leurs volets. Deux causes :
+  les événements d'onglet étaient diffusés à toutes les fenêtres, et `listen` de l'API JS de Tauri reçoit aussi
+  ceux adressés aux autres fenêtres. Désormais : envoi à la seule fenêtre de l'onglet (`emit_to`), écoute par
+  fenêtre (`getCurrentWebviewWindow().listen`), vérification que l'onglet est bien dans la fenêtre. Copies
+  récentes envoyées à la seule fenêtre principale. Vérifié avec deux fenêtres : seule celle de la vidéo bascule.
+- Icône des fenêtres secondaires : Windows les rangeait sous Calti épinglé, avec un seul badge. Chaque fenêtre
+  secondaire reçoit l'identité de barre des tâches de son profil (AppUserModelID `fr.calti.app.profil.<id>`) :
+  bouton propre avec l'icône du profil. Vérifié en capture de la barre des tâches.
+- Audit (instance de test, version de développement, 4 pages chargées) :
+  - aucune fuite d'écouteurs (422 stables après ramasse-miettes, sur trois tours d'utilisation) ;
+  - session réécrite à chaque événement d'onglet (13 écritures en 8 s) → écriture regroupée toutes les 0,4 s,
+    forcée à la fermeture, annulée quand l'utilisateur ferme une fenêtre secondaire : 2 écritures ;
+  - événements d'onglets par rafales (titre, adresse, chargement) → regroupés côté Rust toutes les 40 ms ;
+    recalculs de style 98 → 60 ;
+  - suggestions : historique relu à chaque frappe → liste mise en cache tant que son texte stocké ne change pas,
+    11,3 → 7,2 ms par frappe avec 1000 pages ;
+  - fenêtre réduite : ses pages sont cachées, donc en mémoire réduite puis en veille après 5 minutes.
+- Fenêtres secondaires impossibles à fermer : depuis l'écoute de leur fermeture (`onCloseRequested`), c'est
+  l'interface qui ferme la fenêtre (`destroy`), permission absente des capacités. `core:window:allow-destroy`
+  ajoutée. Installation faite après arrêt forcé de la fenêtre bloquée ; au relancement, les deux fenêtres sont
+  revenues avec leurs onglets.

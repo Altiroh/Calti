@@ -124,9 +124,10 @@ pub fn watch(app: AppHandle) {
                 continue;
             }
             if let Some(text) = read_text(&clip) {
-                let _ = app.emit("clipboard:text", text);
+                // Seule la fenêtre principale enregistre les copies.
+                let _ = app.emit_to("main", "clipboard:text", text);
             } else if unsafe { IsClipboardFormatAvailable(CF_DIB) } != 0 {
-                let _ = app.emit("clipboard:image", seq);
+                let _ = app.emit_to("main", "clipboard:image", seq);
             }
         }
     });

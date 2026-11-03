@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { listen } from "./windowEvents";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { recordSearch } from "./library";
 
@@ -178,6 +178,14 @@ export function useBrowser(
   const [error, setError] = useState<string | null>(null);
   const slots = useRef<Record<ProfileId, HTMLElement>>({});
   const restored = useRef(false);
+  const pendingSession = useRef<string | null>(null);
+  const sessionTimer = useRef(0);
+  const flushSession = useCallback(() => {
+    clearTimeout(sessionTimer.current);
+    if (pendingSession.current == null) return;
+    try { localStorage.setItem(STORAGE_KEY, pendingSession.current); } catch { /* non persisté */ }
+    pendingSession.current = null;
+  }, []);
   const [groupMap, setGroupMap] = useState<Record<string, TabGroup>>(
     () => Object.fromEntries((saved.groups ?? []).map((g) => [g.id, g])),
   );
@@ -316,7 +324,12 @@ export function useBrowser(
   // Fenêtre secondaire fermée par l'utilisateur : ses onglets ne seront pas rouverts.
   useEffect(() => {
     if (IS_MAIN) return;
-    const unlisten = getCurrentWindow().onCloseRequested(() => localStorage.removeItem(STORAGE_KEY));
+    const unlisten = getCurrentWindow().onCloseRequested(() => {
+      // Écriture en attente annulée : sinon la fermeture réenregistrerait la session qu'on oublie.
+      clearTimeout(sessionTimer.current);
+      pendingSession.current = null;
+      localStorage.removeItem(STORAGE_KEY);
+    });
     return () => { unlisten.then((u) => u()); };
   }, []);
 
@@ -332,12 +345,21 @@ export function useBrowser(
       })),
       groups: Object.values(groupMap).filter((g) => tabs.some((t) => membership[t.id] === g.id)),
     };
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch { /* non persisté */ }
+    // Écriture regroupée : pendant un chargement, titres et adresses changent plusieurs fois par seconde.
+    pendingSession.current = JSON.stringify(data);
+    clearTimeout(sessionTimer.current);
+    sessionTimer.current = window.setTimeout(flushSession, 400);
   }, [tabs, panes, split, focused, secondary, membership, groupMap]);
+  // Fermeture de la fenêtre : la dernière session part tout de suite.
+  useEffect(() => {
+    window.addEventListener("pagehide", flushSession);
+    return () => window.removeEventListener("pagehide", flushSession);
+  }, []);
 
   // Placement des pages : chaque volet visible affiche son onglet dans sa zone de contenu.
   const layout = useCallback(() => {
-    const visible = suspended ? [] : visibleProfiles.flatMap((profile) => {
+    // Fenêtre réduite : ses pages sont cachées, donc mises en mémoire réduite puis en veille comme un onglet caché.
+    const visible = suspended || document.hidden ? [] : visibleProfiles.flatMap((profile) => {
       const id = panes[profile]?.activeTab;
       const el = slots.current[profile];
       if (id == null || !el) return [];
@@ -353,6 +375,11 @@ export function useBrowser(
 
   const frame = useRef(0);
   const scheduleLayout = useCallback(() => {
+    // Fenêtre cachée : pas d'images d'animation, la mise en place se fait tout de suite.
+    if (document.hidden) {
+      layout();
+      return;
+    }
     cancelAnimationFrame(frame.current);
     frame.current = requestAnimationFrame(layout);
   }, [layout]);
@@ -365,9 +392,11 @@ export function useBrowser(
     observer.current = new ResizeObserver(scheduleLayout);
     for (const el of Object.values(slots.current)) observer.current.observe(el);
     window.addEventListener("resize", scheduleLayout);
+    document.addEventListener("visibilitychange", scheduleLayout);
     return () => {
       observer.current?.disconnect();
       window.removeEventListener("resize", scheduleLayout);
+      document.removeEventListener("visibilitychange", scheduleLayout);
     };
   }, [scheduleLayout]);
 

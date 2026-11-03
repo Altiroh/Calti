@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { listen } from "./browser/windowEvents";
 import type { BookmarkNode } from "./brave/types";
 import { useBraveInstalls } from "./brave/useBraveInstalls";
 import { profileView } from "./browser/adapter";
@@ -90,8 +90,11 @@ export function App() {
   // Plein écran demandé par une page (vidéo) : fenêtre en plein écran, cette page seule, sans badge.
   const [pageFullscreen, setPageFullscreen] = useState<number | null>(null);
   useEffect(() => {
-    const unlisten = listen<[number, boolean]>("browser:page-fullscreen", (e) => {
+    const unlisten = listen<[number, boolean]>("browser:page-fullscreen", async (e) => {
       const [tab, on] = e.payload;
+      // Seule la fenêtre qui affiche cet onglet passe en plein écran.
+      const own = await invoke<{ id: number; window: string }[]>("browser_tabs").catch(() => []);
+      if (!own.some((t) => t.id === tab && t.window === getCurrentWindow().label)) return;
       setPageFullscreen((current) => (on ? tab : current === tab ? null : current));
       // La fenêtre ne quitte le plein écran que si F11 ne l'y avait pas mise.
       if (!fullscreenRef.current) getCurrentWindow().setFullscreen(on).catch(() => {});
@@ -277,7 +280,8 @@ export function App() {
         ) : (
           <div className={`panes${browser.split && pageFullscreen == null ? " panes--split" : ""}`}>
             {/* Vidéo en plein écran : seul le volet de sa page reste. */}
-            {(pageFullscreen != null ? visiblePanes.filter((v) => browser.pane(v).activeTab === pageFullscreen) : visiblePanes).map((p, i) => (
+            {(pageFullscreen != null && visiblePanes.some((v) => browser.pane(v).activeTab === pageFullscreen)
+              ? visiblePanes.filter((v) => browser.pane(v).activeTab === pageFullscreen) : visiblePanes).map((p, i) => (
               <BrowserPane key={p} browser={browser} profile={profile(p)} split={browser.split} choices={profiles}
                 onChooseProfile={(chosen) => withTransition(() => (i === 0 ? browser.focus(chosen) : browser.setSecondary(chosen)))}
                 home={homeFor(p)} controls={i === visiblePanes.length - 1 ? <WindowControls /> : null}

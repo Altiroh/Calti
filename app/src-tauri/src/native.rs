@@ -1,6 +1,6 @@
 //! Réglages natifs WebView2 des onglets : raccourcis clavier captés dans les pages, mise en veille.
 
-use tauri::{AppHandle, Emitter, Manager, Webview};
+use tauri::{AppHandle, Manager, Webview};
 use webview2_com::Microsoft::Web::WebView2::Win32::{
     ICoreWebView2, ICoreWebView2Environment9, ICoreWebView2_11, ICoreWebView2_19, ICoreWebView2_2, ICoreWebView2_3,
     COREWEBVIEW2_CONTEXT_MENU_ITEM_KIND_COMMAND, COREWEBVIEW2_KEY_EVENT_KIND, COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN,
@@ -62,7 +62,7 @@ pub fn install_shortcuts(app: &AppHandle, webview: &Webview, tab: u64) {
                             }
                         }
                     }
-                    let _ = app.emit("browser:shortcut", (tab, action));
+                    crate::browser::emit_to_tab(&app, tab, "browser:shortcut", (tab, action));
                 }
             }
             Ok(())
@@ -261,10 +261,40 @@ pub fn install_fullscreen(app: &AppHandle, webview: &Webview, tab: u64) {
             let Some(sender) = sender else { return Ok(()) };
             let mut full = windows::core::BOOL::default();
             sender.ContainsFullScreenElement(&mut full)?;
-            let _ = app.emit("browser:page-fullscreen", (tab, full.as_bool()));
+            crate::browser::emit_to_tab(&app, tab, "browser:page-fullscreen", (tab, full.as_bool()));
             Ok(())
         }));
         let mut token = 0i64;
         let _ = core.add_ContainsFullScreenElementChanged(&handler, &mut token);
     });
+}
+
+/// Identité de la fenêtre dans la barre des tâches (AppUserModelID). Une fenêtre secondaire reçoit celle de son
+/// profil : elle a alors son propre bouton, avec l'icône de ce profil, au lieu d'être rangée sous Calti épinglé.
+#[tauri::command]
+pub fn window_identity(app: AppHandle, window: tauri::Window, app_id: String) -> Result<(), String> {
+    if app_id.is_empty() || app_id.len() > 120 || !app_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-') {
+        return Err("identité invalide".into());
+    }
+    let hwnd = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
+    app.run_on_main_thread(move || unsafe {
+        use windows::core::PWSTR;
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
+        use windows::Win32::System::Com::StructuredStorage::PROPVARIANT;
+        use windows::Win32::System::Variant::VT_LPWSTR;
+        use windows::Win32::UI::Shell::PropertiesSystem::{IPropertyStore, SHGetPropertyStoreForWindow};
+
+        let Ok(store) = SHGetPropertyStoreForWindow::<IPropertyStore>(HWND(hwnd as _)) else { return };
+        // Chaîne gardée en vie le temps de l'appel ; la valeur n'est pas libérée par PropVariantClear.
+        let wide: Vec<u16> = app_id.encode_utf16().chain(Some(0)).collect();
+        let mut value = PROPVARIANT::default();
+        (*value.Anonymous.Anonymous).vt = VT_LPWSTR;
+        (*value.Anonymous.Anonymous).Anonymous.pwszVal = PWSTR(wide.as_ptr() as *mut _);
+        if store.SetValue(&PKEY_AppUserModel_ID, &value).is_ok() {
+            let _ = store.Commit();
+        }
+        std::mem::forget(value);
+    })
+    .map_err(|e| e.to_string())
 }

@@ -2,7 +2,7 @@
 // La liste est dans le stockage local, les images réduites dans IndexedDB ; seule la fenêtre principale enregistre.
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { listen } from "../browser/windowEvents";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { run } from "../settings/backgrounds";
 

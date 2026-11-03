@@ -60,6 +60,7 @@ fn main() {
             brave_import::password_import_result,
             brave_import::restart_app,
             native::taskbar_overlay,
+            native::window_identity,
             clipboard::clipboard_image,
             clipboard::clipboard_pause,
             setup::brave_profiles,

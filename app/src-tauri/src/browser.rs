@@ -2,7 +2,7 @@
 //! placée par l'interface à l'endroit de sa zone de contenu. Chaque profil a son dossier de données.
 //! Plusieurs fenêtres peuvent coexister ; un onglet appartient à une fenêtre et peut en changer.
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -145,9 +145,29 @@ fn round_corners(webview: &Webview, width: f64, height: f64, radius: f64, cutout
     });
 }
 
+/// Événement propre à un onglet : envoyé à la seule fenêtre qui l’affiche (les autres n’ont pas à réagir).
+pub(crate) fn emit_to_tab<S: Serialize + Clone>(app: &AppHandle, tab: u64, event: &str, payload: S) {
+    if let Some(window) = tab_window(app, tab) {
+        let _ = app.emit_to(window.as_str(), event, payload);
+    }
+}
+
+/// Une notification d'onglets est déjà prévue : les changements suivants la rejoignent.
+static EMIT_PENDING: AtomicBool = AtomicBool::new(false);
+
+/// Liste des onglets envoyée aux fenêtres. Titre, adresse et chargement changent par rafales pendant qu'une page
+/// se charge : ils sont regroupés en une seule notification toutes les 40 ms au plus (moins de rendus de l'interface).
 fn emit_tabs(app: &AppHandle) {
-    let tabs = app.state::<Browser>().0.lock().unwrap().tabs.clone();
-    let _ = app.emit("browser:tabs", tabs);
+    if EMIT_PENDING.swap(true, Ordering::AcqRel) {
+        return;
+    }
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(40)).await;
+        EMIT_PENDING.store(false, Ordering::Release);
+        let tabs = app.state::<Browser>().0.lock().unwrap().tabs.clone();
+        let _ = app.emit("browser:tabs", tabs);
+    });
 }
 
 fn update(app: &AppHandle, id: u64, change: impl FnOnce(&mut Tab)) {
@@ -181,7 +201,7 @@ pub(crate) fn open_from_tab(app: &AppHandle, opener: u64, url: &str, background:
         let Some(window) = tab_window(&app, opener) else { return };
         let Some(profile) = app.state::<Browser>().0.lock().unwrap().tabs.iter().find(|t| t.id == opener).map(|t| t.profile.clone()) else { return };
         if let Ok(new_id) = open_tab(&app, &window, &profile, url, None) {
-            let _ = app.emit("browser:opened", (new_id, opener, background));
+            emit_to_tab(&app, new_id, "browser:opened", (new_id, opener, background));
         }
     });
 }
@@ -251,7 +271,7 @@ fn open_tab(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy: 
                 // L'onglet d'origine a pu changer de fenêtre : on ouvre dans sa fenêtre actuelle.
                 let Some(window) = tab_window(&app, id) else { return };
                 if let Ok(new_id) = open_tab(&app, &window, &profile, url, None) {
-                    let _ = app.emit("browser:opened", (new_id, id, false));
+                    emit_to_tab(&app, new_id, "browser:opened", (new_id, id, false));
                 }
             });
             NewWindowResponse::Deny

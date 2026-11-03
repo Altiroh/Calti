@@ -65,6 +65,13 @@ export function useWindowIdentity(profile: ProfileSettings, pageTitle: string | 
   const image = useBackground(profileImageKey(profile.id), profile.avatar === "image" ? profile.image ?? null : null);
   const look = JSON.stringify([profile.icon, profile.name, profile.color, profile.color2, profile.avatar, profile.mesh, image]);
 
+  // Fenêtre secondaire : identité propre à son profil, donc son propre bouton (et son icône) dans la barre des
+  // tâches. La principale reste rangée sous Calti épinglé, avec le badge superposé.
+  useEffect(() => {
+    if (getCurrentWindow().label === "main") return;
+    invoke("window_identity", { appId: `fr.calti.app.profil.${profile.id}` }).catch(() => {});
+  }, [profile.id]);
+
   useEffect(() => {
     // Image du profil pas encore chargée : on attend plutôt que d'afficher un badge provisoire.
     if (profile.avatar === "image" && profile.image && !image) return;
