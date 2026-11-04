@@ -32,13 +32,13 @@ export interface BrowserTab {
 }
 
 export type NavAction = "back" | "forward" | "reload" | "hard-reload" | "empty-cache-reload" | "stop"
-  | "mute" | "unmute" | "zoom-in" | "zoom-out" | "zoom-reset";
+  | "mute" | "unmute" | "zoom-in" | "zoom-out" | "zoom-reset" | "devtools";
 
 /** Raccourcis du navigateur, captés dans l'interface ou dans une page (événement `browser:shortcut`). */
 export type Shortcut =
   | "reload" | "hard-reload" | "new-tab" | "close-tab" | "address" | "new-window" | "bookmark" | "next-tab" | "previous-tab" | "fullscreen"
   | "reopen-tab" | "palette" | "downloads" | "history" | "zoom-in" | "zoom-out" | "zoom-reset"
-  | "tab-1" | "tab-2" | "tab-3" | "tab-4" | "tab-5" | "tab-6" | "tab-7" | "tab-8" | "tab-last";
+  | "devtools" | "tab-1" | "tab-2" | "tab-3" | "tab-4" | "tab-5" | "tab-6" | "tab-7" | "tab-8" | "tab-last";
 
 /** Demandes adressées à l'application (événement DOM, détail = profil) : palette, téléchargements, historique. */
 export const APP_EVENT = { palette: "calti:palette", downloads: "calti:downloads", history: "calti:history" } as const;
@@ -660,6 +660,10 @@ export function useBrowser(
       case "zoom-reset":
         if (active != null) invoke("browser_action", { id: active, action: key }).catch(fail);
         return;
+      // Outils de développement de la page affichée ; sans page, ceux de l’interface de Calti.
+      case "devtools":
+        invoke(active != null ? "browser_action" : "ui_devtools", active != null ? { id: active, action: "devtools" } : {}).catch(fail);
+        return;
       case "new-tab": return newTab(profile);
       case "reopen-tab": return reopen(profile);
       case "palette":
@@ -714,6 +718,7 @@ export function useBrowser(
       if (key === "f5") shortcut = e.ctrlKey || e.shiftKey ? "hard-reload" : "reload";
       else if (key === "f6") shortcut = "address";
       else if (key === "f11") shortcut = "fullscreen";
+      else if (key === "f12" || (e.ctrlKey && e.shiftKey && key === "i")) shortcut = "devtools";
       else if (e.ctrlKey && !e.altKey) {
         if (key === "tab") shortcut = e.shiftKey ? "previous-tab" : "next-tab";
         else if (key === "r") shortcut = e.shiftKey ? "hard-reload" : "reload";

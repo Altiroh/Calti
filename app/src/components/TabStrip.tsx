@@ -1,10 +1,10 @@
 import { useLayoutEffect, useRef, type CSSProperties, type MouseEvent, type PointerEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Menu } from "@tauri-apps/api/menu";
 import { type Browser, type BrowserTab, type ProfileId, type TabGroup } from "../browser/useBrowser";
 import { Favicon } from "./Favicon";
 import { openGroupDialog } from "./GroupDialog";
 import { Icon } from "./Icon";
+import { openMenu } from "./ContextMenu";
 import { hostname, siteIcon } from "./siteIcon";
 import "./TabStrip.css";
 
@@ -21,7 +21,7 @@ const below = (e: MouseEvent) => {
 
 /**
  * Barre d'onglets d'un volet, avec groupes façon Brave.
- * Clic droit : menu natif (affiché par-dessus les pages) sur l'onglet ou le groupe.
+ * Clic droit : menu de Calti (ContextMenu) sur l'onglet ou le groupe.
  */
 export function TabStrip({ browser, profile }: Props) {
   const pane = browser.pane(profile);
@@ -34,39 +34,40 @@ export function TabStrip({ browser, profile }: Props) {
     const others = browser.groups.filter((g) => g.profile === profile && g.id !== current?.id
       && browser.tabs.some((t) => browser.groupOf(t.id)?.id === g.id));
     const siblings = browser.tabsOf(profile).filter((t) => t.id !== tab.id);
-    Menu.new({
-      items: [
-        { id: "new-group", text: "Ajouter à un nouveau groupe…", action: () => openGroupDialog({ kind: "create", tabId: tab.id, ...at }) },
-        ...(others.length ? [{
-          text: "Ajouter au groupe",
-          items: others.map((g) => ({ id: `group-${g.id}`, text: g.name || "Groupe sans nom", action: () => browser.addToGroup(tab.id, g.id) })),
-        }] : []),
-        ...(current ? [{ id: "ungroup-tab", text: `Retirer du groupe « ${current.name || "sans nom"} »`, action: () => browser.removeFromGroup(tab.id) }] : []),
-        { item: "Separator" as const },
-        { id: "reload", text: "Recharger", action: () => { invoke("browser_action", { id: tab.id, action: "reload" }).catch(() => {}); } },
-        { id: "mute", text: tab.muted ? "Réactiver le son de l'onglet" : "Couper le son de l'onglet", action: () => browser.tabAction(tab.id, tab.muted ? "unmute" : "mute") },
-        { id: "duplicate", text: "Dupliquer l'onglet", action: () => browser.go(tab.url, profile, true) },
-        { id: "copy", text: "Copier l'adresse", action: () => { navigator.clipboard.writeText(tab.url).catch(() => {}); } },
-        { item: "Separator" as const },
-        { id: "close", text: "Fermer l'onglet\tCtrl+W", action: () => browser.close(tab.id) },
-        { id: "close-others", text: "Fermer les autres onglets", enabled: siblings.length > 0, action: () => siblings.forEach((t) => browser.close(t.id)) },
-        { id: "reopen", text: "Rouvrir l'onglet fermé\tCtrl+Maj+T", action: () => browser.reopen(profile) },
-      ],
-    }).then((menu) => menu.popup()).catch(() => {});
+    openMenu(e, [
+      { header: tab.title || hostname(tab.url) },
+      { label: "Ajouter à un nouveau groupe…", icon: "layers", tone: "violet", action: () => openGroupDialog({ kind: "create", tabId: tab.id, ...at }) },
+      ...(others.length ? [{
+        label: "Ajouter au groupe", icon: "tabs" as const, tone: "violet" as const,
+        items: others.map((g) => ({ label: g.name || "Groupe sans nom", color: g.color, action: () => browser.addToGroup(tab.id, g.id) })),
+      }] : []),
+      ...(current ? [{ label: `Retirer du groupe « ${current.name || "sans nom"} »`, color: current.color, action: () => browser.removeFromGroup(tab.id) }] : []),
+      "-",
+      { label: "Recharger", icon: "reload", tone: "blue", action: () => { invoke("browser_action", { id: tab.id, action: "reload" }).catch(() => {}); } },
+      {
+        label: tab.muted ? "Réactiver le son de l'onglet" : "Couper le son de l'onglet", icon: tab.muted ? "sound" : "mute", tone: "pink",
+        action: () => browser.tabAction(tab.id, tab.muted ? "unmute" : "mute"),
+      },
+      { label: "Dupliquer l'onglet", icon: "duplicate", tone: "teal", action: () => browser.go(tab.url, profile, true) },
+      { label: "Copier l'adresse", icon: "link", tone: "violet", action: () => { navigator.clipboard.writeText(tab.url).catch(() => {}); } },
+      "-",
+      { label: "Rouvrir l'onglet fermé", icon: "undo", tone: "amber", shortcut: "Ctrl+Maj+T", action: () => browser.reopen(profile) },
+      { label: "Fermer les autres onglets", icon: "tabs", tone: "slate", disabled: siblings.length === 0, action: () => siblings.forEach((t) => browser.close(t.id)) },
+      { label: "Fermer l'onglet", icon: "close", danger: true, shortcut: "Ctrl+W", action: () => browser.close(tab.id) },
+    ]);
   };
 
   const groupMenu = (e: MouseEvent, group: TabGroup) => {
     e.preventDefault();
     const at = below(e);
-    Menu.new({
-      items: [
-        { id: "edit", text: "Nom et couleur…", action: () => openGroupDialog({ kind: "edit", groupId: group.id, ...at }) },
-        { id: "collapse", text: group.collapsed ? "Déplier" : "Replier", action: () => browser.updateGroup(group.id, { collapsed: !group.collapsed }) },
-        { item: "Separator" as const },
-        { id: "ungroup", text: "Dissocier (garder les onglets)", action: () => browser.ungroup(group.id) },
-        { id: "close-group", text: "Fermer le groupe", action: () => browser.closeGroup(group.id) },
-      ],
-    }).then((menu) => menu.popup()).catch(() => {});
+    openMenu(e, [
+      { header: group.name || "Groupe sans nom" },
+      { label: "Nom et couleur…", icon: "edit", tone: "violet", action: () => openGroupDialog({ kind: "edit", groupId: group.id, ...at }) },
+      { label: group.collapsed ? "Déplier" : "Replier", icon: "collapse", tone: "blue", action: () => browser.updateGroup(group.id, { collapsed: !group.collapsed }) },
+      "-",
+      { label: "Dissocier (garder les onglets)", icon: "layers", tone: "slate", action: () => browser.ungroup(group.id) },
+      { label: "Fermer le groupe", icon: "close", danger: true, action: () => browser.closeGroup(group.id) },
+    ]);
   };
 
   // Glisser un onglet : il suit le pointeur, les autres s'écartent pour lui faire de la place ; lâché loin de la

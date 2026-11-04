@@ -266,6 +266,8 @@ fn open_tab(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy: 
     let start = if lazy.is_some() { Url::parse("about:blank").unwrap() } else { url };
     let builder = WebviewBuilder::new(label(id), WebviewUrl::External(start))
         .data_directory(data_dir)
+        // Outils de développement (F12, Ctrl+Maj+I, menus) : disponibles aussi dans la version installée.
+        .devtools(true)
         // Fond transparent : pas de flash blanc avant le premier affichage de la page.
         .background_color(Color(0, 0, 0, 0))
         .on_document_title_changed(move |_, title| update(&on_title, id, |t| if t.pending_url.is_none() { t.title = title }))
@@ -464,6 +466,10 @@ pub async fn browser_action(app: AppHandle, id: u64, action: String) -> Result<(
             Ok(())
         }
         "focus" => w.set_focus(),
+        "devtools" => {
+            w.open_devtools();
+            Ok(())
+        }
         _ => return Err("action inconnue".into()),
     };
     result.map_err(|e| e.to_string())

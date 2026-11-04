@@ -75,6 +75,11 @@ export interface ChromeSettings {
   tabClose: "hover" | "always" | "never";
   /** Mise en avant de l'onglet affiché. */
   tabActive: "filled" | "outline" | "underline";
+  /** Style global : matière des panneaux et menus (verre ou plein), arrondi, densité, flou du verre. */
+  surface: "glass" | "solid";
+  radius: number;
+  density: number;
+  glassBlur: number;
   /** Pages : arrondi de leurs coins (appliqué aussi aux vues natives). */
   pageRadius: number;
   /** Marge autour du contenu et espacement entre les éléments. */
@@ -108,6 +113,10 @@ export const defaultChrome: ChromeSettings = {
   tabIconsOnly: false,
   tabClose: "hover",
   tabActive: "filled",
+  surface: "glass",
+  radius: 16,
+  density: 1,
+  glassBlur: 24,
   pageRadius: 16,
   windowPadding: 16,
   gap: 14,

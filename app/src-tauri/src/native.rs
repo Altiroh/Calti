@@ -2,13 +2,13 @@
 
 use tauri::{AppHandle, Manager, Webview};
 use webview2_com::Microsoft::Web::WebView2::Win32::{
-    ICoreWebView2, ICoreWebView2Environment9, ICoreWebView2_11, ICoreWebView2_19, ICoreWebView2_2, ICoreWebView2_3,
-    COREWEBVIEW2_CONTEXT_MENU_ITEM_KIND_COMMAND, COREWEBVIEW2_KEY_EVENT_KIND, COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN,
+    ICoreWebView2, ICoreWebView2_19, ICoreWebView2_3,
+    COREWEBVIEW2_KEY_EVENT_KIND, COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN,
     COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW, COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL,
 };
 use webview2_com::{
-    take_pwstr, AcceleratorKeyPressedEventHandler, ContainsFullScreenElementChangedEventHandler, CallDevToolsProtocolMethodCompletedHandler, ContextMenuRequestedEventHandler,
-    CustomItemSelectedEventHandler, TrySuspendCompletedHandler, WebMessageReceivedEventHandler,
+    take_pwstr, AcceleratorKeyPressedEventHandler, ContainsFullScreenElementChangedEventHandler, CallDevToolsProtocolMethodCompletedHandler,
+    TrySuspendCompletedHandler, WebMessageReceivedEventHandler,
 };
 use windows::core::{w, Interface, PWSTR};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetKeyState, VK_CONTROL, VK_SHIFT};
@@ -28,6 +28,7 @@ fn shortcut(key: u32, ctrl: bool, shift: bool) -> Option<&'static str> {
         (0x4E, true, false) => "new-window",                             // Ctrl+N
         (0x44, true, false) => "bookmark",                               // Ctrl+D
         (0x7A, false, false) => "fullscreen",                            // F11
+        (0x7B, false, false) | (0x49, true, true) => "devtools",         // F12 / Ctrl+Maj+I
         (0x09, true, false) => "next-tab",                               // Ctrl+Tab
         (0x09, true, true) => "previous-tab",                            // Ctrl+Maj+Tab
         (0x54, true, true) => "reopen-tab",                              // Ctrl+Maj+T
@@ -65,6 +66,7 @@ pub fn install_shortcuts(app: &AppHandle, webview: &Webview, tab: u64) {
                 "zoom-in" => crate::features::zoom_step(&app, tab, 1),
                 "zoom-out" => crate::features::zoom_step(&app, tab, -1),
                 "zoom-reset" => crate::features::zoom_step(&app, tab, 0),
+                "devtools" => sender.CoreWebView2()?.OpenDevToolsWindow()?,
                 _ => {
                     // Saisie d'adresse, nouvel onglet : le focus clavier repasse à l'interface de la fenêtre.
                     if matches!(action, "address" | "new-tab" | "palette") {
@@ -166,7 +168,8 @@ pub const LINK_SCRIPT: &str = r#"(() => {
 })();"#;
 
 pub fn install_link_handling(app: &AppHandle, webview: &Webview, tab: u64) {
-    let (app_msg, app_menu) = (app.clone(), app.clone());
+    crate::pagemenu::install(app, webview, tab);
+    let app_msg = app.clone();
     let _ = webview.with_webview(move |platform| unsafe {
         let Ok(core) = platform.controller().CoreWebView2() else { return };
 
@@ -194,46 +197,6 @@ pub fn install_link_handling(app: &AppHandle, webview: &Webview, tab: u64) {
         let mut token = 0i64;
         let _ = core.add_WebMessageReceived(&on_message, &mut token);
 
-        let Ok(core11) = core.cast::<ICoreWebView2_11>() else { return };
-        let Ok(environment) = core.cast::<ICoreWebView2_2>().and_then(|c| c.Environment()).and_then(|e| e.cast::<ICoreWebView2Environment9>()) else { return };
-        let on_menu = ContextMenuRequestedEventHandler::create(Box::new(move |_, args| {
-            let Some(args) = args else { return Ok(()) };
-            let target = args.ContextMenuTarget()?;
-            let mut has_link = windows::core::BOOL::default();
-            target.HasLinkUri(&mut has_link)?;
-            if !has_link.as_bool() {
-                return Ok(());
-            }
-            let mut raw = PWSTR::null();
-            target.LinkUri(&mut raw)?;
-            let url = take_pwstr(raw);
-            let items = args.MenuItems()?;
-            let mut count = 0u32;
-            items.Count(&mut count)?;
-            // Position de « Ouvrir dans une nouvelle fenêtre » (remplacée), sinon en tête.
-            let mut index = 0u32;
-            for i in 0..count {
-                let mut name = PWSTR::null();
-                items.GetValueAtIndex(i)?.Name(&mut name)?;
-                if take_pwstr(name) == "openLinkInNewWindow" {
-                    items.RemoveValueAtIndex(i)?;
-                    index = i;
-                    break;
-                }
-            }
-            let item = environment.CreateContextMenuItem(w!("Ouvrir dans un nouvel onglet"), None, COREWEBVIEW2_CONTEXT_MENU_ITEM_KIND_COMMAND)?;
-            let app = app_menu.clone();
-            let on_select = CustomItemSelectedEventHandler::create(Box::new(move |_, _| {
-                crate::browser::open_from_tab(&app, tab, &url, true);
-                Ok(())
-            }));
-            let mut token = 0i64;
-            item.add_CustomItemSelected(&on_select, &mut token)?;
-            items.InsertValueAtIndex(index, &item)?;
-            Ok(())
-        }));
-        let mut token = 0i64;
-        let _ = core11.add_ContextMenuRequested(&on_menu, &mut token);
     });
 }
 
@@ -321,4 +284,10 @@ pub fn window_identity(app: AppHandle, window: tauri::Window, app_id: String) ->
         std::mem::forget(value);
     })
     .map_err(|e| e.to_string())
+}
+
+/// Outils de développement de l'interface de Calti elle-même (fenêtre qui appelle).
+#[tauri::command]
+pub fn ui_devtools(webview: tauri::Webview) {
+    webview.open_devtools();
 }

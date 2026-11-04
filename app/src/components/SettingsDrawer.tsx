@@ -11,6 +11,7 @@ import { AppearancePresets } from "./AppearancePresets";
 import { retentionChoices, useClipboardHistory } from "../widgets/clipboard";
 import { BraveImport } from "./BraveImport";
 import { Check, ColorField, Section, Segmented, Slider } from "./Controls";
+import { openMenu } from "./ContextMenu";
 import { Drawer } from "./Drawer";
 import { Icon, type IconName } from "./Icon";
 import { ProfileBadge } from "./ProfileBadge";
@@ -70,7 +71,7 @@ const shortcuts: [string, string][] = [
   ["Ctrl+T", "Nouvel onglet"], ["Ctrl+W", "Fermer l'onglet"], ["Ctrl+Tab", "Onglet suivant"], ["Ctrl+L · F6", "Barre d'adresse"],
   ["F5 · Ctrl+R", "Recharger"], ["Ctrl+F5", "Recharger sans le cache"], ["Ctrl+D", "Favori"], ["Ctrl+N", "Nouvelle fenêtre"],
   ["F11", "Plein écran"], ["Clic molette", "Lien en arrière-plan"], ["Ctrl+Maj+T", "Rouvrir l'onglet fermé"],
-  ["Ctrl+K · Ctrl+Maj+K", "Palette de commandes (depuis une page : Ctrl+Maj+K)"], ["Ctrl+J", "Téléchargements"], ["Ctrl+H", "Historique"], ["Ctrl+1…9", "Aller à l'onglet n°"],
+  ["Ctrl+K · Ctrl+Maj+K", "Palette de commandes (depuis une page : Ctrl+Maj+K)"], ["Ctrl+J", "Téléchargements"], ["Ctrl+H", "Historique"], ["Ctrl+1…9", "Aller à l'onglet n°"], ["F12 · Ctrl+Maj+I", "Outils de développement de la page"],
   ["Ctrl+molette · Ctrl+0", "Zoom (mémorisé par site)"],
 ];
 
@@ -218,6 +219,55 @@ function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
     <div className="sgroups">
       <Group icon="spark" title="Préréglages" color="#ff3d7f" {...group("presets")}>
         <AppearancePresets />
+      </Group>
+
+      <Group icon="layers" title="Style global" color="#ff7a59" {...group("global")}>
+        <p className="settings__hint">
+          Réglé ici une fois pour toute l'interface : barres, onglets, pages, panneaux, menus et dialogues. Chaque élément
+          reste ajustable plus bas.
+        </p>
+        <Segmented value={c.surface} onChange={(surface) => setChrome({
+          surface,
+          barSurface: c.barSurface === "none" ? "none" : surface,
+          railSurface: c.railSurface === "none" ? "none" : surface,
+        })} options={[["glass", "Verre"], ["solid", "Plein"]]} />
+        <Slider label="Arrondi général" value={c.radius} min={0} max={28} step={1} format={px} onChange={(radius) => setChrome({
+          radius,
+          barRadius: radius,
+          railRadius: Math.min(36, Math.round(radius * 1.75)),
+          tabRadius: Math.min(18, Math.round(radius * 0.625)),
+          pageRadius: radius,
+        })} />
+        <Slider label="Densité" value={c.density} min={0.8} max={1.3} step={0.05} format={pct} onChange={(density) => setChrome({
+          density,
+          windowPadding: Math.round(16 * density),
+          gap: Math.round(14 * density),
+          barHeight: Math.round((48 * density) / 2) * 2,
+        })} />
+        {c.surface === "glass" && (
+          <>
+            <Slider label="Opacité du verre" value={theme.glassOpacity} min={0.15} max={0.8} step={0.05} format={pct}
+              onChange={(glassOpacity) => set({ glassOpacity })} />
+            <Slider label="Flou du verre" value={c.glassBlur} min={0} max={48} step={2} format={px} onChange={(glassBlur) => setChrome({ glassBlur })} />
+          </>
+        )}
+        <div className="settings__row">
+          <button className="btn" onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            openMenu({ x: r.left, y: r.bottom + 6 }, [
+              { header: "Aperçu du menu" },
+              { label: "Nouvel onglet", icon: "plus", tone: "green", shortcut: "Ctrl+T" },
+              { label: "Ajouter aux favoris", icon: "star", tone: "amber", shortcut: "Ctrl+D" },
+              { label: "Zoom de la page", icon: "zoomIn", tone: "teal", value: "110 %", items: [
+                { label: "Agrandir", icon: "zoomIn", tone: "teal", shortcut: "Ctrl+Plus" },
+                { label: "Réduire", icon: "zoomOut", tone: "teal", shortcut: "Ctrl+Moins" },
+              ] },
+              { label: "Deux profils côte à côte", icon: "split", tone: "violet", checked: true },
+              "-",
+              { label: "Fermer l'onglet", icon: "close", danger: true, shortcut: "Ctrl+W" },
+            ]);
+          }}>Aperçu d'un menu</button>
+        </div>
       </Group>
 
       <Group icon="image" title="Fond et ambiance" color="#4facfe" {...group("background")}>

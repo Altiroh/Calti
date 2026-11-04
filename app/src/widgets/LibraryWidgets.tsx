@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import type { Brave } from "../browser/adapter";
 import type { LibraryEntry } from "../browser/library";
 import { Card } from "../components/Card";
 import { Favicon } from "../components/Favicon";
 import { Icon } from "../components/Icon";
+import { openMenu } from "../components/ContextMenu";
 import { hostname, siteIcon } from "../components/siteIcon";
 import { useBackground } from "../settings/backgrounds";
 import { clipImageKey, copyBack, useClipboardHistory, type Clip } from "./clipboard";
@@ -25,7 +26,7 @@ export interface HistoryView {
 
 /**
  * Pages visitées par le profil, les plus récentes d'abord, avec un filtre.
- * Clic : dans l'onglet affiché ; clic molette : nouvel onglet en arrière-plan ; clic droit : menu sur place.
+ * Clic : dans l'onglet affiché ; clic molette : nouvel onglet en arrière-plan ; clic droit : menu.
  */
 export function HistoryWidget({ brave, history }: { brave: Brave; history: HistoryView }) {
   const [query, setQuery] = useState("");
@@ -37,19 +38,19 @@ export function HistoryWidget({ brave, history }: { brave: Brave; history: Histo
     brave.send({ type: "openUrl", url, where });
   };
 
-  // Le menu se referme avec Échap ou un clic ailleurs.
-  useEffect(() => {
-    if (menu == null) return;
-    const close = (e: Event) => {
-      if (e instanceof KeyboardEvent ? e.key === "Escape" : !(e.target as Element).closest(".lib-menu")) setMenu(null);
-    };
-    window.addEventListener("keydown", close);
-    window.addEventListener("pointerdown", close);
-    return () => {
-      window.removeEventListener("keydown", close);
-      window.removeEventListener("pointerdown", close);
-    };
-  }, [menu]);
+  const showMenu = (e: MouseEvent, h: LibraryEntry) => {
+    e.preventDefault();
+    setMenu(h.at);
+    openMenu(e, [
+      { header: hostname(h.url) },
+      { label: "Ouvrir", image: siteIcon(h.url), action: () => open(h.url, "current") },
+      { label: "Ouvrir dans un nouvel onglet", icon: "plus", tone: "green", action: () => open(h.url, "new") },
+      { label: "Ouvrir en arrière-plan", icon: "tabs", tone: "teal", action: () => open(h.url, "background") },
+      { label: "Copier le lien", icon: "link", tone: "violet", action: () => { navigator.clipboard.writeText(h.url).catch(() => {}); } },
+      "-",
+      { label: "Retirer de l'historique", icon: "trash", danger: true, action: () => history.remove(h.at) },
+    ], () => setMenu(null));
+  };
 
   return (
     <Card title="Historique" action={history.entries.length > 0 && (
@@ -66,7 +67,7 @@ export function HistoryWidget({ brave, history }: { brave: Brave; history: Histo
               // Sans cela, le clic molette lance le défilement automatique.
               onMouseDown={(e) => e.button === 1 && e.preventDefault()}
               onAuxClick={(e) => { if (e.button === 1) { e.preventDefault(); open(h.url, "background"); } }}
-              onContextMenu={(e) => { e.preventDefault(); setMenu(menu === h.at ? null : h.at); }}>
+              onContextMenu={(e) => showMenu(e, h)}>
               <Favicon src={siteIcon(h.url)} />
               <span className="lib-item__title">{h.title || hostname(h.url)}</span>
               <span className="lib-item__meta">{time(h.at)}</span>
@@ -74,16 +75,6 @@ export function HistoryWidget({ brave, history }: { brave: Brave; history: Histo
             <button className="lib-remove" aria-label="Retirer de l'historique" onClick={() => history.remove(h.at)}>
               <Icon name="close" size={11} />
             </button>
-            {/* Menu sous la ligne : un menu flottant passerait sous la page voisine. */}
-            {menu === h.at && (
-              <div className="lib-menu" role="menu">
-                <button role="menuitem" onClick={() => open(h.url, "current")}>Ouvrir</button>
-                <button role="menuitem" onClick={() => open(h.url, "new")}>Ouvrir dans un nouvel onglet</button>
-                <button role="menuitem" onClick={() => open(h.url, "background")}>Ouvrir en arrière-plan</button>
-                <button role="menuitem" onClick={() => { navigator.clipboard.writeText(h.url).catch(() => {}); setMenu(null); }}>Copier le lien</button>
-                <button role="menuitem" className="lib-menu__danger" onClick={() => { history.remove(h.at); setMenu(null); }}>Retirer de l'historique</button>
-              </div>
-            )}
           </div>
         ))}
         {entries.length === 0 && <p className="muted">{q ? "Aucun résultat." : "Les pages visitées s'afficheront ici."}</p>}

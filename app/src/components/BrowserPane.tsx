@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent, type ReactNode } from "react";
-import { Menu } from "@tauri-apps/api/menu";
 import type { Suggestion } from "../browser/library";
 import { useSuggestions } from "../browser/webSuggestions";
 import { APP_EVENT, PANE_EVENT, type Browser, type Cutout } from "../browser/useBrowser";
@@ -9,6 +8,8 @@ import { barWidgetLabels, useSettings, type BarWidget, type ChromeSettings, type
 import { dragWindow } from "./dragWindow";
 import { Favicon } from "./Favicon";
 import { Icon } from "./Icon";
+import { openMenu, type MenuEntry } from "./ContextMenu";
+import { invoke } from "@tauri-apps/api/core";
 import { siteIcon } from "./siteIcon";
 import { ProfileBadge } from "./ProfileBadge";
 import { TabStrip } from "./TabStrip";
@@ -118,63 +119,73 @@ export function BrowserPane({
     go(s ? s.url ?? s.text : draft ?? "");
   };
 
-  // Clic droit sur un espace libre de la barre : menu d'actions natif, affiché par-dessus les pages.
+  // Clic droit sur un espace libre de la barre : menu d'actions aux couleurs du thème.
   const onContextMenu = (e: MouseEvent) => {
     if ((e.target as Element).closest(OWN_MENU)) return;
     e.preventDefault();
     const setButton = (key: keyof ChromeSettings["barButtons"]) => () =>
       updateTheme({ chrome: { ...c, barButtons: { ...c.barButtons, [key]: !c.barButtons[key] } } });
-    const shown = (key: keyof ChromeSettings["barButtons"], text: string) =>
-      ({ id: `show-${key}`, text, checked: c.barButtons[key], action: setButton(key) });
-    Menu.new({
-      items: [
-        { id: "back", text: "Précédent", enabled: !!active, action: () => browser.action("back", id) },
-        { id: "forward", text: "Suivant", enabled: !!active, action: () => browser.action("forward", id) },
-        { id: "reload", text: "Recharger\tF5", enabled: !!active, action: () => browser.action("reload", id) },
-        { id: "hard-reload", text: "Recharger sans le cache\tCtrl+F5", enabled: !!active, action: () => browser.action("hard-reload", id) },
-        { item: "Separator" },
-        {
-          id: "bookmark", text: `${bookmarked ? "Retirer des favoris" : "Ajouter aux favoris"}\tCtrl+D`, enabled: !!active,
-          action: () => toggleBookmark.current(),
-        },
-        { id: "copy-url", text: "Copier l'adresse", enabled: !!active, action: () => active && navigator.clipboard.writeText(active.url).catch(() => {}) },
-        {
-          text: `Zoom de la page : ${Math.round((active?.zoom ?? 1) * 100)} %`,
-          enabled: !!active,
-          items: [
-            { id: "zoom-in", text: "Agrandir\tCtrl+molette ↑ · Ctrl+Plus", action: () => browser.action("zoom-in", id) },
-            { id: "zoom-out", text: "Réduire\tCtrl+molette ↓ · Ctrl+Moins", action: () => browser.action("zoom-out", id) },
-            { id: "zoom-reset", text: "Zoom par défaut\tCtrl+0", action: () => browser.action("zoom-reset", id) },
-            { item: "Separator" },
-            { id: "zoom-settings", text: "Réglages du zoom…", action: onZoomSettings },
-          ],
-        },
-        { id: "mute", text: active?.muted ? "Réactiver le son de l'onglet" : "Couper le son de l'onglet", enabled: !!active, action: () => browser.action(active?.muted ? "unmute" : "mute", id) },
-        { item: "Separator" },
-        { id: "palette", text: "Palette de commandes\tCtrl+K", action: () => window.dispatchEvent(new CustomEvent(APP_EVENT.palette, { detail: id })) },
-        { id: "downloads", text: "Téléchargements\tCtrl+J", action: () => window.dispatchEvent(new CustomEvent(APP_EVENT.downloads, { detail: id })) },
-        { id: "history", text: "Historique\tCtrl+H", action: () => window.dispatchEvent(new CustomEvent(APP_EVENT.history, { detail: id })) },
-        { item: "Separator" },
-        { id: "new-tab", text: "Nouvel onglet\tCtrl+T", action: () => browser.newTab(id) },
-        { id: "reopen", text: "Rouvrir l'onglet fermé\tCtrl+Maj+T", action: () => browser.reopen(id) },
-        { id: "new-window", text: "Nouvelle fenêtre\tCtrl+N", action: () => browser.newWindow(id) },
-        { id: "detach", text: "Ouvrir ce profil dans sa propre fenêtre", action: () => browser.newWindow(id, true) },
-        {
-          id: "split", text: "Deux profils côte à côte", checked: browser.split, enabled: choices.length > 1,
-          action: () => withTransition(() => browser.setSplit(!browser.split)),
-        },
-        { item: "Separator" },
-        {
-          text: "Afficher dans la barre",
-          items: [
-            shown("nav", "Précédent / suivant"),
-            shown("reload", "Recharger"),
-            shown("star", "Favori ★"),
-          ],
-        },
-        { id: "settings", text: "Personnaliser l'interface…", action: onMoreSettings },
-      ],
-    }).then((menu) => menu.popup()).catch(() => {});
+    const send = (name: string) => () => window.dispatchEvent(new CustomEvent(name, { detail: id }));
+    const zoom = Math.round((active?.zoom ?? 1) * 100);
+    const items: MenuEntry[] = [
+      { header: active ? active.title || "Page" : "Navigation" },
+      { label: "Précédent", icon: "back", tone: "slate", disabled: !active, action: () => browser.action("back", id) },
+      { label: "Suivant", icon: "forward", tone: "slate", disabled: !active, action: () => browser.action("forward", id) },
+      { label: "Recharger", icon: "reload", tone: "blue", shortcut: "F5", disabled: !active, action: () => browser.action("reload", id) },
+      { label: "Recharger sans le cache", icon: "reload", tone: "teal", shortcut: "Ctrl+F5", disabled: !active, action: () => browser.action("hard-reload", id) },
+      "-",
+      {
+        label: bookmarked ? "Retirer des favoris" : "Ajouter aux favoris", icon: "star", tone: "amber", shortcut: "Ctrl+D",
+        disabled: !active, action: () => toggleBookmark.current(),
+      },
+      { label: "Copier l'adresse", icon: "link", tone: "violet", disabled: !active, action: () => active && navigator.clipboard.writeText(active.url).catch(() => {}) },
+      {
+        label: "Zoom de la page", icon: "zoomIn", tone: "teal", value: `${zoom} %`, disabled: !active,
+        items: [
+          { label: "Agrandir", icon: "zoomIn", tone: "teal", shortcut: "Ctrl+Plus", action: () => browser.action("zoom-in", id) },
+          { label: "Réduire", icon: "zoomOut", tone: "teal", shortcut: "Ctrl+Moins", action: () => browser.action("zoom-out", id) },
+          { label: "Zoom par défaut", icon: "zoomReset", tone: "slate", shortcut: "Ctrl+0", action: () => browser.action("zoom-reset", id) },
+          "-",
+          { label: "Réglages du zoom…", icon: "settings", tone: "slate", action: onZoomSettings },
+        ],
+      },
+      {
+        label: active?.muted ? "Réactiver le son de l'onglet" : "Couper le son de l'onglet", icon: active?.muted ? "sound" : "mute", tone: "pink",
+        disabled: !active, action: () => browser.action(active?.muted ? "unmute" : "mute", id),
+      },
+      "-",
+      { label: "Palette de commandes", icon: "command", tone: "violet", shortcut: "Ctrl+K", action: send(APP_EVENT.palette) },
+      { label: "Téléchargements", icon: "download", tone: "green", shortcut: "Ctrl+J", action: send(APP_EVENT.downloads) },
+      { label: "Historique", icon: "history", tone: "blue", shortcut: "Ctrl+H", action: send(APP_EVENT.history) },
+      "-",
+      { label: "Nouvel onglet", icon: "plus", tone: "green", shortcut: "Ctrl+T", action: () => browser.newTab(id) },
+      { label: "Rouvrir l'onglet fermé", icon: "undo", tone: "amber", shortcut: "Ctrl+Maj+T", action: () => browser.reopen(id) },
+      { label: "Nouvelle fenêtre", icon: "window", tone: "blue", shortcut: "Ctrl+N", action: () => browser.newWindow(id) },
+      { label: "Ouvrir ce profil dans sa propre fenêtre", icon: "popout", tone: "slate", action: () => browser.newWindow(id, true) },
+      {
+        label: "Deux profils côte à côte", icon: "split", tone: "violet", checked: browser.split, disabled: choices.length < 2,
+        action: () => withTransition(() => browser.setSplit(!browser.split)),
+      },
+      "-",
+      {
+        label: "Afficher dans la barre", icon: "layout", tone: "slate",
+        items: [
+          { label: "Précédent / suivant", icon: "back", tone: "slate", checked: c.barButtons.nav, action: setButton("nav") },
+          { label: "Recharger", icon: "reload", tone: "blue", checked: c.barButtons.reload, action: setButton("reload") },
+          { label: "Favori", icon: "star", tone: "amber", checked: c.barButtons.star, action: setButton("star") },
+        ],
+      },
+      {
+        label: "Outils de développement", icon: "code", tone: "slate",
+        items: [
+          { label: "Inspecter la page (éléments, console, réseau)", icon: "inspect", tone: "violet", shortcut: "F12", disabled: !active, action: () => browser.action("devtools", id) },
+          "-",
+          { label: "Inspecter l'interface de Calti", icon: "layout", tone: "pink", action: () => { invoke("ui_devtools").catch(() => {}); } },
+        ],
+      },
+      { label: "Personnaliser l'interface…", icon: "palette", tone: "pink", action: onMoreSettings },
+    ];
+    openMenu(e, items);
   };
 
   const secure = active?.url.startsWith("https://");
@@ -212,13 +223,12 @@ export function BrowserPane({
                 onContextMenu={(e) => {
                   e.preventDefault();
                   if (!active) return;
-                  Menu.new({
-                    items: [
-                      { id: "reload", text: "Recharger	F5", action: () => browser.action("reload", id) },
-                      { id: "hard-reload", text: "Recharger sans le cache	Ctrl+F5", action: () => browser.action("hard-reload", id) },
-                      { id: "empty-cache-reload", text: "Vider le cache et recharger (rechargement intégral)", action: () => browser.action("empty-cache-reload", id) },
-                    ],
-                  }).then((menu) => menu.popup()).catch(() => {});
+                  openMenu(e, [
+                    { header: "Recharger la page" },
+                    { label: "Recharger", icon: "reload", tone: "blue", shortcut: "F5", action: () => browser.action("reload", id) },
+                    { label: "Recharger sans le cache", icon: "reload", tone: "teal", shortcut: "Ctrl+F5", action: () => browser.action("hard-reload", id) },
+                    { label: "Vider le cache et recharger", icon: "trash", tone: "amber", action: () => browser.action("empty-cache-reload", id) },
+                  ]);
                 }}>
                 <Icon name={active?.loading ? "close" : "reload"} size={15} />
               </button>
@@ -289,7 +299,7 @@ export function BrowserPane({
       </header>
 
       <div className="pane__body">
-        <div className="pane__content" ref={(el) => browser.registerSlot(id, el)}>
+        <div className="pane__content" data-profile={id} ref={(el) => browser.registerSlot(id, el)}>
           {pane.activeTab == null && <div className="pane__home">{home}</div>}
         </div>
         {/* Widget ouvert depuis la barre : la page se resserre à côté (une vue native passerait par-dessus). */}
@@ -324,7 +334,8 @@ export function SuggestionList({ items, picked, query, onPick, onRect }: {
   const box = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const r = box.current?.getBoundingClientRect();
-    onRect(r ? { x: r.left - 2, y: r.top - 2, width: r.width + 4, height: r.height + 4, radius: 16 } : null);
+    const radius = box.current ? parseFloat(getComputedStyle(box.current).borderTopLeftRadius) || 16 : 16;
+    onRect(r ? { x: r.left - 2, y: r.top - 2, width: r.width + 4, height: r.height + 4, radius: radius + 2 } : null);
   }, [items.length]);
   useEffect(() => () => onRect(null), []);
   return (

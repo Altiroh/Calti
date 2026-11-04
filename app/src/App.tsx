@@ -11,6 +11,8 @@ import { useBlockerSync } from "./browser/blocker";
 import { Drawer } from "./components/Drawer";
 import { DownloadsDrawer } from "./components/DownloadsDrawer";
 import { Palette, type PaletteCommand } from "./components/Palette";
+import { MenuHost } from "./components/ContextMenu";
+import { usePageMenu } from "./browser/pageMenu";
 import { GroupDialog, useGroupDialogRequest } from "./components/GroupDialog";
 import { BookmarksDrawer } from "./components/BookmarksDrawer";
 import { BrowserPane } from "./components/BrowserPane";
@@ -115,13 +117,17 @@ export function App() {
   // Palette de commandes (Ctrl+K), ouverte pour un profil ; elle aussi découpée dans les pages.
   const [palette, setPalette] = useState<ProfileId | null>(null);
   const [paletteRect, setPaletteRect] = useState<Cutout | null>(null);
+  // Menus contextuels (et leurs sous-menus), découpés eux aussi.
+  const [menuRects, setMenuRects] = useState<Cutout[]>([]);
   const cutouts = [
+    ...menuRects,
     ...(palette && paletteRect ? [paletteRect] : []),
     ...(fullscreen && pageFullscreen == null ? [{ x: 10, y: 10, width: exitHover ? 236 : 44, height: 44 }] : []),
     ...(groupDialog.request && dialogRect ? [dialogRect] : []),
     ...(suggestRect ? [suggestRect] : []),
   ];
   const browser = useBrowser(profileIds, prefsOf, immersive ? 0 : theme.chrome.pageRadius, cutouts);
+  usePageMenu(browser.tabs);
   const rail = useRailWidth();
   const [drawer, setDrawer] = useState<DrawerName>(null);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("general");
@@ -296,6 +302,15 @@ export function App() {
     "--tab-radius": `${c.tabRadius}px`,
     "--tab-max": `${c.tabMaxWidth}px`,
     "--page-radius": `${c.pageRadius}px`,
+    // Style global : arrondis des panneaux, cartes et menus, densité, flou et opacité du verre.
+    "--radius-sm": `${Math.round(c.radius * 0.75)}px`,
+    "--radius-md": `${c.radius}px`,
+    "--radius-lg": `${Math.round(c.radius * 1.375)}px`,
+    "--radius-xl": `${Math.round(c.radius * 1.75)}px`,
+    "--menu-radius": `${Math.min(c.radius, 22)}px`,
+    "--density": c.density,
+    "--glass-blur": `${c.glassBlur}px`,
+    "--menu-alpha": c.surface === "solid" ? 0.97 : Math.min(0.92, Math.max(0.72, theme.glassOpacity + 0.4)),
     "--edge-color": c.edgeOpacity == null ? c.edgeColor
       : `rgba(${parseInt(c.edgeColor.slice(1, 3), 16)}, ${parseInt(c.edgeColor.slice(3, 5), 16)}, ${parseInt(c.edgeColor.slice(5, 7), 16)}, ${c.edgeOpacity})`,
     ...(c.edgeOpacity != null ? { "--edge-alpha": c.edgeOpacity } : {}),
@@ -305,7 +320,7 @@ export function App() {
   return (
     <div className={`shell tone-${theme.tone}${immersive ? " shell--fullscreen" : ""}${pageFullscreen != null ? " shell--page-fullscreen" : ""}${drawer ? " shell--drawer" : ""}${rail.resizing ? " shell--resizing" : ""}${c.motion ? "" : " no-motion"}`}
       style={chromeVars}
-      data-bar={c.barStyle} data-bar-surface={c.barSurface} data-address={c.addressWidth}
+      data-surface={c.surface} data-bar={c.barStyle} data-bar-surface={c.barSurface} data-address={c.addressWidth}
       data-rail={c.railStyle} data-rail-surface={c.railSurface}
       data-edge={c.railStyle === "edge" ? c.edgeSurface : undefined}
       data-edge-tone={c.railStyle === "edge" && c.edgeSurface === "color" ? (readableOn(c.edgeColor) === "#fff" ? "light" : "dark") : undefined}
@@ -384,6 +399,8 @@ export function App() {
           suggest={(input) => suggest(palette, input, own.of(palette), prefsOf(palette).searchUrl)}
           commands={paletteCommands(palette)} />
       )}
+
+      <MenuHost onRects={setMenuRects} />
 
       {groupDialog.request && (
         <GroupDialog key={JSON.stringify(groupDialog.request)} request={groupDialog.request} browser={browser}

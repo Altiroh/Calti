@@ -407,3 +407,20 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
   page déclare (WebView2 `FaviconUri`, souvent ailleurs que `/favicon.ico`), apprise des onglets ouverts et retenue
   par site (`calti.icons`, 400 sites) : elle sert aussi aux onglets, à l'historique, à la palette. Vérifié
   (`suggestions.test.cjs`, 5/5) : icône déclarée par GitHub apprise et reprise dans la suggestion.
+
+## 2026-11-04 — Menus aux couleurs du thème, style global, outils de développement
+
+- Les clics droits n'utilisent plus les menus de Windows : un menu de Calti (`components/ContextMenu.tsx`) suit le
+  thème (arrondi, verre ou plein, densité, accent). Chaque entrée a une icône dans une pastille teintée par famille
+  d'actions, les raccourcis en touches, les cases cochées, les valeurs (zoom), les sous-menus (souris et clavier :
+  flèches, Entrée, Échap, gauche/droite). Les pages sont découpées à sa place, comme pour la palette.
+  Il sert à la barre du haut, au bouton Recharger, aux onglets et groupes, à l'historique.
+- Clic droit dans une page : WebView2 fournit ses entrées (copier, coller, enregistrer l'image, inspecter…),
+  envoyées à l'interface (`src-tauri/src/pagemenu.rs`, événement `browser:page-menu`) qui les dessine ; le choix
+  revient à WebView2 (`page_menu_pick`). « Ouvrir dans une nouvelle fenêtre » devient « dans un nouvel onglet ».
+- Style global (Réglages → Interface) : matière (verre ou plein), arrondi général, densité, opacité et flou du
+  verre ; il règle d'un coup barres, onglets, pages, panneaux, cartes, menus, dialogues et suggestions, chaque
+  élément restant ajustable ensuite. Bouton « Aperçu d'un menu ».
+- Outils de développement : F12 ou Ctrl+Maj+I (page affichée), entrée « Inspecter » du clic droit dans la page,
+  menu de la barre → Outils de développement (dont « Inspecter l'interface de Calti »). Disponibles dans la
+  version installée (fonction `devtools` de Tauri, `.devtools(true)` sur les onglets).

@@ -452,3 +452,20 @@
 .shell--fullscreen .page {
   padding: 0;
 }
+
+/* --- Style global ------------------------------------------------------------ */
+
+/* Matière « plein » : panneaux, cartes, menus et dialogues opaques, sans flou. */
+.shell[data-surface="solid"] .glass:not(.pane__bar):not(.rail) {
+  --glass-alpha: 0.95;
+  backdrop-filter: none;
+}
+
+/* Dialogues et listes flottantes : arrondi du style global. */
+.shell .palette {
+  border-radius: calc(var(--radius-md, 16px) * 1.25);
+}
+
+.shell .group-dialog {
+  border-radius: calc(var(--radius-md, 16px) * 1.125);
+}

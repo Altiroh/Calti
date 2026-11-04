@@ -9,6 +9,7 @@ mod launch;
 mod state;
 mod browser;
 mod native;
+mod pagemenu;
 mod setup;
 mod suggest;
 
@@ -66,6 +67,8 @@ fn main() {
             brave_import::password_import_result,
             brave_import::restart_app,
             native::taskbar_overlay,
+            native::ui_devtools,
+            pagemenu::page_menu_pick,
             native::window_identity,
             features::blocker_configure,
             features::zoom_settings,

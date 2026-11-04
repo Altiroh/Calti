@@ -1,0 +1,194 @@
+/* Menu contextuel aux couleurs du thème (arrondi, verre, espacement réglés dans Réglages → Interface). */
+.cmenu {
+  position: fixed;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  min-width: 232px;
+  max-width: 380px;
+  max-height: calc(100vh - 16px);
+  padding: calc(6px * var(--density, 1));
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  border-radius: var(--menu-radius, 16px);
+  --glass-alpha: var(--menu-alpha, 0.86);
+  box-shadow: var(--glass-shadow), 0 18px 48px rgba(8, 20, 45, 0.28);
+  font-size: 13px;
+  color: var(--text);
+  user-select: none;
+  transform-origin: top left;
+  animation: cmenu-in 150ms cubic-bezier(0.2, 0.9, 0.25, 1.05) both;
+}
+
+.cmenu--sub {
+  animation-name: cmenu-sub-in;
+}
+
+@keyframes cmenu-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+}
+
+@keyframes cmenu-sub-in {
+  from { opacity: 0; transform: translateX(-4px); }
+}
+
+.no-motion .cmenu {
+  animation: none;
+}
+
+.cmenu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  flex: none;
+  width: 100%;
+  min-height: calc(32px * var(--density, 1));
+  padding: calc(4px * var(--density, 1)) 10px calc(4px * var(--density, 1)) calc(5px * var(--density, 1));
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: none;
+  border: none;
+  border-radius: calc(var(--menu-radius, 16px) - 6px * var(--density, 1));
+  cursor: default;
+  transition: background 90ms ease, color 90ms ease;
+}
+
+.cmenu__item--hot:not(:disabled) {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-border);
+}
+
+.cmenu__item:disabled {
+  opacity: 0.42;
+}
+
+.cmenu__item--danger {
+  color: var(--danger);
+}
+
+.cmenu__item--danger.cmenu__item--hot:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 35%, transparent);
+}
+
+/* Pastille d'icône teintée par famille d'actions. */
+.cmenu__icon {
+  --chip: var(--accent-fg);
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--chip);
+  background: color-mix(in srgb, var(--chip) 16%, transparent);
+  border-radius: calc(var(--menu-radius, 16px) * 0.5);
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.cmenu__icon--none {
+  background: none;
+}
+
+.cmenu__item--hot:not(:disabled) .cmenu__icon:not(.cmenu__icon--none) {
+  background: color-mix(in srgb, var(--chip) 26%, transparent);
+  transform: scale(1.06);
+}
+
+.cmenu__icon .favicon {
+  border-radius: 4px;
+}
+
+.cmenu__icon--blue { --chip: #4f8ef7; }
+.cmenu__icon--green { --chip: #2fb47c; }
+.cmenu__icon--amber { --chip: #e09a23; }
+.cmenu__icon--violet { --chip: #9a6cf0; }
+.cmenu__icon--pink { --chip: #e0569b; }
+.cmenu__icon--teal { --chip: #1fa9b0; }
+.cmenu__icon--red { --chip: #e0525f; }
+.cmenu__icon--slate { --chip: #7d8ca3; }
+
+.tone-light .cmenu__icon--slate { --chip: #b4c0d2; }
+
+.cmenu__item--danger .cmenu__icon { --chip: var(--danger); }
+
+.cmenu__dot {
+  width: 10px;
+  height: 10px;
+  background: var(--chip);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--chip) 25%, transparent);
+}
+
+.cmenu__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmenu__value {
+  padding: 1px 7px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-fg);
+  background: var(--accent-soft);
+  border-radius: 999px;
+}
+
+.cmenu__keys {
+  display: flex;
+  gap: 3px;
+  margin-left: 12px;
+}
+
+.cmenu__keys kbd {
+  min-width: 18px;
+  padding: 1px 5px;
+  font: 10.5px/1.5 var(--font);
+  text-align: center;
+  color: var(--text-dim);
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+}
+
+.cmenu__check {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--text-faint);
+  border-radius: 5px;
+}
+
+.cmenu__check--on {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.cmenu__more {
+  display: grid;
+  color: var(--text-faint);
+}
+
+.cmenu__sep {
+  height: 1px;
+  margin: calc(5px * var(--density, 1)) 8px;
+  background: var(--line);
+}
+
+.cmenu__header {
+  padding: calc(6px * var(--density, 1)) 10px 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
