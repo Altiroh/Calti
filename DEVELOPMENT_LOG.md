@@ -383,3 +383,22 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
   Ctrl+Maj+T, palette (filtre, commande), zoom (suivi, réappliqué au même site, Ctrl+molette, oubli depuis les
   réglages), son coupé, 2 traqueurs bloqués, téléchargement suivi jusqu'au bout, autorisations, effacement du cache.
   Non vérifié par de vraies saisies : menus natifs, bouclier dans la barre, enregistrement comme navigateur par défaut.
+
+## 2026-11-04 — Données perdues après l'arrêt de l'ordinateur ; premier lancement sans profil
+
+- Constat : après un arrêt de l'ordinateur (veille prolongée / arrêt rapide : Windows n'a pas redémarré depuis le
+  2 novembre), Calti a démarré avec un stockage local vide (réglages par défaut, aucun onglet). WebView2 écrit ce
+  stockage en différé ; tué sans fermeture, sa base a été recréée. Les fichiers de la veille étaient encore sur le
+  disque : sauvegardés (`%LOCALAPPDATA%\fr.calti.app\sauvegarde-2026-11-04`), lus directement (journaux et tables
+  leveldb, Snappy) et rendus à Calti : réglages, profils, présélections, historique, favoris, recherches, copies,
+  sessions des deux fenêtres.
+- Correctif durable : la fenêtre principale recopie toutes les clés `calti.*` dans `etat.json` (toutes les 3 s si
+  elles ont changé, et quand la fenêtre se cache ou se ferme), par écriture atomique (fichier temporaire synchronisé
+  sur le disque, puis remplacement ; copie précédente dans `etat.prev.json`). Au lancement, si cette copie est plus
+  récente (numéro de génération) que le stockage de WebView2, elle est reprise avant l'affichage. Un stockage vidé
+  n'écrase jamais la copie. Limite : les images (fond, avatars, copies d'images, dans IndexedDB) ne sont pas recopiées.
+- Une instance d'essai garde `etat.json` et `zoom.json` dans son propre dossier.
+- Premier lancement : plus de profils « Personnel » et « Pro » créés d'office ; un écran d'accueil fait créer le
+  premier profil (nom, couleur, icône).
+- Vérifié (`scripts/tests/run.ps1 persistence.test.cjs`, 7/7) : écran de création, aucun profil d'office, profil
+  créé, copie écrite, stockage vidé puis repris au relancement. `features.test.cjs` : toujours 19/19.

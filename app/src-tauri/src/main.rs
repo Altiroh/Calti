@@ -6,6 +6,7 @@ mod brave_import;
 mod clipboard;
 mod features;
 mod launch;
+mod state;
 mod browser;
 mod native;
 mod setup;
@@ -77,6 +78,8 @@ fn main() {
             features::site_permission_set,
             features::clear_browsing_data,
             launch::take_launch_urls,
+            state::state_load,
+            state::state_save,
             launch::register_default_browser,
             clipboard::clipboard_image,
             clipboard::clipboard_pause,

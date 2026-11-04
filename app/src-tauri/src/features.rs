@@ -94,7 +94,7 @@ fn host_of(url: &str) -> Option<String> {
 /* --- Zoom mémorisé par site --- */
 
 fn zoom_file(app: &AppHandle) -> Option<std::path::PathBuf> {
-    app.path().app_local_data_dir().ok().map(|d| d.join("zoom.json"))
+    crate::state::data_dir(app).map(|d| d.join("zoom.json"))
 }
 
 /// Zoom par « profil|hôte » (absent : 100 %).

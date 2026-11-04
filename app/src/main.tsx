@@ -8,9 +8,17 @@ import "./styles/chrome.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { Welcome } from "./components/Welcome";
+import { restoreIfNewer, startMirror } from "./settings/persistence";
 import { installPointerEffects } from "./motion";
 import { migrateLegacyData } from "./settings/migrate";
-import { SettingsProvider } from "./settings/settings";
+import { SettingsProvider, useSettings } from "./settings/settings";
+
+/** Sans profil (premier lancement), l'accueil de création ; ensuite, le navigateur. */
+function Root() {
+  const { profileIds } = useSettings();
+  return profileIds.length ? <App /> : <Welcome />;
+}
 
 installPointerEffects();
 
@@ -20,13 +28,17 @@ document.addEventListener("contextmenu", (e) => {
   if (!(e.target as Element).closest?.("input, textarea, [contenteditable=\"true\"]")) e.preventDefault();
 });
 
-// Les réglages sont lus au premier rendu : la migration doit être terminée avant.
-migrateLegacyData().finally(() =>
-  createRoot(document.getElementById("root")!).render(
-    <StrictMode>
-      <SettingsProvider>
-        <App />
-      </SettingsProvider>
-    </StrictMode>,
-  ),
-);
+// Les réglages sont lus au premier rendu : la copie de sécurité (reprise si WebView2 a perdu son stockage) et la
+// migration doivent être terminées avant.
+restoreIfNewer()
+  .then(() => migrateLegacyData())
+  .finally(() => {
+    startMirror();
+    createRoot(document.getElementById("root")!).render(
+      <StrictMode>
+        <SettingsProvider>
+          <Root />
+        </SettingsProvider>
+      </StrictMode>,
+    );
+  });

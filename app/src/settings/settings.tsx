@@ -235,8 +235,10 @@ function load(): Settings {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const s = JSON.parse(saved);
-      return { theme: s.theme ?? {}, profiles: s.profiles ?? {}, profileOrder: s.profileOrder?.length ? s.profileOrder : ["personnel", "pro"] };
+      return { theme: s.theme ?? {}, profiles: s.profiles ?? {}, profileOrder: s.profileOrder ?? [] };
     }
+    // Premier lancement : aucun profil, l'utilisateur crée le sien (écran d'accueil).
+    if (localStorage.getItem(LEGACY_KEY) == null) return { theme: {}, profiles: {}, profileOrder: [] };
     // Ancien format (un environnement par profil) : le style de Personnel devient celui de l'application.
     const old = JSON.parse(localStorage.getItem(LEGACY_KEY) ?? "{}");
     const themes = old.themes ?? {};
@@ -250,7 +252,7 @@ function load(): Settings {
     }
     return { theme, profiles, profileOrder: ["personnel", "pro"] };
   } catch {
-    return { theme: {}, profiles: {}, profileOrder: ["personnel", "pro"] };
+    return { theme: {}, profiles: {}, profileOrder: [] };
   }
 }
 
