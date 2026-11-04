@@ -1,0 +1,110 @@
+/* Outils de développement ancrés à côté (ou sous) la page. */
+.devtools {
+  position: relative;
+  display: flex;
+  flex-grow: 0;
+  flex-shrink: 0;
+  min-width: 0;
+  min-height: 0;
+  /* Apparition en fondu seulement : un glissement décalerait la fenêtre des outils, posée d'après la place mesurée. */
+  animation: devtools-in 200ms var(--ease) both;
+}
+
+@keyframes devtools-in {
+  from { opacity: 0; }
+}
+
+.devtools__frame {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--page-radius, 16px);
+}
+
+.devtools__bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  height: 34px;
+  padding: 0 6px 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.devtools__title {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.devtools__title svg {
+  color: var(--accent-fg);
+}
+
+/* La fenêtre des outils est posée exactement ici. */
+.devtools__slot {
+  position: relative;
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-height: 0;
+  background: var(--surface-solid);
+}
+
+.devtools__wait {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* Poignée de redimensionnement, sur le bord côté page. */
+.devtools__grip {
+  position: absolute;
+  z-index: 2;
+  cursor: col-resize;
+}
+
+.devtools--right .devtools__grip {
+  top: 0;
+  bottom: 0;
+  left: calc(var(--ui-gap, 14px) * -0.7);
+  width: calc(var(--ui-gap, 14px) * 0.7);
+}
+
+.devtools--bottom .devtools__grip {
+  top: calc(var(--ui-gap, 14px) * -0.7);
+  right: 0;
+  left: 0;
+  height: calc(var(--ui-gap, 14px) * 0.7);
+  cursor: row-resize;
+}
+
+.devtools__grip::after {
+  content: "";
+  position: absolute;
+  inset: 30% 40%;
+  border-radius: 999px;
+  background: var(--text-faint);
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.devtools--bottom .devtools__grip::after {
+  inset: 40% 45%;
+}
+
+.devtools__grip:hover::after,
+.devtools--dragging .devtools__grip::after {
+  opacity: 0.6;
+}
+
+/* Pendant le glissement, rien ne s'anime (la page suit la poignée). */
+.devtools--dragging {
+  animation: none;
+}

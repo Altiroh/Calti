@@ -47,6 +47,8 @@ struct Pending {
     deferral: ICoreWebView2Deferral,
     tab: u64,
     link: String,
+    /// Fenêtres du navigateur à l'ouverture du menu (pour repérer celle des outils après « Inspecter »).
+    before: Option<(u32, std::collections::HashSet<isize>)>,
 }
 
 thread_local! {
@@ -145,7 +147,7 @@ pub fn install(app: &AppHandle, webview: &Webview, tab: u64) {
                 n.set(id + 1);
                 id
             });
-            PENDING.with(|m| m.borrow_mut().insert(request, Pending { args, deferral, tab, link: link.clone() }));
+            PENDING.with(|m| m.borrow_mut().insert(request, Pending { args, deferral, tab, link: link.clone(), before: crate::devtools::snapshot(&core) }));
             // L'interface prend le focus : un clic ailleurs (dans la page) referme le menu.
             if let Some(ui) = app.get_webview(&window) {
                 let _ = ui.set_focus();
@@ -163,14 +165,25 @@ pub fn install(app: &AppHandle, webview: &Webview, tab: u64) {
 
 /// Choix fait dans le menu dessiné par l'interface (`None` : menu refermé sans choix).
 #[tauri::command]
-pub fn page_menu_pick(app: AppHandle, request: u64, command: Option<i32>) {
+pub fn page_menu_pick(app: AppHandle, request: u64, command: Option<i32>, dock: Option<bool>) {
     let handle = app.clone();
     let _ = app.run_on_main_thread(move || unsafe {
         let Some(p) = PENDING.with(|m| m.borrow_mut().remove(&request)) else { return };
         match command {
             Some(OPEN_IN_TAB) => crate::browser::open_from_tab(&handle, p.tab, &p.link, true),
             Some(id) => {
+                // « Inspecter » : la fenêtre des outils qui s'ouvre est ancrée dans Calti.
+                let watch = if dock == Some(true) && !crate::devtools::is_docked(p.tab) {
+                    let window = crate::browser::tab_window(&handle, p.tab);
+                    let parent = window.as_deref().and_then(|w| handle.get_window(w)).and_then(|w| w.hwnd().ok()).map(|h| h.0 as isize);
+                    window.zip(parent).zip(p.before)
+                } else {
+                    None
+                };
                 let _ = p.args.SetSelectedCommandId(id);
+                if let Some(((label, parent), before)) = watch {
+                    crate::devtools::watch(handle.clone(), label, parent, p.tab, before);
+                }
             }
             None => {}
         }

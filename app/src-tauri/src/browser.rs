@@ -99,6 +99,9 @@ pub struct Placement {
     /// Zones découpées dans la page (relatives à la page), pour laisser voir l’interface dessous.
     #[serde(default)]
     cutouts: Vec<Cutout>,
+    /// Panneau des outils de développement ancrés (dans la fenêtre), s’ils sont ouverts pour cette page.
+    #[serde(default)]
+    devtools: Option<Cutout>,
 }
 
 /// Rectangle arrondi retiré de la page (badge du plein écran, dialogue) ; sans arrondi donné, une pilule.
@@ -211,7 +214,7 @@ pub(crate) fn any_tab_of(app: &AppHandle, profile: &str) -> Option<u64> {
     app.state::<Browser>().0.lock().unwrap().tabs.iter().find(|t| t.profile == profile).map(|t| t.id)
 }
 
-fn webview(app: &AppHandle, id: u64) -> Result<Webview, String> {
+pub(crate) fn webview(app: &AppHandle, id: u64) -> Result<Webview, String> {
     app.get_webview(&label(id)).ok_or_else(|| "onglet introuvable".to_string())
 }
 
@@ -375,9 +378,13 @@ pub async fn browser_layout(app: AppHandle, window: Window, visible: Vec<Placeme
         round_corners(&w, width, height, p.radius, p.cutouts.clone());
         w.show().map_err(|e| e.to_string())?;
         wake(&app, &w, p.id);
+        let scale = window.scale_factor().unwrap_or(1.0);
+        let px = |v: f64| (v * scale).round() as i32;
+        crate::devtools::place(p.id, p.devtools.map(|d| (px(d.x), px(d.y), px(d.width), px(d.height))));
     }
     for id in &ids {
         if !visible.iter().any(|p| p.id == *id) {
+            crate::devtools::place(*id, None);
             if let Ok(w) = webview(&app, *id) {
                 let _ = w.hide();
                 put_to_sleep(&app, &w, *id);

@@ -9,6 +9,7 @@ import { dragWindow } from "./dragWindow";
 import { Favicon } from "./Favicon";
 import { Icon } from "./Icon";
 import { openMenu, type MenuEntry } from "./ContextMenu";
+import { DevtoolsPanel, useDevtoolsDock } from "./DevtoolsPanel";
 import { invoke } from "@tauri-apps/api/core";
 import { siteIcon } from "./siteIcon";
 import { ProfileBadge } from "./ProfileBadge";
@@ -178,7 +179,11 @@ export function BrowserPane({
       {
         label: "Outils de développement", icon: "code", tone: "slate",
         items: [
-          { label: "Inspecter la page (éléments, console, réseau)", icon: "inspect", tone: "violet", shortcut: "F12", disabled: !active, action: () => browser.action("devtools", id) },
+          {
+            label: active && browser.devtoolsOpen(active.id) ? "Fermer les outils de la page" : "Inspecter la page (éléments, console, réseau)",
+            icon: "inspect", tone: "violet", shortcut: "F12", disabled: !active, action: () => browser.toggleDevtools(id),
+          },
+          { label: "Ouvrir les outils dans une fenêtre à part", icon: "popout", tone: "slate", disabled: !active, action: () => browser.action("devtools", id) },
           "-",
           { label: "Inspecter l'interface de Calti", icon: "layout", tone: "pink", action: () => { invoke("ui_devtools").catch(() => {}); } },
         ],
@@ -187,6 +192,17 @@ export function BrowserPane({
     ];
     openMenu(e, items);
   };
+
+  // Outils de développement ancrés (F12) : à droite de la page ou dessous.
+  const [dock, setDock] = useDevtoolsDock();
+  const tools = active && browser.devtoolsOpen(active.id)
+    ? <DevtoolsPanel browser={browser} profile={id} tabId={active.id} dock={dock} onDock={setDock} />
+    : null;
+  const content = (
+    <div className="pane__content" data-profile={id} ref={(el) => browser.registerSlot(id, el)}>
+      {pane.activeTab == null && <div className="pane__home">{home}</div>}
+    </div>
+  );
 
   const secure = active?.url.startsWith("https://");
   const [siteAllowed, toggleSiteAllowed] = useSiteAllowed(id, active?.url);
@@ -299,9 +315,7 @@ export function BrowserPane({
       </header>
 
       <div className="pane__body">
-        <div className="pane__content" data-profile={id} ref={(el) => browser.registerSlot(id, el)}>
-          {pane.activeTab == null && <div className="pane__home">{home}</div>}
-        </div>
+        {tools && dock.side === "bottom" ? <div className="pane__stack">{content}{tools}</div> : <>{content}{tools}</>}
         {/* Widget ouvert depuis la barre : la page se resserre à côté (une vue native passerait par-dessus). */}
         {shownPanel && (
           <aside className="pane__panel" key={shownPanel} aria-label={barWidgetLabels[shownPanel]}>

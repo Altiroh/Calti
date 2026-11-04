@@ -66,7 +66,6 @@ pub fn install_shortcuts(app: &AppHandle, webview: &Webview, tab: u64) {
                 "zoom-in" => crate::features::zoom_step(&app, tab, 1),
                 "zoom-out" => crate::features::zoom_step(&app, tab, -1),
                 "zoom-reset" => crate::features::zoom_step(&app, tab, 0),
-                "devtools" => sender.CoreWebView2()?.OpenDevToolsWindow()?,
                 _ => {
                     // Saisie d'adresse, nouvel onglet : le focus clavier repasse à l'interface de la fenêtre.
                     if matches!(action, "address" | "new-tab" | "palette") {

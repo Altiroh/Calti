@@ -117,6 +117,14 @@ export interface Browser {
   action: (action: NavAction, profile?: ProfileId) => void;
   /** Zone de contenu d'un volet : les pages y sont posées. */
   registerSlot: (profile: ProfileId, el: HTMLElement | null) => void;
+  /** Outils de développement ancrés : ouverts pour cet onglet ? */
+  devtoolsOpen: (tabId: number) => boolean;
+  /** Ouvre ou ferme les outils de l'onglet affiché du profil, dans la fenêtre. */
+  toggleDevtools: (profile?: ProfileId) => void;
+  /** Détache les outils de l'onglet dans une fenêtre à part. */
+  undockDevtools: (tabId: number) => void;
+  /** Zone du panneau des outils d'un volet : leur fenêtre y est posée. */
+  registerDevtoolsSlot: (profile: ProfileId, el: HTMLElement | null) => void;
   /** Masque les pages (éditeur de disposition…). */
   setSuspended: (suspended: boolean) => void;
   /** Nouvelle fenêtre sur un profil ; avec `detach`, les onglets de ce profil y partent. */
@@ -252,6 +260,14 @@ export function useBrowser(
 
   const pane = useCallback((profile: ProfileId) => panes[profile] ?? EMPTY_PANE, [panes]);
   const fail = useCallback((e: unknown) => setError(String(e)), []);
+  // Onglets dont les outils de développement sont ancrés dans la fenêtre (app/src-tauri/src/devtools.rs).
+  const [devtools, setDevtools] = useState<number[]>([]);
+  const devtoolsSlots = useRef<Record<ProfileId, HTMLElement>>({});
+  useEffect(() => {
+    const closed = listen<number>("browser:devtools-closed", (e) => setDevtools((d) => d.filter((id) => id !== e.payload)));
+    const opened = listen<number>("browser:devtools-opened", (e) => setDevtools((d) => (d.includes(e.payload) ? d : [...d, e.payload])));
+    return () => { closed.then((u) => u()); opened.then((u) => u()); };
+  }, []);
 
   const show = useCallback((profile: ProfileId, id: number | null) => {
     setPanes((p) => ({ ...p, [profile]: { activeTab: id, lastTab: id ?? p[profile]?.lastTab ?? null } }));
@@ -447,10 +463,12 @@ export function useBrowser(
       const holes = cutouts
         .filter((c) => c.x < r.right && c.x + c.width > r.left && c.y < r.bottom && c.y + c.height > r.top)
         .map((c) => ({ ...c, x: c.x - r.left, y: c.y - r.top }));
-      return [{ id, x: r.left, y: r.top, width: r.width, height: r.height, radius: pageRadius, cutouts: holes }];
+      const tools = devtools.includes(id) ? devtoolsSlots.current[profile]?.getBoundingClientRect() : undefined;
+      const panel = tools && tools.width > 0 ? { x: tools.left, y: tools.top, width: tools.width, height: tools.height } : null;
+      return [{ id, x: r.left, y: r.top, width: r.width, height: r.height, radius: pageRadius, cutouts: holes, devtools: panel }];
     });
     invoke("browser_layout", { visible }).catch(fail);
-  }, [suspended, visibleProfiles.join("|"), panes, pageRadius, JSON.stringify(cutouts), fail]);
+  }, [suspended, visibleProfiles.join("|"), panes, pageRadius, JSON.stringify(cutouts), fail, devtools]);
 
   const frame = useRef(0);
   const scheduleLayout = useCallback(() => {
@@ -469,7 +487,7 @@ export function useBrowser(
   useEffect(() => {
     observer.current?.disconnect();
     observer.current = new ResizeObserver(scheduleLayout);
-    for (const el of Object.values(slots.current)) observer.current.observe(el);
+    for (const el of [...Object.values(slots.current), ...Object.values(devtoolsSlots.current)]) observer.current.observe(el);
     window.addEventListener("resize", scheduleLayout);
     document.addEventListener("visibilitychange", scheduleLayout);
     return () => {
@@ -491,6 +509,37 @@ export function useBrowser(
     }
     scheduleLayout();
   }, [scheduleLayout]);
+
+  const registerDevtoolsSlot = useCallback((profile: ProfileId, el: HTMLElement | null) => {
+    const previous = devtoolsSlots.current[profile];
+    if (previous === el) return;
+    if (previous) observer.current?.unobserve(previous);
+    if (el) {
+      devtoolsSlots.current[profile] = el;
+      observer.current?.observe(el);
+    } else {
+      delete devtoolsSlots.current[profile];
+    }
+    scheduleLayout();
+  }, [scheduleLayout]);
+  const toggleDevtools = useCallback((profile: ProfileId = focused) => {
+    const id = panes[profile]?.activeTab;
+    if (id == null) {
+      invoke("ui_devtools").catch(fail);
+      return;
+    }
+    invoke<boolean>("devtools_toggle", { id })
+      .then((open) => setDevtools((d) => (open ? [...d.filter((x) => x !== id), id] : d.filter((x) => x !== id))))
+      .catch(fail);
+  }, [focused, panes, fail]);
+  const undockDevtools = useCallback((id: number) => {
+    invoke("devtools_undock", { id }).catch(fail);
+    setDevtools((d) => d.filter((x) => x !== id));
+  }, [fail]);
+  // Onglet fermé : ses outils partent avec lui.
+  useEffect(() => {
+    setDevtools((d) => (d.every((id) => tabs.some((t) => t.id === id)) ? d : d.filter((id) => tabs.some((t) => t.id === id))));
+  }, [tabs]);
 
   const tabsRef = useRef(tabs);
   tabsRef.current = tabs;
@@ -660,9 +709,9 @@ export function useBrowser(
       case "zoom-reset":
         if (active != null) invoke("browser_action", { id: active, action: key }).catch(fail);
         return;
-      // Outils de développement de la page affichée ; sans page, ceux de l’interface de Calti.
+      // Outils de développement de la page affichée, ancrés dans la fenêtre ; sans page, ceux de l'interface.
       case "devtools":
-        invoke(active != null ? "browser_action" : "ui_devtools", active != null ? { id: active, action: "devtools" } : {}).catch(fail);
+        toggleDevtools(profile);
         return;
       case "new-tab": return newTab(profile);
       case "reopen-tab": return reopen(profile);
@@ -696,7 +745,7 @@ export function useBrowser(
         activate(own[(index + step + own.length) % own.length].id);
       }
     }
-  }, [focused, panes, tabs, newTab, close, newWindow, activate, fail, reopen]);
+  }, [focused, panes, tabs, newTab, close, newWindow, activate, fail, reopen, toggleDevtools]);
   const runShortcutRef = useRef(runShortcut);
   runShortcutRef.current = runShortcut;
 
@@ -746,7 +795,8 @@ export function useBrowser(
 
   return {
     tabs, tabsOf, pane, focused, focus, split: showSplit, setSplit: setSplitState, secondary, setSecondary,
-    go, activate, close, home, newTab, action, registerSlot, setSuspended, newWindow, move, reopen, tabAction,
+    go, activate, close, home, newTab, action, registerSlot, setSuspended,
+    devtoolsOpen: (id) => devtools.includes(id), toggleDevtools, undockDevtools, registerDevtoolsSlot, newWindow, move, reopen, tabAction,
     strip, groups: Object.values(groupMap), groupOf, createGroup, addToGroup, removeFromGroup, updateGroup, ungroup, closeGroup,
     error,
   };

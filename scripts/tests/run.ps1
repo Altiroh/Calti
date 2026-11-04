@@ -18,6 +18,7 @@ $env:WEBVIEW2_USER_DATA_FOLDER = $data
 $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=9334"
 $argList = @($AppArgs | Where-Object { $_ })
 $process = if ($argList.Count) { Start-Process $Exe -ArgumentList $argList -PassThru } else { Start-Process $Exe -PassThru }
+$env:CALTI_PID = $process.Id
 try {
     node --experimental-websocket (Join-Path $PSScriptRoot $Test)
     $code = $LASTEXITCODE

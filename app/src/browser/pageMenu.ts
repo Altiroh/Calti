@@ -66,7 +66,7 @@ const looks: Record<string, [IconName, MenuTone]> = {
   readAloud: ["sound", "pink"],
 };
 
-function toEntries(items: Item[], pick: (id: number) => void): MenuEntry[] {
+function toEntries(items: Item[], pick: (id: number, dock?: boolean) => void): MenuEntry[] {
   const out: MenuEntry[] = [];
   for (const item of items) {
     if (item.kind === "sep") {
@@ -83,7 +83,8 @@ function toEntries(items: Item[], pick: (id: number) => void): MenuEntry[] {
       disabled: !item.enabled,
       checked: item.kind === "check" || item.kind === "radio" ? item.checked : undefined,
       items: item.kind === "sub" ? toEntries(item.children, pick) : undefined,
-      action: () => pick(item.id),
+      // « Inspecter » : les outils s’ouvrent dans le panneau de Calti.
+      action: () => pick(item.id, item.name === "inspectElement"),
     });
   }
   while (out[out.length - 1] === "-") out.pop();
@@ -100,9 +101,9 @@ export function usePageMenu(tabs: BrowserTab[]) {
       const profile = tabsRef.current.find((t) => t.id === tab)?.profile;
       const slot = document.querySelector(`.pane__content[data-profile="${CSS.escape(profile ?? "")}"]`)?.getBoundingClientRect();
       let picked = false;
-      const pick = (command: number) => {
+      const pick = (command: number, dock = false) => {
         picked = true;
-        invoke("page_menu_pick", { request, command }).catch(() => {});
+        invoke("page_menu_pick", { request, command, dock }).catch(() => {});
       };
       // Menu refermé sans choix : WebView2 est libéré (l'action choisie, elle, part juste après la fermeture).
       const onClose = () => window.setTimeout(() => { if (!picked) invoke("page_menu_pick", { request, command: null }).catch(() => {}); }, 120);

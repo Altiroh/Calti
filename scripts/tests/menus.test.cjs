@@ -1,6 +1,7 @@
 // Menus de Calti aux couleurs du thème (barre, onglets, pages), style global et outils de développement.
 //   powershell -File scripts\tests\run.ps1 menus.test.cjs
 const path = require("path");
+const { execSync } = require("child_process");
 const { connect, pages, sleep, suite } = require("./cdp.cjs");
 
 const t = suite();
@@ -97,15 +98,28 @@ const item = (label) => `[...document.querySelectorAll(".cmenu__item")].find((b)
   const reloaded = await page.ev(`window.__mark === undefined`).catch(() => true);
   t.check("entrée choisie exécutée par la page (rechargement)", reloadLabel && reloaded, reloadLabel);
 
-  // Outils de développement de la page.
-  const before = (await pages()).length;
+  // Outils de développement de la page, ancrés dans la fenêtre de Calti (F12), puis refermés.
+  const wins = () => JSON.parse(execSync(`powershell -NoProfile -File "${path.join(__dirname, "windows.ps1")}" -CaltiPid ${process.env.CALTI_PID}`).toString());
   await ui.ev(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "F12" }))`);
-  let devtools = false;
-  for (let i = 0; i < 20 && !devtools; i++) {
-    await sleep(400);
-    devtools = (await pages()).some((p) => p.url.startsWith("devtools://")) || (await pages()).length > before;
+  let state = { child: false };
+  for (let i = 0; i < 12 && !state.child; i++) {
+    await sleep(500);
+    state = wins();
   }
-  t.check("F12 ouvre les outils de développement", devtools);
+  t.check("F12 : panneau des outils dans le volet", await ui.ev(`!!document.querySelector(".devtools .devtools__slot")`));
+  t.check("outils ancrés dans la fenêtre de Calti (pas de fenêtre à part)", state.child && state.tools.length === 0, state);
+  const slot = await ui.ev(`(() => { const r = document.querySelector(".devtools__slot").getBoundingClientRect(); const p = document.querySelector(".pane__content").getBoundingClientRect(); return { slot: r.width, page: p.width }; })()`);
+  t.check("la page se resserre à côté des outils", slot.slot > 200 && slot.page > 200, slot);
+  await sleep(1500);
+  execSync(`powershell -NoProfile -File "${path.join(__dirname, "windows.ps1")}" -CaltiPid ${process.env.CALTI_PID} -Shot "${path.join(process.env.TEMP, "calti-devtools.png")}"`);
+  // Ancrage en bas.
+  await ui.ev(`document.querySelector(".devtools__bar button").click()`);
+  await sleep(800);
+  t.check("ancrage en bas", await ui.ev(`!!document.querySelector(".pane__stack .devtools--bottom")`) && wins().child);
+  await ui.ev(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "F12" }))`);
+  await sleep(1200);
+  state = wins();
+  t.check("F12 à nouveau : outils refermés", !state.child && state.tools.length === 0 && await ui.ev(`!document.querySelector(".devtools")`), state);
 
   t.report();
   process.exit();

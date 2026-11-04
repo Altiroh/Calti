@@ -9,6 +9,7 @@ mod launch;
 mod state;
 mod browser;
 mod native;
+mod devtools;
 mod pagemenu;
 mod setup;
 mod suggest;
@@ -69,6 +70,8 @@ fn main() {
             native::taskbar_overlay,
             native::ui_devtools,
             pagemenu::page_menu_pick,
+            devtools::devtools_toggle,
+            devtools::devtools_undock,
             native::window_identity,
             features::blocker_configure,
             features::zoom_settings,

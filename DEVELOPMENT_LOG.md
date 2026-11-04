@@ -424,3 +424,13 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
 - Outils de développement : F12 ou Ctrl+Maj+I (page affichée), entrée « Inspecter » du clic droit dans la page,
   menu de la barre → Outils de développement (dont « Inspecter l'interface de Calti »). Disponibles dans la
   version installée (fonction `devtools` de Tauri, `.devtools(true)` sur les onglets).
+- Outils de développement intégrés : F12 (ou Ctrl+Maj+I, menu de la barre, « Inspecter » du clic droit) les ouvre
+  dans un panneau du volet, à droite ou en bas, redimensionnable par son bord, avec détachement en fenêtre et
+  fermeture (F12 de nouveau). WebView2 n'ouvrant ses outils que dans une fenêtre à part, Calti repère cette fenêtre
+  (nouvelle fenêtre du processus du navigateur), en fait une fenêtre enfant de la sienne, la pose à la place du
+  panneau à chaque mise en place des pages et rogne le cadre que Chromium dessine (barre de titre), mesuré d'après
+  sa zone de contenu (`src-tauri/src/devtools.rs`). Pas de port de débogage : aucun autre programme ne peut piloter
+  les pages. Le panneau apparaît en fondu seulement : un glissement faussait la place mesurée de 16 px.
+- Vérifié (`menus.test.cjs`, 19/19, avec `windows.ps1` qui inspecte les fenêtres Windows) : outils dans la fenêtre
+  de Calti et aucune fenêtre à part, page resserrée, ancrage en bas, fermeture par F12 ; position contrôlée au
+  pixel près. `features` 19/19, `persistence` 7/7, `suggestions` 5/5.
