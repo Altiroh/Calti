@@ -4,6 +4,7 @@ import { listen } from "./windowEvents";
 import { availableMonitors, getCurrentWindow, PhysicalPosition, PhysicalSize } from "@tauri-apps/api/window";
 import { recordSearch } from "./library";
 import { rememberClosed, takeClosed } from "./closedTabs";
+import { learnIcons } from "../components/siteIcon";
 
 /** Identifiant d'un profil (aussi nom de son dossier de données). */
 export type ProfileId = string;
@@ -26,6 +27,8 @@ export interface BrowserTab {
   muted: boolean;
   /** Publicités et traqueurs bloqués sur la page. */
   blocked: number;
+  /** Icône déclarée par la page ; vide tant qu'elle n'est pas connue. */
+  icon: string;
 }
 
 export type NavAction = "back" | "forward" | "reload" | "hard-reload" | "empty-cache-reload" | "stop"
@@ -256,7 +259,10 @@ export function useBrowser(
 
   useEffect(() => {
     const subscriptions = Promise.all([
-      listen<BrowserTab[]>("browser:tabs", (e) => setAllTabs(e.payload)),
+      listen<BrowserTab[]>("browser:tabs", (e) => {
+        learnIcons(e.payload);
+        setAllTabs(e.payload);
+      }),
       // Lien « nouvelle fenêtre » : le nouvel onglet s'affiche dans le volet de l'onglet d'origine.
       // Troisième valeur : ouvert en arrière-plan (clic molette, Ctrl+clic) — le volet reste sur sa page.
       listen<[number, number, boolean]>("browser:opened", (e) => {

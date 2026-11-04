@@ -402,3 +402,8 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
   premier profil (nom, couleur, icône).
 - Vérifié (`scripts/tests/run.ps1 persistence.test.cjs`, 7/7) : écran de création, aucun profil d'office, profil
   créé, copie écrite, stockage vidé puis repris au relancement. `features.test.cjs` : toujours 19/19.
+- Suggestions de recherche sans icône du site : une page de l'historique ou des favoris affiche maintenant l'icône
+  de son site, avec un petit repère (historique, étoile) ; une recherche garde la loupe. L'icône est celle que la
+  page déclare (WebView2 `FaviconUri`, souvent ailleurs que `/favicon.ico`), apprise des onglets ouverts et retenue
+  par site (`calti.icons`, 400 sites) : elle sert aussi aux onglets, à l'historique, à la palette. Vérifié
+  (`suggestions.test.cjs`, 5/5) : icône déclarée par GitHub apprise et reprise dans la suggestion.

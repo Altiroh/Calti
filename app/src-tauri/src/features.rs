@@ -9,7 +9,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Url, Webview};
 use webview2_com::Microsoft::Web::WebView2::Win32::*;
 use webview2_com::{
-    take_pwstr, BytesReceivedChangedEventHandler, ClearBrowsingDataCompletedHandler, DownloadStartingEventHandler,
+    take_pwstr, BytesReceivedChangedEventHandler, FaviconChangedEventHandler, ClearBrowsingDataCompletedHandler, DownloadStartingEventHandler,
     GetNonDefaultPermissionSettingsCompletedHandler, IsDocumentPlayingAudioChangedEventHandler, IsMutedChangedEventHandler,
     SetPermissionStateCompletedHandler, SourceChangedEventHandler, StateChangedEventHandler,
     WebResourceRequestedEventHandler, ZoomFactorChangedEventHandler,
@@ -464,6 +464,24 @@ pub fn install(app: &AppHandle, webview: &Webview, tab: u64, profile: &str) {
                     core.Source(&mut raw)?;
                     if let Some(host) = host_of(&take_pwstr(raw)) {
                         remember_zoom(&app, format!("{profile}|{host}"), factor);
+                    }
+                    Ok(())
+                })),
+                &mut token,
+            );
+        }
+
+        // Icône de la page (celle qu'elle déclare, pas seulement /favicon.ico).
+        if let Ok(core15) = core.cast::<ICoreWebView2_15>() {
+            let on_icon = app.clone();
+            let _ = core15.add_FaviconChanged(
+                &FaviconChangedEventHandler::create(Box::new(move |sender, _| {
+                    let Some(sender) = sender else { return Ok(()) };
+                    let mut raw = PWSTR::null();
+                    sender.cast::<ICoreWebView2_15>()?.FaviconUri(&mut raw)?;
+                    let icon = take_pwstr(raw);
+                    if icon.starts_with("https://") || icon.starts_with("http://") {
+                        crate::browser::update(&on_icon, tab, |t| t.icon = icon);
                     }
                     Ok(())
                 })),

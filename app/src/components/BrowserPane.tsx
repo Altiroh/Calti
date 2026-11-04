@@ -7,7 +7,9 @@ import { useSiteAllowed } from "../browser/blocker";
 import { withTransition } from "../motion";
 import { barWidgetLabels, useSettings, type BarWidget, type ChromeSettings, type ProfileSettings } from "../settings/settings";
 import { dragWindow } from "./dragWindow";
+import { Favicon } from "./Favicon";
 import { Icon } from "./Icon";
+import { siteIcon } from "./siteIcon";
 import { ProfileBadge } from "./ProfileBadge";
 import { TabStrip } from "./TabStrip";
 import "./BrowserPane.css";
@@ -332,7 +334,15 @@ export function SuggestionList({ items, picked, query, onPick, onRect }: {
           className={`suggest__item${i === picked ? " suggest__item--on" : ""}`}
           // mousedown : avant que la barre d’adresse perde le focus (et ferme la liste).
           onMouseDown={(e) => { e.preventDefault(); onPick(s); }}>
-          <span className="suggest__icon"><Icon name={kindIcon[s.kind]} size={13} /></span>
+          {/* Page connue (historique, favori) : icône du site, avec un repère de sa provenance ; recherche : loupe. */}
+          {s.url ? (
+            <span className="suggest__icon suggest__icon--site" title={s.kind === "bookmark" ? "Favori" : "Historique"}>
+              <Favicon src={siteIcon(s.url)} size={16} />
+              <span className="suggest__kind"><Icon name={kindIcon[s.kind]} size={8} /></span>
+            </span>
+          ) : (
+            <span className="suggest__icon"><Icon name="search" size={13} /></span>
+          )}
           <span className="suggest__text">{highlight(s.text, query)}</span>
           {s.url && <span className="suggest__url">{s.url.replace(/^https?:\/\/(www\.)?/, "")}</span>}
         </div>

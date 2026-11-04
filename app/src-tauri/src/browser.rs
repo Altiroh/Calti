@@ -73,6 +73,8 @@ pub struct Tab {
     pub(crate) muted: bool,
     /// Publicités et traqueurs bloqués sur la page affichée.
     pub(crate) blocked: u32,
+    /// Icône déclarée par la page (vide : pas encore connue).
+    pub(crate) icon: String,
     #[serde(skip)]
     shown: bool,
     /// Incrémenté à chaque masquage : une mise en veille programmée ne s'applique qu'au dernier.
@@ -248,6 +250,7 @@ fn open_tab(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy: 
             audible: false,
             muted: false,
             blocked: 0,
+            icon: String::new(),
             shown: false,
             hidden_gen: 0,
             pending_url: lazy.as_ref().map(|_| url.clone()),
