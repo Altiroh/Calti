@@ -3,3 +3,6 @@ node_modules/
 /app/dist
 /app/src-tauri/gen
 /app/.vite
+
+# Captures et vidéos de travail du skill finition-ui
+.unslop/
