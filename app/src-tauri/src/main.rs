@@ -69,6 +69,7 @@ fn main() {
             brave_import::restart_app,
             native::taskbar_overlay,
             native::ui_devtools,
+            native::alt_held,
             pagemenu::page_menu_pick,
             devtools::devtools_toggle,
             devtools::devtools_undock,

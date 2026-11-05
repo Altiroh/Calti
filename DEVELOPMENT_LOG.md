@@ -466,3 +466,16 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
   une note laissée vide est supprimée en revenant.
 - Anciens blocs-notes (`calti.notes.<profil>`) repris chacun en une note de leur profil, puis retirés.
 - Test `scripts/tests/notes.test.cjs` : 21/21. Version installée.
+
+## 2026-11-05 — Sélecteur de profils façon Alt+Tab (Alt+²)
+
+- `app/src/components/ProfileSwitcher.tsx` (+ `.css`) : fenêtre de verre centrée, une carte par profil (pastille,
+  nom, nombre d'onglets, page affichée), du plus récemment affiché au plus ancien. Alt+² ouvre sur le profil
+  précédent, chaque appui avance (Maj : recule), relâcher Alt bascule. Aussi flèches, Tab, chiffres 1…9, clic,
+  Entrée, Échap ; fermé si la fenêtre perd le focus. Découpé dans les pages comme les menus.
+- Touche au-dessus de Tab (« ² » en AZERTY, « ` » en QWERTY) : `e.code === "Backquote"` dans l'interface ; dans les
+  pages, `native.rs` traite aussi les touches « système » (Alt) de WebView2 (VK 0xDE / 0xC0) et rend le focus à
+  l'interface. Commande `alt_held` (GetAsyncKeyState) vérifiée toutes les 120 ms : un Alt+² bref depuis une page,
+  relâché avant que l'interface ait le focus, choisit quand même.
+- Palette : « Changer de profil ». Liste des raccourcis mise à jour.
+- Test `scripts/tests/switcher.test.cjs` : 11/11. Version installée.

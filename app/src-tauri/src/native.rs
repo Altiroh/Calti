@@ -3,7 +3,7 @@
 use tauri::{AppHandle, Manager, Webview};
 use webview2_com::Microsoft::Web::WebView2::Win32::{
     ICoreWebView2, ICoreWebView2_19, ICoreWebView2_3,
-    COREWEBVIEW2_KEY_EVENT_KIND, COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN,
+    COREWEBVIEW2_KEY_EVENT_KIND, COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN, COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN,
     COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW, COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL,
 };
 use webview2_com::{
@@ -11,10 +11,24 @@ use webview2_com::{
     TrySuspendCompletedHandler, WebMessageReceivedEventHandler,
 };
 use windows::core::{w, Interface, PWSTR};
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetKeyState, VK_CONTROL, VK_SHIFT};
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, GetKeyState, VK_CONTROL, VK_MENU, VK_SHIFT};
 
 fn pressed(key: u16) -> bool {
     unsafe { GetKeyState(key as i32) < 0 }
+}
+
+/// Touche au-dessus de Tab : « ² » (AZERTY) ou « ` » (QWERTY).
+const KEY_ABOVE_TAB: [u32; 2] = [0xDE, 0xC0];
+
+/// Raccourci avec Alt (touche « système » pour WebView2) : changement de profil façon Alt+Tab.
+fn alt_shortcut(key: u32, shift: bool) -> Option<&'static str> {
+    KEY_ABOVE_TAB.contains(&key).then_some(if shift { "previous-profile" } else { "next-profile" })
+}
+
+/// Alt toujours enfoncée ? (sélecteur de profils : relâcher Alt choisit le profil, comme Alt+Tab).
+#[tauri::command]
+pub fn alt_held() -> bool {
+    unsafe { GetAsyncKeyState(VK_MENU as i32) < 0 }
 }
 
 /// Raccourci reconnu dans une page.
@@ -53,12 +67,14 @@ pub fn install_shortcuts(app: &AppHandle, webview: &Webview, tab: u64) {
             let (Some(sender), Some(args)) = (sender, args) else { return Ok(()) };
             let mut kind = COREWEBVIEW2_KEY_EVENT_KIND::default();
             args.KeyEventKind(&mut kind)?;
-            if kind != COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN {
+            let system = kind == COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN;
+            if kind != COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN && !system {
                 return Ok(());
             }
             let mut key = 0u32;
             args.VirtualKey(&mut key)?;
-            let Some(action) = shortcut(key, pressed(VK_CONTROL), pressed(VK_SHIFT)) else { return Ok(()) };
+            let action = if system { alt_shortcut(key, pressed(VK_SHIFT)) } else { shortcut(key, pressed(VK_CONTROL), pressed(VK_SHIFT)) };
+            let Some(action) = action else { return Ok(()) };
             args.SetHandled(true)?;
             match action {
                 "reload" => sender.CoreWebView2()?.Reload()?,
@@ -68,7 +84,7 @@ pub fn install_shortcuts(app: &AppHandle, webview: &Webview, tab: u64) {
                 "zoom-reset" => crate::features::zoom_step(&app, tab, 0),
                 _ => {
                     // Saisie d'adresse, nouvel onglet : le focus clavier repasse à l'interface de la fenêtre.
-                    if matches!(action, "address" | "new-tab" | "palette") {
+                    if matches!(action, "address" | "new-tab" | "palette" | "next-profile" | "previous-profile") {
                         if let Some(window) = crate::browser::tab_window(&app, tab) {
                             if let Some(ui) = app.get_webview(&window) {
                                 let _ = ui.set_focus();

@@ -6,7 +6,7 @@ import { useBraveInstalls } from "./brave/useBraveInstalls";
 import { profileView } from "./browser/adapter";
 import { mergeBookmarks, suggest, useCaltiBookmarks, useHistory } from "./browser/library";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { APP_EVENT, FULLSCREEN_EVENT, useBrowser, type Cutout, type ProfileId } from "./browser/useBrowser";
+import { APP_EVENT, FULLSCREEN_EVENT, PROFILE_SWITCH_EVENT, useBrowser, type Cutout, type ProfileId } from "./browser/useBrowser";
 import { useBlockerSync } from "./browser/blocker";
 import { Drawer } from "./components/Drawer";
 import { DownloadsDrawer } from "./components/DownloadsDrawer";
@@ -25,6 +25,7 @@ import { SettingsDrawer, type SettingsTab } from "./components/SettingsDrawer";
 import { RAIL_NARROW, Sidebar } from "./components/Sidebar";
 import { WindowControls } from "./components/WindowControls";
 import { withTransition } from "./motion";
+import { ProfileSwitcher } from "./components/ProfileSwitcher";
 import { useBackground } from "./settings/backgrounds";
 import type { Block } from "./settings/layout";
 import { useClipboardRecorder } from "./widgets/clipboard";
@@ -119,12 +120,15 @@ export function App() {
   const [paletteRect, setPaletteRect] = useState<Cutout | null>(null);
   // Menus contextuels (et leurs sous-menus), découpés eux aussi.
   const [menuRects, setMenuRects] = useState<Cutout[]>([]);
+  // Sélecteur de profils (Alt+²), découpé lui aussi.
+  const [switcherRect, setSwitcherRect] = useState<Cutout | null>(null);
   const cutouts = [
     ...menuRects,
     ...(palette && paletteRect ? [paletteRect] : []),
     ...(fullscreen && pageFullscreen == null ? [{ x: 10, y: 10, width: exitHover ? 236 : 44, height: 44 }] : []),
     ...(groupDialog.request && dialogRect ? [dialogRect] : []),
     ...(suggestRect ? [suggestRect] : []),
+    ...(switcherRect ? [switcherRect] : []),
   ];
   const browser = useBrowser(profileIds, prefsOf, immersive ? 0 : theme.chrome.pageRadius, cutouts);
   usePageMenu(browser.tabs);
@@ -139,6 +143,14 @@ export function App() {
 
   // Le style est celui de l'application, quel que soit le profil affiché.
   const focused = browser.focused;
+  // Profils du plus récemment affiché au plus ancien, pour le sélecteur (comme Alt+Tab).
+  const [recent, setRecent] = useState<ProfileId[]>([]);
+  useEffect(() => setRecent((r) => [focused, ...r.filter((p) => p !== focused)]), [focused]);
+  const byRecent = [...profileIds].sort((a, b) => {
+    const ra = recent.indexOf(a);
+    const rb = recent.indexOf(b);
+    return (ra < 0 ? 1e3 + profileIds.indexOf(a) : ra) - (rb < 0 ? 1e3 + profileIds.indexOf(b) : rb);
+  });
   const background = useBackground(settings.backgroundKey, theme.background);
   useEffect(() => applyTheme(theme), [theme]);
 
@@ -248,6 +260,8 @@ export function App() {
     const openSettings = (t: SettingsTab) => () => { setSettingsTab(t); setDrawer("settings"); };
     return [
       { label: "Nouvel onglet", keys: "Ctrl+T", icon: "plus", run: () => browser.newTab(p) },
+      ...(profileIds.length > 1 ? [{ label: "Changer de profil", keys: "Alt+²", icon: "user" as const,
+        run: () => window.dispatchEvent(new CustomEvent(PROFILE_SWITCH_EVENT, { detail: { back: false, held: false } })) }] : []),
       { label: "Rouvrir l'onglet fermé", keys: "Ctrl+Maj+T", icon: "reload", run: () => browser.reopen(p) },
       { label: "Nouvelle fenêtre", keys: "Ctrl+N", icon: "window", run: () => browser.newWindow(p) },
       { label: "Téléchargements", keys: "Ctrl+J", icon: "download", run: () => setDrawer("downloads") },
@@ -401,6 +415,13 @@ export function App() {
       )}
 
       <MenuHost onRects={setMenuRects} />
+
+      <ProfileSwitcher profiles={byRecent.map(profile)} onRect={setSwitcherRect}
+        onPick={(p) => withTransition(() => browser.focus(p))}
+        info={(p) => {
+          const active = browser.tabs.find((t) => t.id === browser.pane(p).activeTab);
+          return { tabs: browser.tabsOf(p).length, page: active ? { title: active.title, url: active.url } : null };
+        }} />
 
       {groupDialog.request && (
         <GroupDialog key={JSON.stringify(groupDialog.request)} request={groupDialog.request} browser={browser}

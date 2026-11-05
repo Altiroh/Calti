@@ -38,13 +38,15 @@ export type NavAction = "back" | "forward" | "reload" | "hard-reload" | "empty-c
 export type Shortcut =
   | "reload" | "hard-reload" | "new-tab" | "close-tab" | "address" | "new-window" | "bookmark" | "next-tab" | "previous-tab" | "fullscreen"
   | "reopen-tab" | "palette" | "downloads" | "history" | "zoom-in" | "zoom-out" | "zoom-reset"
-  | "devtools" | "tab-1" | "tab-2" | "tab-3" | "tab-4" | "tab-5" | "tab-6" | "tab-7" | "tab-8" | "tab-last";
+  | "devtools" | "next-profile" | "previous-profile" | "tab-1" | "tab-2" | "tab-3" | "tab-4" | "tab-5" | "tab-6" | "tab-7" | "tab-8" | "tab-last";
 
 /** Demandes adressées à l'application (événement DOM, détail = profil) : palette, téléchargements, historique. */
 export const APP_EVENT = { palette: "calti:palette", downloads: "calti:downloads", history: "calti:history" } as const;
 
 /** Demandes adressées à un volet (événement DOM, détail = profil) : saisie d'adresse, favori. */
 export const PANE_EVENT = { address: "calti:address", bookmark: "calti:bookmark", search: "calti:search" } as const;
+/** Sélecteur de profils façon Alt+Tab (Alt+²) : détail { back, held } (held : Alt enfoncée, relâcher choisit). */
+export const PROFILE_SWITCH_EVENT = "calti:profile-switch";
 /** Bascule du plein écran (F11), pour la fenêtre. */
 export const FULLSCREEN_EVENT = "calti:fullscreen";
 
@@ -713,6 +715,10 @@ export function useBrowser(
       case "devtools":
         toggleDevtools(profile);
         return;
+      case "next-profile":
+      case "previous-profile":
+        window.dispatchEvent(new CustomEvent(PROFILE_SWITCH_EVENT, { detail: { back: key === "previous-profile", held: true } }));
+        return;
       case "new-tab": return newTab(profile);
       case "reopen-tab": return reopen(profile);
       case "palette":
@@ -768,6 +774,8 @@ export function useBrowser(
       else if (key === "f6") shortcut = "address";
       else if (key === "f11") shortcut = "fullscreen";
       else if (key === "f12" || (e.ctrlKey && e.shiftKey && key === "i")) shortcut = "devtools";
+      // Alt+² (touche au-dessus de Tab, quelle que soit la disposition du clavier) : changement de profil.
+      else if (e.altKey && !e.ctrlKey && e.code === "Backquote") shortcut = e.shiftKey ? "previous-profile" : "next-profile";
       else if (e.ctrlKey && !e.altKey) {
         if (key === "tab") shortcut = e.shiftKey ? "previous-tab" : "next-tab";
         else if (key === "r") shortcut = e.shiftKey ? "hard-reload" : "reload";
