@@ -12,6 +12,8 @@ export interface PaletteCommand {
   label: string;
   keys?: string;
   icon: IconName;
+  /** Image (logo) à la place de l'icône. */
+  image?: string;
   run: () => void;
 }
 
@@ -20,6 +22,7 @@ interface Entry {
   title: string;
   detail?: string;
   icon?: IconName;
+  image?: string;
   url?: string;
   group: string;
   run: () => void;
@@ -61,7 +64,7 @@ export function Palette({ browser, profile, commands, suggest, onClose, onRect }
       out.push({ key: `tab-${t.id}`, group: "Onglets ouverts", title: t.title || t.url, detail: t.url, url: t.url, run: done(() => browser.activate(t.id)) });
     }
     for (const c of commands.filter((c) => !q || matches(q, c.label)).slice(0, q ? 5 : 8)) {
-      out.push({ key: `cmd-${c.label}`, group: "Commandes", title: c.label, detail: c.keys, icon: c.icon, run: done(c.run) });
+      out.push({ key: `cmd-${c.label}`, group: "Commandes", title: c.label, detail: c.keys, icon: c.image ? undefined : c.icon, image: c.image, url: c.image, run: done(c.run) });
     }
     for (const t of closed.filter((t) => !q || matches(q, t.title, t.url)).slice(0, q ? 4 : 3)) {
       out.push({ key: `closed-${t.at}`, group: "Fermés récemment", title: t.title || t.url, detail: t.url, url: t.url, run: done(() => browser.reopen(profile, t.at)) });
@@ -129,7 +132,7 @@ export function Palette({ browser, profile, commands, suggest, onClose, onRect }
                   className={`palette__item${i === picked ? " palette__item--on" : ""}`}
                   onMouseMove={() => setPicked(i)} onClick={entry.run}>
                   <span className="palette__icon">
-                    {entry.icon ? <Icon name={entry.icon} size={15} /> : <Favicon src={siteIcon(entry.url ?? "")} size={15} />}
+                    {entry.icon ? <Icon name={entry.icon} size={15} /> : <Favicon src={entry.image ?? siteIcon(entry.url ?? "")} size={15} />}
                   </span>
                   <span className="palette__title">{entry.title}</span>
                   {entry.detail && <span className="palette__detail">{entry.detail}</span>}

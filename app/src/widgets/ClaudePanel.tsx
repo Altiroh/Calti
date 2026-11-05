@@ -3,6 +3,7 @@ import { useCallback, useEffect } from "react";
 import { askClaude, CLAUDE_HOME } from "../browser/claude";
 import type { Browser, ProfileId } from "../browser/useBrowser";
 import { Icon } from "../components/Icon";
+import { ClaudeLogo } from "../components/BrandIcons";
 import "./ClaudePanel.css";
 
 export function ClaudePanel({ browser, profile }: { browser: Browser; profile: ProfileId }) {
@@ -17,7 +18,7 @@ export function ClaudePanel({ browser, profile }: { browser: Browser; profile: P
   return (
     <section className="claude card glass">
       <header className="claude__head">
-        <span className="claude__logo"><Icon name="spark" size={15} /></span>
+        <span className="claude__logo"><ClaudeLogo size={17} color="#fff" /></span>
         <h2>Claude</h2>
         {page?.loading && <span className="spinner" />}
         <span className="claude__actions">
@@ -34,7 +35,7 @@ export function ClaudePanel({ browser, profile }: { browser: Browser; profile: P
         </span>
       </header>
       <div className="claude__page" ref={slot} data-panel-page={page?.id ?? ""}>
-        <span className="claude__wait"><Icon name="spark" size={22} />Chargement de Claude…</span>
+        <span className="claude__wait"><ClaudeLogo size={26} />Chargement de Claude…</span>
       </div>
     </section>
   );

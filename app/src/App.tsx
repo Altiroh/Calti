@@ -27,6 +27,7 @@ import { WindowControls } from "./components/WindowControls";
 import { withTransition } from "./motion";
 import { ProfileSwitcher } from "./components/ProfileSwitcher";
 import { ClaudePanel } from "./widgets/ClaudePanel";
+import { claudeLogoUrl } from "./components/BrandIcons";
 import { DockedPlayer, FloatingPlayer, RailPlayer, type PlayerDock } from "./widgets/MediaWidget";
 import { askClaude, CLAUDE_EVENT, CLAUDE_HOME, claudeUrl, type ClaudeRequest } from "./browser/claude";
 import { useBackground } from "./settings/backgrounds";
@@ -278,8 +279,8 @@ export function App() {
     return [
       { label: "Nouvel onglet", keys: "Ctrl+T", icon: "plus", run: () => browser.newTab(p) },
       ...(claudeOn ? [
-        { label: "Claude", icon: "spark" as const, run: () => askClaude(p) },
-        ...(tab ? [{ label: "Résumer la page avec Claude", icon: "spark" as const,
+        { label: "Claude", icon: "spark" as const, image: claudeLogoUrl, run: () => askClaude(p) },
+        ...(tab ? [{ label: "Résumer la page avec Claude", icon: "spark" as const, image: claudeLogoUrl,
           run: () => askClaude(p, `Résume cette page en français, en quelques points clés :\n${tab.title}\n${tab.url}`) }] : []),
       ] : []),
       ...(profileIds.length > 1 ? [{ label: "Changer de profil", keys: "Alt+²", icon: "user" as const,

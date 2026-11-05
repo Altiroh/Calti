@@ -490,6 +490,11 @@ select.field option {
   filter: none;
 }
 
+/* Logo Spotify : pastille du « + » cerclée de la couleur de la carte. */
+.ext__icon--spotify {
+  --brand-ring: #1c2025;
+}
+
 .ext__text {
   display: flex;
   flex-direction: column;

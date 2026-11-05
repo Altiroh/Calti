@@ -6,6 +6,7 @@ import { openMenu, type MenuEntry, type MenuTone } from "../components/ContextMe
 import type { IconName } from "../components/Icon";
 import type { BrowserTab } from "./useBrowser";
 import { askClaude } from "./claude";
+import { claudeLogoUrl } from "../components/BrandIcons";
 
 interface Item {
   id: number;
@@ -117,8 +118,8 @@ export function usePageMenu(tabs: BrowserTab[], claude = false) {
       const scale = window.devicePixelRatio || 1;
       const text = (selection ?? "").trim();
       const ask: MenuEntry[] = claudeRef.current && text && profile && !page?.panel ? [
-        { label: "Demander à Claude", icon: "spark", tone: "violet", action: () => askClaude(profile, text) },
-        { label: "Expliquer avec Claude", icon: "info", tone: "violet", action: () => askClaude(profile, `Explique-moi simplement ce passage :\n\n${text}`) },
+        { label: "Demander à Claude", image: claudeLogoUrl, action: () => askClaude(profile, text) },
+        { label: "Expliquer avec Claude", image: claudeLogoUrl, action: () => askClaude(profile, `Explique-moi simplement ce passage :\n\n${text}`) },
         "-",
       ] : [];
       openMenu({ x: (slot?.left ?? 0) + x / scale, y: (slot?.top ?? 0) + y / scale }, [...ask, ...toEntries(items, pick)], onClose);

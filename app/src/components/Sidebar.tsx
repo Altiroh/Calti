@@ -6,6 +6,7 @@ import { dragWindow } from "./dragWindow";
 import { Favicon } from "./Favicon";
 import { Icon, type IconName } from "./Icon";
 import { ProfileBadge } from "./ProfileBadge";
+import { ClaudeLogo, SpotifyPlus } from "./BrandIcons";
 import { hostname, siteIcon } from "./siteIcon";
 import "./Sidebar.css";
 
@@ -44,12 +45,18 @@ interface Props {
 
 const widgetIcons = { clipboard: "clipboard", history: "history", tabs: "tabs", bookmarks: "star", notes: "notes", ruler: "ruler", claude: "spark", media: "sound" } as const;
 
-function RailButton({ icon, label, on, wide, onClick }:
-  { icon: IconName; label: string; on?: boolean; wide: boolean; onClick: () => void }) {
+/** Logos de marque à la place de l'icône au trait. */
+const brandGlyphs: Partial<Record<BarWidget, ReactNode>> = {
+  claude: <ClaudeLogo size={20} />,
+  media: <SpotifyPlus size={24} />,
+};
+
+function RailButton({ icon, glyph, label, on, wide, onClick }:
+  { icon: IconName; glyph?: ReactNode; label: string; on?: boolean; wide: boolean; onClick: () => void }) {
   return (
     <button className={`rail-btn${on ? " rail-btn--on" : ""}`} onClick={onClick} title={wide ? undefined : label}
       aria-label={label} aria-pressed={on}>
-      <Icon name={icon} size={19} />
+      {glyph ?? <Icon name={icon} size={19} />}
       {wide && <span className="rail-btn__label">{label}</span>}
     </button>
   );
@@ -137,7 +144,7 @@ export function Sidebar(props: Props) {
       <RailButton icon="home" label="Accueil" wide={wide} onClick={() => { if (drawer) onToggle(drawer); props.onHome(); }} />
       {props.widgets.length > 0 && <span className="rail__sep" />}
       {props.widgets.map((kind) => (
-        <RailButton key={kind} icon={widgetIcons[kind]} label={barWidgetLabels[kind]} on={props.panel === kind} wide={wide}
+        <RailButton key={kind} icon={widgetIcons[kind]} glyph={brandGlyphs[kind]} label={barWidgetLabels[kind]} on={props.panel === kind} wide={wide}
           onClick={() => props.onPanel(props.panel === kind ? null : kind)} />
       ))}
 

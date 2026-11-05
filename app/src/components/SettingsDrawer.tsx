@@ -1,4 +1,5 @@
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { ClaudeLogo, SpotifyPlus } from "./BrandIcons";
 import type { BraveInstall } from "../brave/useBraveInstalls";
 import type { ProfileId } from "../browser/useBrowser";
 import { deleteBackground, saveAvatar, saveBackground } from "../settings/backgrounds";
@@ -66,7 +67,7 @@ const extensions: { id: BarWidget; icon: IconName; colors: [string, string]; des
   { id: "bookmarks", icon: "star", colors: ["#f9d423", "#f7971e"], description: "Favoris de Calti et de Brave." },
   { id: "tabs", icon: "tabs", colors: ["#43e97b", "#1f8c8c"], description: "Onglets ouverts du profil." },
   { id: "claude", icon: "spark", colors: ["#e8916b", "#c15f3c"], description: "claude.ai à côté de la page, avec votre compte. Clic droit sur un texte : « Demander à Claude »." },
-  { id: "media", icon: "sound", colors: ["#1ed760", "#138a3e"], description: "Spotify ou toute lecture de Windows : pochette, titre, lecture/pause, suivant." },
+  { id: "media", icon: "sound", colors: ["#2a2f36", "#121212"], description: "Spotify ou toute lecture de Windows : pochette, titre, lecture/pause, suivant." },
 ];
 
 const shortcuts: [string, string][] = [
@@ -93,7 +94,9 @@ function General() {
             return (
               <button key={e.id} className={`ext${on ? " ext--on" : ""}`} role="switch" aria-checked={on} onClick={() => toggle(e.id)}
                 style={{ "--ext-a": e.colors[0], "--ext-b": e.colors[1] } as CSSProperties}>
-                <span className="ext__icon"><Icon name={e.icon} size={18} /></span>
+                <span className={`ext__icon${e.id === "media" ? " ext__icon--spotify" : ""}`}>
+                  {e.id === "claude" ? <ClaudeLogo size={22} color="#fff" /> : e.id === "media" ? <SpotifyPlus size={26} /> : <Icon name={e.icon} size={18} />}
+                </span>
                 <span className="ext__text">
                   <strong>{barWidgetLabels[e.id]}</strong>
                   <span>{e.description}</span>
@@ -106,8 +109,8 @@ function General() {
         <div className="ext-grid">
           <button className={`ext${c.mediaFloat ? " ext--on" : ""}`} role="switch" aria-checked={c.mediaFloat}
             onClick={() => updateTheme({ chrome: { ...c, mediaFloat: !c.mediaFloat } })}
-            style={{ "--ext-a": "#1ed760", "--ext-b": "#4a8fe7" } as CSSProperties}>
-            <span className="ext__icon"><Icon name="layers" size={18} /></span>
+            style={{ "--ext-a": "#2a2f36", "--ext-b": "#121212" } as CSSProperties}>
+            <span className="ext__icon ext__icon--spotify"><SpotifyPlus size={26} /></span>
             <span className="ext__text">
               <strong>Mini-lecteur</strong>
               <span>Lecture en cours toujours visible : libre (à glisser, coin pour la taille), dans la barre latérale ou en bordure de la fenêtre.</span>
