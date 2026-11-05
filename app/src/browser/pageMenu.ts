@@ -5,6 +5,7 @@ import { listen } from "./windowEvents";
 import { openMenu, type MenuEntry, type MenuTone } from "../components/ContextMenu";
 import type { IconName } from "../components/Icon";
 import type { BrowserTab } from "./useBrowser";
+import { askClaude } from "./claude";
 
 interface Item {
   id: number;
@@ -24,6 +25,7 @@ interface Request {
   y: number;
   items: Item[];
   link: string;
+  selection?: string;
 }
 
 /** Icône et teinte de chaque entrée connue de WebView2 (nom stable, indépendant de la langue). */
@@ -92,14 +94,19 @@ function toEntries(items: Item[], pick: (id: number, dock?: boolean) => void): M
 }
 
 /** Affiche le menu des pages de cette fenêtre. */
-export function usePageMenu(tabs: BrowserTab[]) {
+export function usePageMenu(tabs: BrowserTab[], claude = false) {
   const tabsRef = useRef(tabs);
   tabsRef.current = tabs;
+  const claudeRef = useRef(claude);
+  claudeRef.current = claude;
   useEffect(() => {
     const unlisten = listen<Request>("browser:page-menu", (e) => {
-      const { request, tab, x, y, items } = e.payload;
-      const profile = tabsRef.current.find((t) => t.id === tab)?.profile;
-      const slot = document.querySelector(`.pane__content[data-profile="${CSS.escape(profile ?? "")}"]`)?.getBoundingClientRect();
+      const { request, tab, x, y, items, selection } = e.payload;
+      const page = tabsRef.current.find((t) => t.id === tab);
+      const profile = page?.profile;
+      const slot = (page?.panel
+        ? document.querySelector(`[data-panel-page="${tab}"]`)
+        : document.querySelector(`.pane__content[data-profile="${CSS.escape(profile ?? "")}"]`))?.getBoundingClientRect();
       let picked = false;
       const pick = (command: number, dock = false) => {
         picked = true;
@@ -108,7 +115,13 @@ export function usePageMenu(tabs: BrowserTab[]) {
       // Menu refermé sans choix : WebView2 est libéré (l'action choisie, elle, part juste après la fermeture).
       const onClose = () => window.setTimeout(() => { if (!picked) invoke("page_menu_pick", { request, command: null }).catch(() => {}); }, 120);
       const scale = window.devicePixelRatio || 1;
-      openMenu({ x: (slot?.left ?? 0) + x / scale, y: (slot?.top ?? 0) + y / scale }, toEntries(items, pick), onClose);
+      const text = (selection ?? "").trim();
+      const ask: MenuEntry[] = claudeRef.current && text && profile && !page?.panel ? [
+        { label: "Demander à Claude", icon: "spark", tone: "violet", action: () => askClaude(profile, text) },
+        { label: "Expliquer avec Claude", icon: "info", tone: "violet", action: () => askClaude(profile, `Explique-moi simplement ce passage :\n\n${text}`) },
+        "-",
+      ] : [];
+      openMenu({ x: (slot?.left ?? 0) + x / scale, y: (slot?.top ?? 0) + y / scale }, [...ask, ...toEntries(items, pick)], onClose);
     });
     return () => { unlisten.then((u) => u()); };
   }, []);

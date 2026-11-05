@@ -318,7 +318,7 @@ export function BrowserPane({
         {tools && dock.side === "bottom" ? <div className="pane__stack">{content}{tools}</div> : <>{content}{tools}</>}
         {/* Widget ouvert depuis la barre : la page se resserre à côté (une vue native passerait par-dessus). */}
         {shownPanel && (
-          <aside className="pane__panel" key={shownPanel} aria-label={barWidgetLabels[shownPanel]}>
+          <aside className={`pane__panel pane__panel--${shownPanel}`} key={shownPanel} aria-label={barWidgetLabels[shownPanel]}>
             {renderWidget(shownPanel)}
           </aside>
         )}

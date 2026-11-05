@@ -7,6 +7,7 @@ import { BookmarksWidget } from "../widgets/BookmarksWidget";
 import { ClockWidget } from "../widgets/ClockWidget";
 import { ClipboardWidget, HistoryWidget, type HistoryView } from "../widgets/LibraryWidgets";
 import { NotesWidget } from "../widgets/NotesWidget";
+import { MediaWidget } from "../widgets/MediaWidget";
 import { QuickAccessWidget } from "../widgets/QuickAccessWidget";
 import { TabsWidget } from "../widgets/TabsWidget";
 import { TextWidget } from "../widgets/TextWidget";
@@ -39,6 +40,7 @@ export function renderBlock(block: Block, { brave, theme, profile, history, onSh
     case "history": return <HistoryWidget brave={brave} history={history} />;
     case "clipboard": return <ClipboardWidget brave={brave} />;
     case "notes": return <NotesWidget profile={profile.id} />;
+    case "media": return <MediaWidget brave={brave} />;
     case "text": return <TextWidget block={block} />;
   }
 }

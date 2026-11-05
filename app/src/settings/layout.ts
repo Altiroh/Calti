@@ -2,7 +2,7 @@
 // Chaque bloc a une place, une taille et un style ; les blocs « texte » peuvent être ajoutés à volonté.
 
 export type BlockKind =
-  | "title" | "clock" | "search" | "activeTab" | "tabs" | "bookmarks" | "quickAccess" | "history" | "clipboard" | "notes" | "text";
+  | "title" | "clock" | "search" | "activeTab" | "tabs" | "bookmarks" | "quickAccess" | "history" | "clipboard" | "notes" | "media" | "text";
 export type BuiltinId = Exclude<BlockKind, "text">;
 
 export type ClockStyle = "classic" | "labels" | "flip" | "capsule" | "orbit" | "hologram" | "neon" | "matrix";
@@ -76,7 +76,7 @@ export type Layout = Record<string, Block>;
 
 export const GRID = { cols: 12, row: 28, gap: 16 };
 
-export const builtinIds: BuiltinId[] = ["title", "clock", "search", "activeTab", "tabs", "bookmarks", "quickAccess", "history", "clipboard", "notes"];
+export const builtinIds: BuiltinId[] = ["title", "clock", "search", "activeTab", "tabs", "bookmarks", "quickAccess", "history", "clipboard", "notes", "media"];
 
 export const kindLabels: Record<BlockKind, string> = {
   title: "Accueil",
@@ -89,6 +89,7 @@ export const kindLabels: Record<BlockKind, string> = {
   history: "Historique",
   clipboard: "Copies récentes",
   notes: "Notes",
+  media: "Lecture en cours",
   text: "Texte",
 };
 
@@ -104,6 +105,7 @@ export const minSize: Record<BlockKind, { w: number; h: number }> = {
   history: { w: 3, h: 4 },
   clipboard: { w: 3, h: 4 },
   notes: { w: 2, h: 3 },
+  media: { w: 3, h: 2 },
   text: { w: 1, h: 1 },
 };
 
@@ -118,6 +120,8 @@ export const defaultLayout: Layout = {
   history: { kind: "history", x: 0, y: 21, w: 4, h: 8 },
   clipboard: { kind: "clipboard", x: 4, y: 21, w: 4, h: 8 },
   notes: { kind: "notes", x: 8, y: 21, w: 4, h: 8 },
+  // Masqué tant qu'on ne l'ajoute pas (éditeur de disposition).
+  media: { kind: "media", x: 0, y: 29, w: 4, h: 3, hidden: true },
 };
 
 export function blockLabel(block: Block): string {

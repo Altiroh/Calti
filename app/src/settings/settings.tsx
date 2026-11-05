@@ -42,6 +42,8 @@ export const barWidgetLabels = {
   bookmarks: "Favoris",
   notes: "Notes",
   ruler: "Règle et grille",
+  claude: "Claude",
+  media: "Lecture en cours",
 } as const;
 export type BarWidget = keyof typeof barWidgetLabels;
 
@@ -58,6 +60,9 @@ export interface ChromeSettings {
   barButtons: { nav: boolean; reload: boolean; star: boolean; detach: boolean };
   /** Widgets en raccourci dans la barre latérale : un clic ouvre le widget à côté de la page. */
   railWidgets: BarWidget[];
+  /** Mini-lecteur (lecture en cours), et sa place : libre, barre latérale, bord haut, bas ou droit. */
+  mediaFloat: boolean;
+  mediaDock: "free" | "rail" | "top" | "bottom" | "right";
   /** Barre latérale : mêmes choix. */
   /** « edge » : fin liseré noir collé au bord, renflé là où sont les boutons. */
   railStyle: "floating" | "attached" | "edge";
@@ -102,6 +107,8 @@ export const defaultChrome: ChromeSettings = {
   addressWidth: "m",
   barButtons: { nav: true, reload: true, star: true, detach: true },
   railWidgets: ["clipboard", "history", "notes"],
+  mediaFloat: false,
+  mediaDock: "free",
   railStyle: "edge",
   edgeSurface: "color",
   edgeColor: "#0b0d10",

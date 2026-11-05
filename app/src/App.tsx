@@ -26,6 +26,9 @@ import { RAIL_NARROW, Sidebar } from "./components/Sidebar";
 import { WindowControls } from "./components/WindowControls";
 import { withTransition } from "./motion";
 import { ProfileSwitcher } from "./components/ProfileSwitcher";
+import { ClaudePanel } from "./widgets/ClaudePanel";
+import { DockedPlayer, FloatingPlayer, RailPlayer, type PlayerDock } from "./widgets/MediaWidget";
+import { askClaude, CLAUDE_EVENT, CLAUDE_HOME, claudeUrl, type ClaudeRequest } from "./browser/claude";
 import { useBackground } from "./settings/backgrounds";
 import type { Block } from "./settings/layout";
 import { useClipboardRecorder } from "./widgets/clipboard";
@@ -120,6 +123,8 @@ export function App() {
   const [paletteRect, setPaletteRect] = useState<Cutout | null>(null);
   // Menus contextuels (et leurs sous-menus), découpés eux aussi.
   const [menuRects, setMenuRects] = useState<Cutout[]>([]);
+  // Mini-lecteur flottant, découpé lui aussi.
+  const [playerRect, setPlayerRect] = useState<Cutout | null>(null);
   // Sélecteur de profils (Alt+²), découpé lui aussi.
   const [switcherRect, setSwitcherRect] = useState<Cutout | null>(null);
   const cutouts = [
@@ -129,9 +134,11 @@ export function App() {
     ...(groupDialog.request && dialogRect ? [dialogRect] : []),
     ...(suggestRect ? [suggestRect] : []),
     ...(switcherRect ? [switcherRect] : []),
+    ...(playerRect ? [playerRect] : []),
   ];
   const browser = useBrowser(profileIds, prefsOf, immersive ? 0 : theme.chrome.pageRadius, cutouts);
-  usePageMenu(browser.tabs);
+  const claudeOn = theme.chrome.railWidgets.includes("claude");
+  usePageMenu(browser.pages, claudeOn);
   const rail = useRailWidth();
   const [drawer, setDrawer] = useState<DrawerName>(null);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("general");
@@ -203,6 +210,16 @@ export function App() {
   // principale, au lancement (après la reprise de la session) puis à chaque lien reçu.
   const browserRef = useRef(browser);
   browserRef.current = browser;
+  // « Demander à Claude » (clic droit, palette, panneau) : panneau Claude du profil ouvert sur la question.
+  useEffect(() => {
+    const onClaude = (e: Event) => {
+      const { profile: p, prompt } = (e as CustomEvent<ClaudeRequest>).detail;
+      setPanel(p, "claude");
+      browserRef.current.openPanelPage(p, prompt ? claudeUrl(prompt) : CLAUDE_HOME, !!prompt);
+    };
+    window.addEventListener(CLAUDE_EVENT, onClaude);
+    return () => window.removeEventListener(CLAUDE_EVENT, onClaude);
+  }, [setPanel]);
   useEffect(() => {
     if (getCurrentWindow().label !== "main") return;
     const open = (urls: string[]) => urls.forEach((url) => browserRef.current.go(url, browserRef.current.focused, true));
@@ -260,6 +277,11 @@ export function App() {
     const openSettings = (t: SettingsTab) => () => { setSettingsTab(t); setDrawer("settings"); };
     return [
       { label: "Nouvel onglet", keys: "Ctrl+T", icon: "plus", run: () => browser.newTab(p) },
+      ...(claudeOn ? [
+        { label: "Claude", icon: "spark" as const, run: () => askClaude(p) },
+        ...(tab ? [{ label: "Résumer la page avec Claude", icon: "spark" as const,
+          run: () => askClaude(p, `Résume cette page en français, en quelques points clés :\n${tab.title}\n${tab.url}`) }] : []),
+      ] : []),
       ...(profileIds.length > 1 ? [{ label: "Changer de profil", keys: "Alt+²", icon: "user" as const,
         run: () => window.dispatchEvent(new CustomEvent(PROFILE_SWITCH_EVENT, { detail: { back: false, held: false } })) }] : []),
       { label: "Rouvrir l'onglet fermé", keys: "Ctrl+Maj+T", icon: "reload", run: () => browser.reopen(p) },
@@ -306,6 +328,13 @@ export function App() {
 
   // Habillage (Réglages → Interface) : variables et attributs lus par styles/chrome.css.
   const c = theme.chrome;
+  // Mini-lecteur : caché pendant la modification de l'accueil et en plein écran.
+  const playerOn = c.mediaFloat && !editingLayout && !immersive;
+  const playerProps = {
+    setDock: (mediaDock: PlayerDock) => updateTheme({ chrome: { ...c, mediaDock } }),
+    onHide: () => updateTheme({ chrome: { ...c, mediaFloat: false } }),
+  };
+  const edgeDock = playerOn && (c.mediaDock === "top" || c.mediaDock === "bottom" || c.mediaDock === "right") ? c.mediaDock : null;
   const chromeVars = {
     "--rail-width": c.railStyle === "edge" ? "58px" : `${rail.width}px`,
     "--win-pad": `${c.windowPadding}px`,
@@ -332,7 +361,7 @@ export function App() {
   const profiles = profileIds.map(profile);
 
   return (
-    <div className={`shell tone-${theme.tone}${immersive ? " shell--fullscreen" : ""}${pageFullscreen != null ? " shell--page-fullscreen" : ""}${drawer ? " shell--drawer" : ""}${rail.resizing ? " shell--resizing" : ""}${c.motion ? "" : " no-motion"}`}
+    <div className={`shell tone-${theme.tone}${immersive ? " shell--fullscreen" : ""}${pageFullscreen != null ? " shell--page-fullscreen" : ""}${drawer ? " shell--drawer" : ""}${rail.resizing ? " shell--resizing" : ""}${c.motion ? "" : " no-motion"}${edgeDock === "right" ? " shell--dock-right" : ""}`}
       style={chromeVars}
       data-surface={c.surface} data-bar={c.barStyle} data-bar-surface={c.barSurface} data-address={c.addressWidth}
       data-rail={c.railStyle} data-rail-surface={c.railSurface}
@@ -368,9 +397,11 @@ export function App() {
         onActivate={browser.activate} onCloseTab={browser.close}
         drawer={drawer} onToggle={toggle}
         onHome={() => browser.home()} onNewTab={() => browser.newTab()}
-        widgets={c.railWidgets} panel={panels[focused] ?? null} onPanel={(kind) => setPanel(focused, kind)} />
+        widgets={c.railWidgets} panel={panels[focused] ?? null} onPanel={(kind) => setPanel(focused, kind)}
+        player={playerOn && c.mediaDock === "rail" ? (wide) => <RailPlayer wide={wide} {...playerProps} /> : undefined} />
 
       <div className="page">
+        {edgeDock === "top" && <DockedPlayer dock="top" {...playerProps} />}
         {editingLayout ? (
           <>
             <div className="drag-bar" onMouseDown={dragWindow}><WindowControls /></div>
@@ -395,11 +426,14 @@ export function App() {
                 suggest={(input) => suggest(p, input, own.of(p), prefsOf(p).searchUrl)} onSuggestRect={setSuggestRect}
                 renderWidget={(kind) => kind === "ruler"
                   ? <RulerWidget visibleTabs={visibleTabs} />
+                  : kind === "claude" ? <ClaudePanel browser={browser} profile={p} />
                   : renderBlock({ kind, x: 0, y: 0, w: 4, h: 8 }, homeContext(p))} />
             ))}
           </div>
         )}
+        {edgeDock === "bottom" && <DockedPlayer dock="bottom" {...playerProps} />}
       </div>
+      {edgeDock === "right" && <DockedPlayer dock="right" {...playerProps} />}
 
       {/* Toujours présent (caché hors plein écran) : l’image du profil est déjà chargée quand il apparaît. */}
       <button className={`fullscreen-exit${exitHover ? " fullscreen-exit--open" : ""}`} hidden={!fullscreen || pageFullscreen != null} onClick={toggleFullscreen}
@@ -415,6 +449,8 @@ export function App() {
       )}
 
       <MenuHost onRects={setMenuRects} />
+
+      {playerOn && c.mediaDock === "free" && <FloatingPlayer onRect={setPlayerRect} {...playerProps} />}
 
       <ProfileSwitcher profiles={byRecent.map(profile)} onRect={setSwitcherRect}
         onPick={(p) => withTransition(() => browser.focus(p))}

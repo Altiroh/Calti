@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import type { DrawerName } from "../App";
 import type { BrowserTab, TabGroup, TabStripItem } from "../browser/useBrowser";
 import { barWidgetLabels, type BarWidget, type ProfileSettings } from "../settings/settings";
@@ -38,9 +38,11 @@ interface Props {
   widgets: BarWidget[];
   panel: BarWidget | null;
   onPanel: (kind: BarWidget | null) => void;
+  /** Mini-lecteur rangé dans la barre (au-dessus des réglages). */
+  player?: (wide: boolean) => ReactNode;
 }
 
-const widgetIcons = { clipboard: "clipboard", history: "history", tabs: "tabs", bookmarks: "star", notes: "notes", ruler: "ruler" } as const;
+const widgetIcons = { clipboard: "clipboard", history: "history", tabs: "tabs", bookmarks: "star", notes: "notes", ruler: "ruler", claude: "spark", media: "sound" } as const;
 
 function RailButton({ icon, label, on, wide, onClick }:
   { icon: IconName; label: string; on?: boolean; wide: boolean; onClick: () => void }) {
@@ -155,6 +157,8 @@ export function Sidebar(props: Props) {
       ) : (
         <span className="rail__spacer" />
       )}
+
+      {props.player && props.player(wide)}
 
       <RailButton icon="settings" label="Réglages" on={drawer === "settings"} wide={wide} onClick={() => onToggle("settings")} />
 

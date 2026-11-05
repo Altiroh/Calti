@@ -11,6 +11,7 @@ mod browser;
 mod native;
 mod devtools;
 mod pagemenu;
+mod media;
 mod setup;
 mod suggest;
 
@@ -45,6 +46,7 @@ fn main() {
         .manage(browser::Browser::default())
         .setup(|app| {
             clipboard::watch(app.handle().clone());
+            media::start(app.handle().clone());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -70,6 +72,8 @@ fn main() {
             native::taskbar_overlay,
             native::ui_devtools,
             native::alt_held,
+            media::media_state,
+            media::media_control,
             pagemenu::page_menu_pick,
             devtools::devtools_toggle,
             devtools::devtools_undock,

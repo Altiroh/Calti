@@ -1,0 +1,97 @@
+/* Panneau Claude : en-tête de verre, page claude.ai posée dessous (vue native). */
+.claude {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+.claude__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 2px 0 4px;
+}
+
+.claude__head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.claude__logo {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  color: #fff;
+  background: linear-gradient(135deg, #d97757, #c15f3c);
+  box-shadow: 0 4px 12px rgba(217, 119, 87, 0.35);
+}
+
+.claude__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.claude__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--text-dim);
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.claude__btn:hover:not(:disabled),
+.claude__icon:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-hover, var(--surface));
+}
+
+.claude__icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--text-dim);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.claude button:disabled {
+  opacity: 0.4;
+}
+
+/* La page de Claude est posée exactement ici. */
+.claude__page {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-md, 12px);
+  background: var(--surface-solid);
+}
+
+.claude__wait {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.claude__wait svg {
+  color: #d97757;
+}

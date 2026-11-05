@@ -75,6 +75,8 @@ pub struct Tab {
     pub(crate) blocked: u32,
     /// Icône déclarée par la page (vide : pas encore connue).
     pub(crate) icon: String,
+    /// Page d'un panneau latéral (Claude…) : hors barre d'onglets, session et historique.
+    pub(crate) panel: bool,
     #[serde(skip)]
     shown: bool,
     /// Incrémenté à chaque masquage : une mise en veille programmée ne s'applique qu'au dernier.
@@ -233,6 +235,10 @@ pub(crate) fn open_from_tab(app: &AppHandle, opener: u64, url: &str, background:
 }
 
 fn open_tab(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy: Option<String>) -> Result<u64, String> {
+    open_page(app, window_label, profile, url, lazy, false)
+}
+
+fn open_page(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy: Option<String>, panel: bool) -> Result<u64, String> {
     if !valid_profile(profile) {
         return Err("profil invalide".into());
     }
@@ -254,6 +260,7 @@ fn open_tab(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy: 
             muted: false,
             blocked: 0,
             icon: String::new(),
+            panel,
             shown: false,
             hidden_gen: 0,
             pending_url: lazy.as_ref().map(|_| url.clone()),
@@ -343,9 +350,10 @@ pub async fn browser_open(
     profile: String,
     url: String,
     lazy_title: Option<String>,
+    panel: Option<bool>,
 ) -> Result<u64, String> {
     // `lazy_title` : onglet de session restauré, chargé seulement quand on l'affiche.
-    open_tab(&app, window.label(), &profile, web_url(&url)?, lazy_title)
+    open_page(&app, window.label(), &profile, web_url(&url)?, lazy_title, panel.unwrap_or(false))
 }
 
 #[tauri::command]

@@ -29,6 +29,8 @@ export interface BrowserTab {
   blocked: number;
   /** Icône déclarée par la page ; vide tant qu'elle n'est pas connue. */
   icon: string;
+  /** Page d'un panneau latéral (Claude…) : hors barre d'onglets, session et historique. */
+  panel?: boolean;
 }
 
 export type NavAction = "back" | "forward" | "reload" | "hard-reload" | "empty-cache-reload" | "stop"
@@ -129,6 +131,14 @@ export interface Browser {
   registerDevtoolsSlot: (profile: ProfileId, el: HTMLElement | null) => void;
   /** Masque les pages (éditeur de disposition…). */
   setSuspended: (suspended: boolean) => void;
+  /** Page du panneau latéral du profil (Claude), ou null si elle n'est pas encore ouverte. */
+  panelPage: (profile: ProfileId) => BrowserTab | null;
+  /** Ouvre la page du panneau (ou y charge `url` si elle existe déjà et que `navigate` est vrai). */
+  openPanelPage: (profile: ProfileId, url: string, navigate?: boolean) => void;
+  /** Zone du panneau latéral d'un volet : sa page y est posée. */
+  registerPanelSlot: (profile: ProfileId, el: HTMLElement | null) => void;
+  /** Onglets et pages de panneau de cette fenêtre (menu des pages). */
+  pages: BrowserTab[];
   /** Nouvelle fenêtre sur un profil ; avec `detach`, les onglets de ce profil y partent. */
   newWindow: (profile: ProfileId, detach?: boolean, tab?: number) => void;
   /** Déplace un onglet juste avant un autre (null : à la fin). */
@@ -227,7 +237,11 @@ export function useBrowser(
   const saved = useMemo(() => loadSaved(profileIds[0]), []);
   const [allTabs, setAllTabs] = useState<BrowserTab[]>([]);
   // Chaque fenêtre ne voit que ses onglets.
-  const tabs = useMemo(() => allTabs.filter((t) => t.window === WINDOW_LABEL), [allTabs]);
+  const pages = useMemo(() => allTabs.filter((t) => t.window === WINDOW_LABEL), [allTabs]);
+  const tabs = useMemo(() => pages.filter((t) => !t.panel), [pages]);
+  const panelPages = useMemo(() => pages.filter((t) => t.panel), [pages]);
+  const panelSlots = useRef<Record<ProfileId, HTMLElement>>({});
+  const opening = useRef<Set<ProfileId>>(new Set());
   const [panes, setPanes] = useState<Record<ProfileId, PaneState>>({});
   const [focusedState, setFocused] = useState<ProfileId>(saved.focused);
   const [secondaryState, setSecondaryState] = useState<ProfileId | undefined>(saved.secondary);
@@ -469,8 +483,23 @@ export function useBrowser(
       const panel = tools && tools.width > 0 ? { x: tools.left, y: tools.top, width: tools.width, height: tools.height } : null;
       return [{ id, x: r.left, y: r.top, width: r.width, height: r.height, radius: pageRadius, cutouts: holes, devtools: panel }];
     });
+    // Pages des panneaux latéraux (Claude), posées dans leur zone.
+    if (!(suspended || document.hidden)) {
+      for (const profile of visibleProfiles) {
+        const el = panelSlots.current[profile];
+        const page = panelPages.find((t) => t.profile === profile);
+        if (!el || !page) continue;
+        const r = el.getBoundingClientRect();
+        if (r.width < 2 || r.height < 2) continue;
+        const holes = cutouts
+          .filter((c) => c.x < r.right && c.x + c.width > r.left && c.y < r.bottom && c.y + c.height > r.top)
+          .map((c) => ({ ...c, x: c.x - r.left, y: c.y - r.top }));
+        const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
+        visible.push({ id: page.id, x: r.left, y: r.top, width: r.width, height: r.height, radius, cutouts: holes, devtools: null });
+      }
+    }
     invoke("browser_layout", { visible }).catch(fail);
-  }, [suspended, visibleProfiles.join("|"), panes, pageRadius, JSON.stringify(cutouts), fail, devtools]);
+  }, [suspended, visibleProfiles.join("|"), panes, pageRadius, JSON.stringify(cutouts), fail, devtools, panelPages]);
 
   const frame = useRef(0);
   const scheduleLayout = useCallback(() => {
@@ -489,7 +518,7 @@ export function useBrowser(
   useEffect(() => {
     observer.current?.disconnect();
     observer.current = new ResizeObserver(scheduleLayout);
-    for (const el of [...Object.values(slots.current), ...Object.values(devtoolsSlots.current)]) observer.current.observe(el);
+    for (const el of [...Object.values(slots.current), ...Object.values(devtoolsSlots.current), ...Object.values(panelSlots.current)]) observer.current.observe(el);
     window.addEventListener("resize", scheduleLayout);
     document.addEventListener("visibilitychange", scheduleLayout);
     return () => {
@@ -511,6 +540,38 @@ export function useBrowser(
     }
     scheduleLayout();
   }, [scheduleLayout]);
+
+  const registerPanelSlot = useCallback((profile: ProfileId, el: HTMLElement | null) => {
+    const previous = panelSlots.current[profile];
+    if (previous === el) return;
+    if (previous) observer.current?.unobserve(previous);
+    if (el) {
+      panelSlots.current[profile] = el;
+      observer.current?.observe(el);
+    } else {
+      delete panelSlots.current[profile];
+    }
+    scheduleLayout();
+  }, [scheduleLayout]);
+
+  const panelPagesRef = useRef(panelPages);
+  panelPagesRef.current = panelPages;
+  useEffect(() => {
+    for (const page of panelPages) opening.current.delete(page.profile);
+  }, [panelPages]);
+  const openPanelPage = useCallback((profile: ProfileId, url: string, navigate = false) => {
+    const existing = panelPagesRef.current.find((t) => t.profile === profile);
+    if (existing) {
+      if (navigate) invoke("browser_navigate", { id: existing.id, url }).catch(fail);
+      return;
+    }
+    if (opening.current.has(profile)) return;
+    opening.current.add(profile);
+    invoke("browser_open", { profile, url, lazyTitle: null, panel: true }).catch((e) => {
+      opening.current.delete(profile);
+      fail(e);
+    });
+  }, [fail]);
 
   const registerDevtoolsSlot = useCallback((profile: ProfileId, el: HTMLElement | null) => {
     const previous = devtoolsSlots.current[profile];
@@ -804,6 +865,7 @@ export function useBrowser(
   return {
     tabs, tabsOf, pane, focused, focus, split: showSplit, setSplit: setSplitState, secondary, setSecondary,
     go, activate, close, home, newTab, action, registerSlot, setSuspended,
+    pages, panelPage: (profile) => panelPages.find((t) => t.profile === profile) ?? null, openPanelPage, registerPanelSlot,
     devtoolsOpen: (id) => devtools.includes(id), toggleDevtools, undockDevtools, registerDevtoolsSlot, newWindow, move, reopen, tabAction,
     strip, groups: Object.values(groupMap), groupOf, createGroup, addToGroup, removeFromGroup, updateGroup, ungroup, closeGroup,
     error,

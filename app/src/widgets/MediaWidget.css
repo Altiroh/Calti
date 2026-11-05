@@ -1,0 +1,547 @@
+/* Lecture en cours : carte et mini-lecteur flottant. Pochette floutée en fond, couleurs du thème. */
+
+.media-card {
+  container-type: size;
+}
+
+.media {
+  position: relative;
+  display: grid;
+  flex: 1;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "cover text controls"
+    "progress progress progress";
+  align-items: center;
+  align-content: center;
+  gap: 10px 12px;
+  min-width: 0;
+  min-height: 0;
+  isolation: isolate;
+}
+
+.media__backdrop {
+  position: absolute;
+  inset: -18px;
+  z-index: -1;
+  background: var(--cover) center / cover no-repeat;
+  filter: blur(28px) saturate(1.4);
+  opacity: 0.28;
+  pointer-events: none;
+  transition: opacity 400ms var(--ease);
+}
+
+.media-card .media__backdrop {
+  inset: -60px -20px -20px;
+  opacity: 0.22;
+}
+
+.media__cover {
+  grid-area: cover;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--radius-sm, 10px);
+  color: var(--text-faint);
+  background: var(--surface);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.media__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.media__cover--empty {
+  box-shadow: none;
+}
+
+.media__text {
+  grid-area: text;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.media__text strong,
+.media__text > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.media__text strong {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.media__text > span {
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.media__app {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.media__spotify {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #1ed760;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #1ed760 25%, transparent);
+}
+
+.media--playing .media__spotify {
+  animation: media-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes media-pulse {
+  50% { box-shadow: 0 0 0 4px color-mix(in srgb, #1ed760 10%, transparent); }
+}
+
+.media__controls {
+  grid-area: controls;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.media__btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--text-dim);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.media__btn:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.media__btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.media__btn:disabled {
+  opacity: 0.35;
+}
+
+.media__btn--play {
+  width: 38px;
+  height: 38px;
+  color: var(--accent-contrast, #fff);
+  background: var(--accent);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.media--spotify .media__btn--play {
+  color: #0b1a10;
+  background: #1ed760;
+  box-shadow: 0 4px 14px rgba(30, 215, 96, 0.35);
+}
+
+.media__btn--play:hover:not(:disabled) {
+  color: var(--accent-contrast, #fff);
+  background: var(--accent);
+  filter: brightness(1.08);
+}
+
+.media--spotify .media__btn--play:hover:not(:disabled) {
+  color: #0b1a10;
+  background: #1ed760;
+}
+
+.media__progress {
+  grid-area: progress;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.media__time {
+  min-width: 32px;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+
+.media__time:last-child {
+  text-align: right;
+}
+
+.media__bar {
+  flex: 1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+.media__bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 1s linear;
+}
+
+.media--spotify .media__bar > span {
+  background: #1ed760;
+}
+
+.media--empty {
+  grid-template-areas: "cover text controls";
+}
+
+.media--empty .media__text > span {
+  white-space: normal;
+}
+
+/* Carte haute et étroite : pochette en grand au-dessus. */
+@container (min-height: 250px) and (max-width: 420px) {
+  .media-card .media {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "cover" "text" "progress" "controls";
+    justify-items: center;
+    text-align: center;
+  }
+
+  .media-card .media__cover {
+    width: min(100%, 55cqh, 220px);
+  }
+
+  .media-card .media__text {
+    align-items: center;
+    max-width: 100%;
+  }
+
+  .media-card .media__progress {
+    width: 100%;
+  }
+}
+
+/* Mini-lecteur flottant */
+.media-float {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  padding: 12px 14px;
+  overflow: hidden;
+  border-radius: var(--radius-lg, 20px);
+  --glass-alpha: var(--menu-alpha, 0.86);
+  box-shadow: var(--glass-shadow), 0 18px 50px rgba(8, 20, 45, 0.3);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  animation: media-float-in 260ms var(--ease) both;
+}
+
+.media-float:active {
+  cursor: grabbing;
+}
+
+@keyframes media-float-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+}
+
+.media-float .media__backdrop {
+  inset: -30px;
+  opacity: 0.32;
+}
+
+.media-float button {
+  cursor: pointer;
+}
+
+/* Barre : une ligne, progression en filet tout en bas. */
+.media-float--bar .media {
+  grid-template-areas: "cover text controls";
+}
+
+.media-float--bar .media__cover {
+  width: min(56px, calc(100cqh - 24px));
+  min-width: 36px;
+}
+
+.media-float--bar {
+  container-type: size;
+}
+
+.media-float--bar .media__progress {
+  position: absolute;
+  right: -14px;
+  bottom: -12px;
+  left: -14px;
+}
+
+.media-float--bar .media__time {
+  display: none;
+}
+
+.media-float--bar .media__bar {
+  height: 3px;
+  border-radius: 0;
+}
+
+/* Carte large : pochette à gauche, le reste à droite. */
+.media-float--wide .media {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: 1fr auto auto;
+  grid-template-areas:
+    "cover text"
+    "cover controls"
+    "cover progress";
+  align-items: center;
+  column-gap: 16px;
+}
+
+.media-float--wide {
+  container-type: size;
+}
+
+.media-float--wide .media__cover {
+  width: min(170px, calc(100cqh - 24px));
+}
+
+.media-float--wide .media__text strong {
+  font-size: 16px;
+}
+
+/* Pochette : en grand, au-dessus. */
+.media-float--tall {
+  container-type: size;
+}
+
+.media-float--tall .media {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "cover" "text" "progress" "controls";
+  justify-items: center;
+  align-content: center;
+  text-align: center;
+}
+
+.media-float--tall .media__cover {
+  width: min(100%, calc(100cqh - 150px));
+  min-width: 48px;
+}
+
+.media-float--tall .media__text {
+  align-items: center;
+  max-width: 100%;
+}
+
+.media-float--tall .media__progress {
+  width: 100%;
+}
+
+.media-float__grip {
+  position: absolute;
+  z-index: 2;
+  /* Dans l'arrondi : les coins arrondis ne reçoivent pas le pointeur. */
+  right: calc(var(--radius-lg, 20px) * 0.3);
+  bottom: calc(var(--radius-lg, 20px) * 0.3);
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+  background:
+    linear-gradient(135deg, transparent 55%, var(--text-faint) 55% 62%, transparent 62% 72%, var(--text-faint) 72% 79%, transparent 79%);
+}
+
+.media-float:hover .media-float__grip {
+  opacity: 0.7;
+}
+
+/* Lecteur en bordure de la fenêtre : barre flottante, comme la barre latérale ; les pages lui font place. */
+.media-dock {
+  position: relative;
+  display: flex;
+  flex: none;
+  overflow: hidden;
+  border-radius: var(--bar-radius, var(--radius-lg, 16px));
+  --glass-alpha: var(--menu-alpha, 0.86);
+  animation: media-float-in 260ms var(--ease) both;
+}
+
+.media-dock--top,
+.media-dock--bottom {
+  align-self: center;
+  width: min(720px, 100%);
+  height: 64px;
+  padding: 8px 14px;
+}
+
+.media-dock--top {
+  margin-bottom: var(--ui-gap, 14px);
+}
+
+.media-dock--bottom {
+  margin-top: var(--ui-gap, 14px);
+}
+
+/* Haut et bas : une ligne, progression au milieu. */
+.media-dock--top .media,
+.media-dock--bottom .media {
+  grid-template-columns: auto minmax(120px, 1fr) minmax(0, 1.4fr) auto;
+  grid-template-areas: "cover text progress controls";
+  gap: 14px;
+}
+
+.media-dock--top .media__cover,
+.media-dock--bottom .media__cover {
+  width: 46px;
+}
+
+.media-dock--top .media__app,
+.media-dock--bottom .media__app {
+  display: none;
+}
+
+.media-dock--top .media--empty,
+.media-dock--bottom .media--empty {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "cover text";
+}
+
+/* Droite : colonne de la fenêtre, carte pochette centrée verticalement. */
+.shell--dock-right {
+  grid-template-columns: var(--rail-width) minmax(0, 1fr) auto;
+}
+
+.media-dock--right {
+  align-self: center;
+  width: 210px;
+  max-height: 100%;
+  padding: 16px 14px;
+}
+
+.media-dock--right .media {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "cover" "text" "progress" "controls";
+  justify-items: center;
+  text-align: center;
+}
+
+.media-dock--right .media__cover {
+  width: 100%;
+}
+
+.media-dock--right .media__text {
+  align-items: center;
+  max-width: 100%;
+}
+
+.media-dock--right .media__progress {
+  width: 100%;
+}
+
+/* Dans la barre latérale : pochette (lecture/pause au clic), précédent et suivant. */
+.media-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 6px auto;
+  padding: 6px 0;
+}
+
+.media-rail--wide {
+  align-items: stretch;
+  width: calc(100% - 12px);
+  margin: 6px;
+  padding: 8px;
+  border-radius: var(--radius-md, 12px);
+  background: var(--surface);
+}
+
+.media-rail--wide .media {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "cover text" "controls controls" "progress progress";
+  gap: 6px 10px;
+}
+
+.media-rail--wide .media__cover {
+  width: 40px;
+}
+
+.media-rail--wide .media__controls {
+  justify-content: center;
+}
+
+.media-rail__cover {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 11px;
+  color: var(--text-dim);
+  background: var(--surface);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.media-rail__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.media-rail__state {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.media-rail__cover:hover .media-rail__state,
+.media-rail:not(.media-rail--playing) .media-rail__state {
+  opacity: 1;
+}
+
+.media-rail--playing.media--spotify .media-rail__cover {
+  box-shadow: 0 0 0 2px #1ed760, 0 4px 12px rgba(30, 215, 96, 0.3);
+}
+
+.media-rail__skip {
+  display: flex;
+  gap: 2px;
+}
+
+.media-rail__skip button {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  color: inherit;
+  opacity: 0.75;
+}
+
+.media-rail__skip button:hover:not(:disabled) {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.media-rail__skip button:disabled {
+  opacity: 0.3;
+}

@@ -40,6 +40,8 @@ struct Request {
     y: i32,
     items: Vec<Item>,
     link: String,
+    /// Texte sélectionné dans la page (vide sans sélection), pour « Demander à Claude ».
+    selection: String,
 }
 
 struct Pending {
@@ -125,6 +127,14 @@ pub fn install(app: &AppHandle, webview: &Webview, tab: u64) {
             } else {
                 String::new()
             };
+            let mut has_selection = BOOL::default();
+            let _ = target.HasSelection(&mut has_selection);
+            let selection = if has_selection.as_bool() {
+                let mut raw = PWSTR::null();
+                target.SelectionText(&mut raw).map(|_| take_pwstr(raw)).unwrap_or_default()
+            } else {
+                String::new()
+            };
             let mut items = read(&args.MenuItems()?)?;
             if !link.is_empty() {
                 // « Ouvrir dans une nouvelle fenêtre » devient « Ouvrir dans un nouvel onglet ».
@@ -152,7 +162,7 @@ pub fn install(app: &AppHandle, webview: &Webview, tab: u64) {
             if let Some(ui) = app.get_webview(&window) {
                 let _ = ui.set_focus();
             }
-            let sent = app.emit_to(window.as_str(), "browser:page-menu", Request { request, tab, x: point.x, y: point.y, items, link });
+            let sent = app.emit_to(window.as_str(), "browser:page-menu", Request { request, tab, x: point.x, y: point.y, items, link, selection });
             if sent.is_err() {
                 release_all();
             }

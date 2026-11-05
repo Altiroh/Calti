@@ -479,3 +479,23 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
   relâché avant que l'interface ait le focus, choisit quand même.
 - Palette : « Changer de profil ». Liste des raccourcis mise à jour.
 - Test `scripts/tests/switcher.test.cjs` : 11/11. Version installée.
+
+## 2026-11-05 — Claude et Lecture en cours (Spotify)
+
+- Extensions activables (désactivées par défaut) : « Claude », « Lecture en cours », et « Mini-lecteur ».
+- **Claude** : `widgets/ClaudePanel.tsx`. Page claude.ai (compte de l'utilisateur, aucune clé API) dans le panneau
+  latéral du volet, plus large que les autres. Côté Rust, une page « panneau » est un onglet marqué `panel`
+  (`browser_open(..., panel: true)`) : hors barre d'onglets, session et historique ; posée par `browser_layout` dans
+  la zone `registerPanelSlot`. Elle reste ouverte (cachée) avec sa conversation. « Demander à Claude » / « Expliquer
+  avec Claude » au clic droit sur une sélection (`pagemenu.rs` transmet `SelectionText`), « Résumer la page » dans
+  le panneau et la palette : nouvelle conversation `claude.ai/new?q=…` (le paramètre survit à la page de connexion).
+- **Lecture en cours** : `src-tauri/src/media.rs` lit les contrôles média de Windows
+  (GlobalSystemMediaTransportControlsSessionManager) toutes les secondes, événement `media:state`, commandes
+  `media_state` / `media_control` (lecture/pause, précédent, suivant). Pochette en image data, relue au changement
+  de morceau. Fonctionne pour Spotify (pastille verte) comme pour toute autre lecture.
+- `widgets/MediaWidget.tsx` : carte (panneau latéral, bloc « Lecture en cours » de l'accueil, masqué par défaut) et
+  mini-lecteur placé au choix (réglage `chrome.mediaDock`, aussi au clic droit « Position ») : libre (glisser, coin
+  pour la taille, formes barre / carte / pochette, place retenue dans `calti.mediaFloat`, découpé dans les pages),
+  dans la barre latérale, ou en bordure haut / bas / droite (barre flottante : les pages lui font place).
+- Test `scripts/tests/integrations.test.cjs` : 19/19 ; notes 21/21, sélecteur 11/11, menus 19/19. Version installée.
+- Non vérifié : lecture réelle de Spotify (rien ne jouait pendant les tests), claude.ai connecté.
