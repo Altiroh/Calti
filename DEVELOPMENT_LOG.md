@@ -527,3 +527,16 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
 - Textes épurés : explications des réglages retirées, descriptions des extensions en quelques mots, états vides
   sans phrase (notes, lecture, Claude, sélecteur de profils).
 - Tests : integrations 26/26, notes 21/21, sélecteur 11/11. Version installée.
+
+## 2026-11-05 — Polissage unslop (audit et 9 corrections)
+
+- Audit avec le skill unslop sur 9 captures (instance d'essai) et le CSS : « légèrement IA ». Gardé : le Liquid
+  Glass et le décor (identité), les pastilles colorées des menus (demandées), les styles d'horloge (choisis).
+- Corrigé : étiquettes en capitales espacées → minuscules (menus, palette, « Onglet actif », réglages) ; plus
+  d'agrandissement au survol ; plus de lueurs colorées ni de pulsation ; tuiles d'icônes d'une seule teinte
+  (réglages, extensions) ; titre d'accueil par défaut = nom du profil (sans « Bonjour ») ; états vides en deux mots ;
+  écarts sur la grille de 4 px ; graisse 600 au plus ; textes d'aide courts (« Rechercher », « Filtrer », « Écrire »).
+- Vidéo de la transformation : `docs/unslop/calti-unslop.mp4` (story `docs/unslop/story.html`, construite par
+  `build-story.cjs` à partir d'une capture de l'accueil, `scripts/tests/story-capture.cjs`). Captures d'audit :
+  `scripts/tests/audit-shots.cjs`.
+- Tests : menus 19/19, notes 21/21, sélecteur 11/11, intégrations 26/26, copie 11/11, fonctions 19/19. Installé.

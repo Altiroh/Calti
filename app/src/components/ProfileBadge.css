@@ -4,7 +4,7 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1;
   color: var(--badge-text);
@@ -21,7 +21,7 @@
   padding: 0 4px;
   border-radius: 999px;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 17px;
   text-align: center;
   color: var(--strong-text);

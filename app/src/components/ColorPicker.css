@@ -23,7 +23,6 @@
 }
 
 .picker__preset:hover {
-  transform: scale(1.12);
 }
 
 .picker__preset--on {

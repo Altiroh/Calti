@@ -255,7 +255,7 @@ export function BrowserPane({
         <form className="pane__address" onSubmit={submit}>
           {active && <span className={`pane__lock${secure ? "" : " pane__lock--off"}`}><Icon name={secure ? "lock" : "globe"} size={13} /></span>}
           <input ref={address} value={draft ?? active?.url ?? ""} spellCheck={false}
-            placeholder={`Rechercher ou saisir une adresse · ${profile.name}`}
+            placeholder="Rechercher"
             onFocus={(e) => { browser.focus(id); setDraft(e.target.value); requestAnimationFrame(() => e.target.select()); }}
             onBlur={() => { setDraft(null); setTyped(false); setPicked(-1); }}
             onChange={(e) => { setDraft(e.target.value); setTyped(true); setPicked(-1); }}

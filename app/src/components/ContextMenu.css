@@ -94,7 +94,6 @@
 
 .cmenu__item--hot:not(:disabled) .cmenu__icon:not(.cmenu__icon--none) {
   background: color-mix(in srgb, var(--chip) 26%, transparent);
-  transform: scale(1.06);
 }
 
 .cmenu__icon .favicon {
@@ -119,7 +118,6 @@
   height: 10px;
   background: var(--chip);
   border-radius: 50%;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--chip) 25%, transparent);
 }
 
 .cmenu__label {
@@ -141,7 +139,7 @@
 
 .cmenu__keys {
   display: flex;
-  gap: 3px;
+  gap: 4px;
   margin-left: 12px;
 }
 
@@ -180,15 +178,13 @@
 
 .cmenu__sep {
   height: 1px;
-  margin: calc(5px * var(--density, 1)) 8px;
+  margin: calc(4px * var(--density, 1)) 8px;
   background: var(--line);
 }
 
 .cmenu__header {
   padding: calc(6px * var(--density, 1)) 10px 3px;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--text-faint);
 }

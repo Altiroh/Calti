@@ -26,7 +26,7 @@ export function ActiveTabWidget({ brave }: { brave: Brave }) {
           </div>
         </div>
       ) : (
-        <p className="muted hero__empty">{brave.connected ? "Aucun onglet." : "Brave n'est pas connecté."}</p>
+        <p className="muted hero__empty">{brave.connected ? "Aucun onglet" : "Brave non connecté"}</p>
       )}
       <div className="hero__nav">
         {navButtons.map((b) => (

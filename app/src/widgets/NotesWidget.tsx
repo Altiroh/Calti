@@ -307,7 +307,7 @@ export function NotesWidget({ profile }: { profile: string }) {
       </span>
     )}>
       {total > 5 && (
-        <input className="lib-filter" value={query} placeholder="Rechercher dans les notes…" spellCheck={false}
+        <input className="lib-filter" value={query} placeholder="Rechercher" spellCheck={false}
           onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Escape" && setQuery("")} />
       )}
       <div className="notes" onPointerDown={(e) => e.stopPropagation()}>
@@ -350,7 +350,7 @@ export function NotesWidget({ profile }: { profile: string }) {
             </section>
           );
         })}
-        {q && total > 0 && loose.length === 0 && groups.every((g) => inSection(g.id).length === 0) && <p className="muted">Aucune note trouvée.</p>}
+        {q && total > 0 && loose.length === 0 && groups.every((g) => inSection(g.id).length === 0) && <p className="muted">Aucun résultat</p>}
       </div>
     </Card>
   );
@@ -436,7 +436,7 @@ function NoteEditor({ note, groups, onChange, onBack, onMenu, onGroupMenu, onSha
             style={{ "--swatch": c.value } as CSSProperties} onClick={() => onChange({ color: c.value }, false)} />
         ))}
       </div>
-      <textarea ref={area} className="note-editor__text" value={text} placeholder="Écrivez ici…" spellCheck
+      <textarea ref={area} className="note-editor__text" value={text} placeholder="Écrire" spellCheck
         onChange={(e) => { setText(e.target.value); edit({ text: e.target.value }); }} onBlur={flush} />
       <div className="note-editor__foot">
         <button className="note-editor__chip" onClick={(e) => onGroupMenu(e)} title="Changer de groupe">

@@ -46,7 +46,7 @@
   border-radius: var(--radius-sm, 10px);
   color: var(--text-faint);
   background: var(--surface);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .media__cover img {
@@ -76,7 +76,7 @@
 
 .media__text strong {
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 600;
   color: var(--text);
 }
 
@@ -88,7 +88,7 @@
 .media__app {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   margin-top: 2px;
   font-size: 10.5px;
   color: var(--text-faint);
@@ -99,16 +99,8 @@
   height: 9px;
   border-radius: 50%;
   background: #1ed760;
-  box-shadow: 0 0 0 2px color-mix(in srgb, #1ed760 25%, transparent);
 }
 
-.media--playing .media__spotify {
-  animation: media-pulse 1.6s ease-in-out infinite;
-}
-
-@keyframes media-pulse {
-  50% { box-shadow: 0 0 0 4px color-mix(in srgb, #1ed760 10%, transparent); }
-}
 
 .media__controls {
   grid-area: controls;
@@ -145,13 +137,11 @@
   height: 38px;
   color: var(--accent-contrast, #fff);
   background: var(--accent);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 .media--spotify .media__btn--play {
   color: #0b1a10;
   background: #1ed760;
-  box-shadow: 0 4px 14px rgba(30, 215, 96, 0.35);
 }
 
 .media__btn--play:hover:not(:disabled) {
@@ -676,7 +666,7 @@
   display: inline-flex;
   flex: 0 1 auto;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   min-width: 0;
   max-width: 260px;
   height: 30px;
@@ -847,7 +837,7 @@
 }
 
 .media-rail--playing.media--spotify .media-rail__cover {
-  box-shadow: 0 0 0 2px #1ed760, 0 4px 12px rgba(30, 215, 96, 0.3);
+  box-shadow: 0 0 0 1.5px #1ed760;
 }
 
 .media-rail__skip {

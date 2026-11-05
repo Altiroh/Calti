@@ -28,7 +28,6 @@
   border-radius: 8px;
   color: #fff;
   background: linear-gradient(135deg, #d97757, #c15f3c);
-  box-shadow: 0 4px 12px rgba(217, 119, 87, 0.35);
 }
 
 .claude__actions {

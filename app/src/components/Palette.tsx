@@ -117,7 +117,7 @@ export function Palette({ browser, profile, commands, suggest, onClose, onRect }
         role="dialog" aria-label="Palette de commandes" onMouseDown={(e) => e.stopPropagation()}>
         <div className="palette__input">
           <Icon name="search" size={16} />
-          <input autoFocus value={query} spellCheck={false} placeholder="Onglet, commande, page ou recherche…"
+          <input autoFocus value={query} spellCheck={false} placeholder="Rechercher"
             onChange={(e) => setQuery(e.target.value)} onKeyDown={onKey} />
           <kbd>Échap</kbd>
         </div>

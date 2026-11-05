@@ -349,7 +349,7 @@ function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
       </Group>
 
       <Group icon="home" title="Accueil" color="#43e97b" {...group("home")}>
-        <textarea className="field" rows={2} value={theme.headline} placeholder="Titre (vide : « Bonjour, profil. »)"
+        <textarea className="field" rows={2} value={theme.headline} placeholder="Titre (vide : nom du profil)"
           onChange={(e) => set({ headline: e.target.value })} />
         <input className="field" value={theme.tagline} placeholder="Sous-titre (facultatif)"
           onChange={(e) => set({ tagline: e.target.value })} />

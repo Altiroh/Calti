@@ -57,7 +57,7 @@ export function HistoryWidget({ brave, history }: { brave: Brave; history: Histo
       <button className="chip-btn" onClick={history.clear}>Effacer</button>
     )}>
       {history.entries.length > 6 && (
-        <input className="lib-filter" value={query} placeholder="Filtrer…" spellCheck={false} onChange={(e) => setQuery(e.target.value)} />
+        <input className="lib-filter" value={query} placeholder="Filtrer" spellCheck={false} onChange={(e) => setQuery(e.target.value)} />
       )}
       <div className="lib-list">
         {entries.map((h) => (
@@ -77,7 +77,7 @@ export function HistoryWidget({ brave, history }: { brave: Brave; history: Histo
             </button>
           </div>
         ))}
-        {entries.length === 0 && <p className="muted">{q ? "Aucun résultat." : "Les pages visitées s'afficheront ici."}</p>}
+        {entries.length === 0 && <p className="muted">{q ? "Aucun résultat" : "Aucune page"}</p>}
       </div>
     </Card>
   );
@@ -131,7 +131,7 @@ export function ClipboardWidget({ brave }: { brave: Brave }) {
             <button className="lib-remove" aria-label="Retirer" onClick={() => remove(clip.id)}><Icon name="close" size={11} /></button>
           </div>
         ))}
-        {clips.length === 0 && <p className="muted">{paused ? "Enregistrement en pause." : "Copiez un texte, un lien ou une image : il s'affichera ici."}</p>}
+        {clips.length === 0 && <p className="muted">{paused ? "En pause" : "Aucune copie"}</p>}
       </div>
     </Card>
   );

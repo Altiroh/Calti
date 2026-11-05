@@ -18,8 +18,7 @@
 
 .search:focus-within {
   background: var(--glass-fill-active);
-  box-shadow: var(--glass-shadow), 0 0 0 5px var(--accent-soft);
-  transform: scale(1.01);
+  box-shadow: var(--glass-shadow), 0 0 0 4px var(--accent-soft);
 }
 
 .search__input {
@@ -61,7 +60,7 @@
 }
 
 .search__go:hover:not(:disabled) {
-  transform: translateX(2px) scale(1.06);
+  transform: translateX(2px);
 }
 
 .search__go:disabled {

@@ -131,7 +131,6 @@
 }
 
 .rail:not(.rail--wide) .switcher__item:hover {
-  transform: scale(1.08);
 }
 
 .switcher__item-name {
@@ -214,7 +213,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   min-height: 0;
   margin-top: 6px;
   padding-top: 8px;
@@ -225,7 +224,7 @@
 .vtab {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   min-height: 34px;
   padding: 0 4px 0 10px;
   border-radius: 10px;
