@@ -43,7 +43,7 @@ interface Props {
   player?: (wide: boolean) => ReactNode;
 }
 
-const widgetIcons = { clipboard: "clipboard", history: "history", tabs: "tabs", bookmarks: "star", notes: "notes", ruler: "ruler", claude: "spark", media: "sound" } as const;
+export const widgetIcons = { clipboard: "clipboard", history: "history", tabs: "tabs", bookmarks: "star", notes: "notes", ruler: "ruler", claude: "spark", media: "sound" } as const;
 
 /** Logos de marque à la place de l'icône au trait. */
 const brandGlyphs: Partial<Record<BarWidget, ReactNode>> = {

@@ -84,6 +84,9 @@ function General() {
   const active = new Set(c.railWidgets);
   const toggle = (id: BarWidget) =>
     updateTheme({ chrome: { ...c, railWidgets: active.has(id) ? c.railWidgets.filter((w) => w !== id) : [...c.railWidgets, id] } });
+  const setInRail = (id: BarWidget, inRail: boolean) => updateTheme({ chrome: {
+    ...c, railHidden: inRail ? c.railHidden.filter((w) => w !== id) : [...c.railHidden.filter((w) => w !== id), id],
+  } });
 
   return (
     <>
@@ -91,8 +94,11 @@ function General() {
         <div className="ext-grid">
           {extensions.map((e) => {
             const on = active.has(e.id);
+            const inRail = !c.railHidden.includes(e.id);
             return (
-              <button key={e.id} className={`ext${on ? " ext--on" : ""}`} role="switch" aria-checked={on} onClick={() => toggle(e.id)}
+              <div key={e.id} className={`ext-item${on ? " ext-item--on" : ""}`} data-ext={e.id}
+                style={{ "--ext-a": e.colors[0], "--ext-b": e.colors[1] } as CSSProperties}>
+              <button className={`ext${on ? " ext--on" : ""}`} role="switch" aria-checked={on} onClick={() => toggle(e.id)}
                 style={{ "--ext-a": e.colors[0], "--ext-b": e.colors[1] } as CSSProperties}>
                 <span className={`ext__icon${e.id === "media" ? " ext__icon--spotify" : ""}`}>
                   {e.id === "claude" ? <ClaudeLogo size={22} color="#fff" /> : e.id === "media" ? <SpotifyPlus size={26} /> : <Icon name={e.icon} size={18} />}
@@ -103,6 +109,14 @@ function General() {
                 </span>
                 <span className="ext__switch" aria-hidden="true" />
               </button>
+              {on && (
+                <div className="ext__options">
+                  <span className="ext__options-label"><Icon name="sidebar" size={13} /> Dans la barre latérale</span>
+                  <Segmented value={inRail ? "rail" : "none"} onChange={(v) => setInRail(e.id, v === "rail")}
+                    options={[["rail", "Oui"], ["none", "Non"]]} />
+                </div>
+              )}
+              </div>
             );
           })}
         </div>
@@ -119,7 +133,7 @@ function General() {
           </button>
         </div>
         {c.mediaFloat && <p className="settings__hint">Place et style du mini-lecteur : Apparence → Mini-lecteur.</p>}
-        <p className="settings__hint">Une extension activée a son raccourci dans la barre latérale ; elle s'ouvre à côté de la page. Le bloc « Lecture en cours » s'ajoute aussi à l'accueil (Modifier la disposition).</p>
+        <p className="settings__hint">Une extension s'ouvre à côté de la page : par son raccourci dans la barre latérale, ou, sans raccourci, depuis la palette (Ctrl+K). Le bloc « Lecture en cours » s'ajoute aussi à l'accueil (Modifier la disposition).</p>
       </Section>
 
       <Section title="Recherche">

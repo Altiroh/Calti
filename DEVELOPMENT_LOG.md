@@ -512,3 +512,10 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
 - Extension désactivée : son panneau ouvert se ferme ; Claude désactivé : ses pages claude.ai sont détruites
   (`closePanelPages`).
 - Test integrations : 24/24 (lecture Spotify réelle vue pendant le test). Version installée.
+
+## 2026-11-05 — Extensions : raccourci dans la barre latérale au choix
+
+- Sous la carte d'une extension activée : « Dans la barre latérale : Oui / Non » (réglage `chrome.railHidden`,
+  extensions activées sans raccourci). Sans raccourci, elle s'ouvre depuis la palette (« Ouvrir … », pour toutes
+  les extensions activées).
+- Test integrations : 26/26. À installer : Calti ouvert ne se fermait pas (fenêtre « SIG-MR : Maintenance »).

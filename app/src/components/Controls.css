@@ -447,6 +447,47 @@ select.field option {
   gap: 8px;
 }
 
+/* Extension activée : son choix de raccourci, rattaché sous sa carte. */
+.ext-item {
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  transition: background var(--dur) var(--ease);
+}
+
+.ext-item--on {
+  background: color-mix(in srgb, var(--ext-b) 7%, var(--surface));
+}
+
+.ext-item--on > .ext {
+  background: transparent;
+}
+
+.ext__options {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+  padding: 0 12px 10px 16px;
+  animation: tab-in 220ms var(--ease) both;
+}
+
+.ext__options-label {
+  display: inline-flex;
+  min-width: 0;
+  white-space: nowrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.ext__options .segmented {
+  flex: 0 0 auto;
+  width: 112px;
+}
+
 .ext {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr) auto;

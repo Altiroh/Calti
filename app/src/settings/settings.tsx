@@ -60,6 +60,8 @@ export interface ChromeSettings {
   barButtons: { nav: boolean; reload: boolean; star: boolean; detach: boolean };
   /** Widgets en raccourci dans la barre latérale : un clic ouvre le widget à côté de la page. */
   railWidgets: BarWidget[];
+  /** Extensions activées sans raccourci dans la barre latérale (ouvertes depuis la palette). */
+  railHidden: BarWidget[];
   /** Mini-lecteur (lecture en cours), et sa place : libre, barre latérale, barre du haut, bord haut, bas ou droit. */
   mediaFloat: boolean;
   mediaDock: "free" | "rail" | "titlebar" | "top" | "bottom" | "right";
@@ -117,6 +119,7 @@ export const defaultChrome: ChromeSettings = {
   addressWidth: "m",
   barButtons: { nav: true, reload: true, star: true, detach: true },
   railWidgets: ["clipboard", "history", "notes"],
+  railHidden: [],
   mediaFloat: false,
   mediaDock: "free",
   playerStyle: "floating",

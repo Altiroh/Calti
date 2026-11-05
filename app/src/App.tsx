@@ -22,7 +22,7 @@ import { renderBlock, type HomeContext } from "./components/HomeBlocks";
 import { HomeGrid } from "./components/HomeGrid";
 import { LayoutEditor } from "./components/LayoutEditor";
 import { SettingsDrawer, type SettingsTab } from "./components/SettingsDrawer";
-import { RAIL_NARROW, Sidebar } from "./components/Sidebar";
+import { RAIL_NARROW, Sidebar, widgetIcons } from "./components/Sidebar";
 import { WindowControls } from "./components/WindowControls";
 import { withTransition } from "./motion";
 import { ProfileSwitcher } from "./components/ProfileSwitcher";
@@ -37,7 +37,7 @@ import { useGridRuler } from "./widgets/gridRuler";
 import { useWindowIdentity } from "./browser/windowIdentity";
 import { RulerWidget } from "./widgets/RulerWidget";
 import type { BarWidget } from "./settings/settings";
-import { applyTheme, searchEngines, useSettings } from "./settings/settings";
+import { applyTheme, barWidgetLabels, searchEngines, useSettings } from "./settings/settings";
 
 export type DrawerName = "bookmarks" | "settings" | "downloads" | "history" | null;
 
@@ -288,6 +288,10 @@ export function App() {
     const openSettings = (t: SettingsTab) => () => { setSettingsTab(t); setDrawer("settings"); };
     return [
       { label: "Nouvel onglet", keys: "Ctrl+T", icon: "plus", run: () => browser.newTab(p) },
+      // Extensions activées (avec ou sans raccourci dans la barre) : ouvertes à côté de la page.
+      ...theme.chrome.railWidgets.filter((w) => w !== "claude").map((w) => ({
+        label: `Ouvrir ${barWidgetLabels[w]}`, icon: widgetIcons[w], run: () => setPanel(p, w),
+      })),
       ...(claudeOn ? [
         { label: "Claude", icon: "spark" as const, image: claudeLogoUrl, run: () => askClaude(p) },
         ...(tab ? [{ label: "Résumer la page avec Claude", icon: "spark" as const, image: claudeLogoUrl,
@@ -417,7 +421,7 @@ export function App() {
         onActivate={browser.activate} onCloseTab={browser.close}
         drawer={drawer} onToggle={toggle}
         onHome={() => browser.home()} onNewTab={() => browser.newTab()}
-        widgets={c.railWidgets} panel={panels[focused] ?? null} onPanel={(kind) => setPanel(focused, kind)}
+        widgets={c.railWidgets.filter((w) => !c.railHidden.includes(w))} panel={panels[focused] ?? null} onPanel={(kind) => setPanel(focused, kind)}
         player={playerOn && c.mediaDock === "rail" ? (wide) => <RailPlayer wide={wide} {...playerProps} /> : undefined} />
 
       <div className="page">

@@ -28,7 +28,16 @@ const settings = (chrome) => `localStorage.setItem("calti.settings.v3", JSON.str
   await ui.ev(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
   await sleep(500);
   const chrome = await ui.ev(`JSON.parse(localStorage.getItem("calti.settings.v3")).theme.chrome`);
-  t.check("activées : enregistré", chrome.railWidgets.includes("claude") && chrome.railWidgets.includes("media") && chrome.mediaFloat === true, chrome);
+  // Choix du raccourci dans la barre latérale, sous la carte de l'extension activée.
+  const railChoice = (ext, label) => ui.ev(`[...document.querySelectorAll('[data-ext="${ext}"] .ext__options .segmented button')].find((b) => b.textContent.trim() === ${JSON.stringify(label)}).click()`);
+  t.check("choix du raccourci proposé à l'activation", await ui.ev(`document.querySelectorAll(".ext-item--on .ext__options").length`) >= 5);
+  await railChoice("media", "Non");
+  await sleep(400);
+  const hidden = await ui.ev(`!document.querySelector('.rail-btn[aria-label="Lecture en cours"]') && JSON.parse(localStorage.getItem("calti.settings.v3")).theme.chrome.railHidden.includes("media")`);
+  await railChoice("media", "Oui");
+  await sleep(400);
+  t.check("sans raccourci : retiré de la barre, puis remis", hidden && await ui.ev(`!!document.querySelector('.rail-btn[aria-label="Lecture en cours"]')`));
+  t.check("activées : enregistré",chrome.railWidgets.includes("claude") && chrome.railWidgets.includes("media") && chrome.mediaFloat === true, chrome);
 
   // Mini-lecteur : affiché, déplacé, redimensionné, formes au clic droit.
   for (let i = 0; i < 20 && !(await ui.ev(`!!document.querySelector(".media-float")`)); i++) await sleep(200);
