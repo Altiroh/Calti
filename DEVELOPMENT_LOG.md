@@ -434,3 +434,21 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
 - Vérifié (`menus.test.cjs`, 19/19, avec `windows.ps1` qui inspecte les fenêtres Windows) : outils dans la fenêtre
   de Calti et aucune fenêtre à part, page resserrée, ancrage en bas, fermeture par F12 ; position contrôlée au
   pixel près. `features` 19/19, `persistence` 7/7, `suggestions` 5/5.
+
+## 2026-11-05 — Profils perdus d'une session à l'autre (copie non reprise)
+
+- Constat : au lancement de 08:37, WebView2 est parti d'un stockage local neuf (base leveldb recréée : journal
+  `000003.log` commençant à la séquence 1, sans toucher aux fichiers de la veille). Calti y a écrit des réglages
+  vides et un numéro de génération du jour : la copie `etat.json` (profils Personnel et Pro, veille 17:32), plus
+  « ancienne », n'a pas été reprise. Au lancement suivant, WebView2 a relu sa base habituelle intacte : la base
+  habituelle était probablement encore verrouillée à 08:37 (fin de la session précédente), d'où la base temporaire.
+  Fichiers sauvegardés dans `%LOCALAPPDATA%\fr.calti.app\sauvegarde-2026-11-05`.
+- Correctifs :
+  - reprise selon le contenu : un stockage sans profil reprend toujours la copie qui en a, quel que soit son
+    numéro de génération (en plus de la règle « copie plus récente ») ;
+  - la copie n'est plus faite tant que le stockage n'a aucun profil, et `state_save` refuse de remplacer une copie
+    avec profils par une copie sans profil ;
+  - journal `etat.log` (décisions de reprise au lancement, copies suspendues ou refusées) pour comprendre une
+    éventuelle perte suivante.
+- Vérifié (`persistence.test.cjs`, 11/11) : cas reproduit (stockage vide avec génération plus récente) → profils
+  repris, copie intacte, copie sans profil refusée, journal tenu. Version installée relancée : profils retrouvés.

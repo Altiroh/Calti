@@ -86,6 +86,7 @@ fn main() {
             launch::take_launch_urls,
             state::state_load,
             state::state_save,
+            state::state_log,
             launch::register_default_browser,
             clipboard::clipboard_image,
             clipboard::clipboard_pause,

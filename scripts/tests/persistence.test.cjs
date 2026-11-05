@@ -40,6 +40,27 @@ const setInput = (selector, value) => `(() => { const i = document.querySelector
   t.check("stockage repris depuis la copie au lancement", (await ui.ev(`localStorage.getItem("calti.searches.essai") ?? ""`)).includes("témoin"));
   t.check("profil retrouvé, pas d'écran de création", await ui.ev(`!document.querySelector(".welcome") && JSON.parse(localStorage.getItem("calti.settings.v3")).profileOrder[0] === "essai"`));
 
+  // Cas du 5 novembre : WebView2 repart d'un stockage neuf, Calti y écrit des réglages vides et un numéro de
+  // génération plus récent que la copie. La copie (avec profils) doit quand même être reprise, et jamais écrasée.
+  const before = JSON.parse(fs.readFileSync(file, "utf8"));
+  await ui.ev(`localStorage.clear();
+    localStorage.setItem("calti.settings.v3", JSON.stringify({ theme: {}, profiles: {}, profileOrder: [] }));
+    localStorage.setItem("calti.state.gen", String(Date.now() + 86400000));
+    location.reload()`);
+  ui.close();
+  await sleep(3500);
+  ui = await connect();
+  await rendered();
+  t.check("stockage vide plus « récent » : profils repris depuis la copie", await ui.ev(`!document.querySelector(".welcome") && JSON.parse(localStorage.getItem("calti.settings.v3")).profileOrder[0] === "essai"`));
+  await sleep(3500);
+  const after = JSON.parse(fs.readFileSync(file, "utf8"));
+  t.check("copie toujours avec ses profils", JSON.parse(after.data["calti.settings.v3"]).profileOrder[0] === "essai" && after.gen >= before.gen);
+  // Copie sans profil envoyée directement : refusée par Calti.
+  const refused = await ui.ev(`window.__TAURI_INTERNALS__.invoke("state_save", { data: JSON.stringify({ calti: 1, gen: Date.now() + 9e9, saved: "", data: { "calti.settings.v3": JSON.stringify({ profileOrder: [] }) } }) }).then(() => false, () => true)`);
+  t.check("copie sans profil refusée", refused && JSON.parse(JSON.parse(fs.readFileSync(file, "utf8")).data["calti.settings.v3"]).profileOrder.length === 1);
+  const journal = fs.readFileSync(path.join(process.env.WEBVIEW2_USER_DATA_FOLDER, "etat.log"), "utf8");
+  t.check("journal de la copie tenu", /copie reprise \(profils perdus\)/.test(journal) && /refusée/.test(journal), journal.split("\n").slice(-4).join(" | "));
+
   t.report();
   process.exit();
 })().catch((e) => {
