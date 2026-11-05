@@ -367,39 +367,94 @@
   opacity: 0.7;
 }
 
-/* Lecteur en bordure de la fenêtre : barre flottante, comme la barre latérale ; les pages lui font place. */
+/* --- Lecteur en bordure de la fenêtre -------------------------------------------
+ * Mêmes styles que la barre latérale : flottant (carte de verre), collé au bord (sans marge, arrondi côté page), ou
+ * bord renflé (liseré le long du bord de la fenêtre, renflé là où est le lecteur, raccordé par deux congés).
+ * Les pages lui font place : haut et bas dans la colonne des pages, droite en colonne de la fenêtre.
+ */
 .media-dock {
+  --player-r: var(--player-radius, 20px);
+  --edge-line: 6px;
+  --edge-curve: clamp(8px, var(--player-r), 24px);
   position: relative;
+  z-index: 1;
   display: flex;
   flex: none;
-  overflow: hidden;
-  border-radius: var(--bar-radius, var(--radius-lg, 16px));
+  border-radius: var(--player-r);
   --glass-alpha: var(--menu-alpha, 0.86);
   animation: media-float-in 260ms var(--ease) both;
 }
 
-.media-dock--top,
-.media-dock--bottom {
-  align-self: center;
-  width: min(720px, 100%);
-  height: 64px;
+.media-dock__inner {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: inherit;
   padding: 8px 14px;
 }
 
-.media-dock--top {
-  margin-bottom: var(--ui-gap, 14px);
+/* Surfaces (flottant, collé) : verre, plein, sans fond. */
+.media-dock[data-surface="solid"],
+.media-float[data-surface="solid"] {
+  --glass-alpha: 0.95;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
+.media-dock[data-surface="none"],
+.media-float[data-surface="none"] {
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.media-dock[data-surface="none"]::before,
+.media-dock[data-surface="none"]::after,
+.media-float[data-surface="none"]::before,
+.media-float[data-surface="none"]::after {
+  display: none;
+}
+
+.media-float {
+  border-radius: var(--player-radius, 20px);
+}
+
+/* Haut et bas : largeur et alignement. */
+.media-dock--top,
 .media-dock--bottom {
-  margin-top: var(--ui-gap, 14px);
+  height: 64px;
+  width: min(640px, 100%);
+  align-self: center;
 }
 
-/* Haut et bas : une ligne, progression au milieu. */
+.media-dock[data-width="s"] { width: min(420px, 100%); }
+.media-dock[data-width="l"] { width: min(920px, 100%); }
+.media-dock[data-width="full"] { width: 100%; }
+.media-dock--top[data-align="start"],
+.media-dock--bottom[data-align="start"] { align-self: flex-start; }
+.media-dock--top[data-align="end"],
+.media-dock--bottom[data-align="end"] { align-self: flex-end; }
+
+.media-dock--top { margin-bottom: var(--ui-gap, 14px); }
+.media-dock--bottom { margin-top: var(--ui-gap, 14px); }
+
 .media-dock--top .media,
 .media-dock--bottom .media {
-  grid-template-columns: auto minmax(120px, 1fr) minmax(0, 1.4fr) auto;
+  grid-template-columns: auto minmax(110px, 1fr) minmax(0, 1.4fr) auto;
   grid-template-areas: "cover text progress controls";
   gap: 14px;
+}
+
+.media-dock[data-width="s"] .media {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "cover text controls";
+}
+
+.media-dock[data-width="s"] .media__progress {
+  display: none;
 }
 
 .media-dock--top .media__cover,
@@ -418,15 +473,24 @@
   grid-template-areas: "cover text";
 }
 
-/* Droite : colonne de la fenêtre, carte pochette centrée verticalement. */
+/* Droite : colonne de la fenêtre, carte pochette. */
 .shell--dock-right {
   grid-template-columns: var(--rail-width) minmax(0, 1fr) auto;
 }
 
 .media-dock--right {
-  align-self: center;
   width: 210px;
   max-height: 100%;
+  align-self: center;
+}
+
+.media-dock--right[data-width="s"] { width: 170px; }
+.media-dock--right[data-width="l"] { width: 260px; }
+.media-dock--right[data-width="full"] { width: 260px; align-self: stretch; }
+.media-dock--right[data-align="start"] { align-self: flex-start; }
+.media-dock--right[data-align="end"] { align-self: flex-end; }
+
+.media-dock--right .media-dock__inner {
   padding: 16px 14px;
 }
 
@@ -448,6 +512,270 @@
 
 .media-dock--right .media__progress {
   width: 100%;
+}
+
+/* Collé au bord : sans marge côté fenêtre, arrondi seulement côté page. */
+.media-dock[data-style="attached"],
+.media-dock[data-style="edge"] {
+  border-color: transparent;
+}
+
+.media-dock--bottom[data-style="attached"],
+.media-dock--bottom[data-style="edge"] {
+  /* La colonne des pages garde 2 px en bas (layout.css) : repris ici. */
+  margin-bottom: calc(-1 * var(--win-pad, 16px) - 2px);
+  border-radius: var(--player-r) var(--player-r) 0 0;
+}
+
+.media-dock--top[data-style="attached"],
+.media-dock--top[data-style="edge"] {
+  margin-top: calc(-1 * var(--win-pad, 16px));
+  border-radius: 0 0 var(--player-r) var(--player-r);
+}
+
+.media-dock--right[data-style="attached"],
+.media-dock--right[data-style="edge"] {
+  margin-right: calc(-1 * var(--win-pad, 16px));
+  border-radius: var(--player-r) 0 0 var(--player-r);
+}
+
+/* Bord renflé : remplissage commun au liseré, au lecteur et aux congés. */
+[data-edge="color"].media-dock,
+[data-edge="color"].media-line {
+  --edge-fill: var(--player-edge-color, #0b0d10);
+}
+
+[data-edge="glass"].media-dock,
+[data-edge="glass"].media-line {
+  --edge-fill: rgba(var(--glass-rgb), var(--player-edge-alpha, var(--glass-alpha)));
+}
+
+[data-edge="none"].media-dock {
+  --edge-fill: transparent;
+}
+
+.media-dock[data-style="edge"],
+.media-dock[data-style="edge"]::before,
+.media-dock[data-style="edge"]::after,
+.media-line {
+  background: var(--edge-fill);
+}
+
+.media-dock[data-edge="color"] {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.media-dock[data-edge="glass"]::before,
+.media-dock[data-edge="glass"]::after,
+.media-line[data-edge="glass"] {
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+}
+
+.media-dock[data-style="edge"] {
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.16);
+}
+
+.media-dock[data-edge="none"] {
+  box-shadow: none;
+}
+
+/* Liseré le long du bord de la fenêtre. */
+.media-line {
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.media-line--bottom { right: 0; bottom: 0; left: 0; height: 6px; }
+.media-line--top { top: 0; right: 0; left: 0; height: 6px; }
+.media-line--right { top: 0; right: 0; bottom: 0; width: 6px; }
+
+/* Congés : de part et d'autre du lecteur, du liseré vers le lecteur. */
+.media-dock[data-style="edge"]::before,
+.media-dock[data-style="edge"]::after {
+  content: "";
+  position: absolute;
+  /* Remplace les reflets du verre (mêmes pseudo-éléments). */
+  inset: auto;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  opacity: 1;
+  box-shadow: none;
+  width: var(--edge-curve);
+  height: var(--edge-curve);
+  pointer-events: none;
+}
+
+.media-dock[data-edge="none"]::before,
+.media-dock[data-edge="none"]::after {
+  display: none;
+}
+
+.media-dock--bottom[data-style="edge"]::before {
+  left: calc(-1 * var(--edge-curve));
+  bottom: var(--edge-line);
+  -webkit-mask: radial-gradient(circle at 0 0, transparent calc(var(--edge-curve) - 0.5px), #000 var(--edge-curve));
+  mask: radial-gradient(circle at 0 0, transparent calc(var(--edge-curve) - 0.5px), #000 var(--edge-curve));
+}
+
+.media-dock--bottom[data-style="edge"]::after {
+  right: calc(-1 * var(--edge-curve));
+  bottom: var(--edge-line);
+  -webkit-mask: radial-gradient(circle at 100% 0, transparent calc(var(--edge-curve) - 0.5px), #000 var(--edge-curve));
+  mask: radial-gradient(circle at 100% 0, transparent calc(var(--edge-curve) - 0.5px), #000 var(--edge-curve));
+}
+
+.media-dock--top[data-style="edge"]::before {
+  left: calc(-1 * var(--edge-curve));
+  top: var(--edge-line);
+  -webkit-mask: radial-gradient(circle at 0 100%, transparent calc(var(--edge-curve) - 0.5px), #000 var(--edge-curve));
+  mask: radial-gradient(circle at 0 100%, transparent calc(var(--edge-curve) - 0.5px), #000 var(--edge-curve));
+}
+
+.media-dock--top[data-style="edge"]::after {
+  right: calc(-1 * var(--edge-curve));
+  top: var(--edge-line);
+  -webkit-mask: radial-gradient(circle at 100% 100%, transparent calc(var(--edge-curve) - 0.5px), #000 var(--edge-curve));
+  mask: radial-gradient(circle at 100% 100%, transparent calc(var(--edge-curve) - 0.5px), #000 var(--edge-curve));
+}
+
+.media-dock--right[data-style="edge"]::before {
+  top: calc(-1 * var(--edge-curve));
+  right: var(--edge-line);
+  -webkit-mask: radial-gradient(circle at 0 0, transparent calc(var(--edge-curve) - 0.5px), #000 var(--edge-curve));
+  mask: radial-gradient(circle at 0 0, transparent calc(var(--edge-curve) - 0.5px), #000 var(--edge-curve));
+}
+
+.media-dock--right[data-style="edge"]::after {
+  bottom: calc(-1 * var(--edge-curve));
+  right: var(--edge-line);
+  -webkit-mask: radial-gradient(circle at 0 100%, transparent calc(var(--edge-curve) - 0.5px), #000 var(--edge-curve));
+  mask: radial-gradient(circle at 0 100%, transparent calc(var(--edge-curve) - 0.5px), #000 var(--edge-curve));
+}
+
+/* Couleur du bord sombre ou claire : texte inversé, comme la barre latérale. */
+.media-dock[data-tone="light"] {
+  --text: rgba(255, 255, 255, 0.94);
+  --text-dim: rgba(255, 255, 255, 0.72);
+  --text-faint: rgba(255, 255, 255, 0.45);
+  --surface: rgba(255, 255, 255, 0.1);
+}
+
+.media-dock[data-tone="dark"] {
+  --text: #14213a;
+  --text-dim: rgba(20, 33, 58, 0.72);
+  --text-faint: rgba(20, 33, 58, 0.45);
+}
+
+/* --- Barre du haut : discret, à gauche des boutons de la fenêtre ------------------ */
+.media-title {
+  position: relative;
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  max-width: 260px;
+  height: 30px;
+  margin-left: 6px;
+  padding: 0 4px 0 4px;
+  border-radius: 9px;
+  overflow: hidden;
+  color: var(--text-dim);
+  transition: background var(--dur) var(--ease);
+}
+
+.media-title:hover {
+  background: var(--glass-fill-active);
+}
+
+/* Progression : filet discret sous le lecteur. */
+.media-title::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 1px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent) calc(var(--progress, 0) * 100%), transparent 0);
+  opacity: 0.7;
+}
+
+.media-title.media--spotify::after {
+  background: linear-gradient(90deg, #1ed760 calc(var(--progress, 0) * 100%), transparent 0);
+}
+
+.media-title--idle {
+  padding: 0 6px;
+  opacity: 0.45;
+}
+
+.media-title--idle::after {
+  display: none;
+}
+
+.media-title__cover {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.media-title__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.media-title__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.media-title__text strong,
+.media-title__text span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.media-title__text strong {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.media-title__text span {
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.media-title__btn {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--text-dim);
+}
+
+.media-title__btn:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--glass-fill-active);
+}
+
+.media-title__btn:disabled {
+  opacity: 0.35;
 }
 
 /* Dans la barre latérale : pochette (lecture/pause au clic), précédent et suivant. */

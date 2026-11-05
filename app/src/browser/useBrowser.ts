@@ -139,6 +139,8 @@ export interface Browser {
   registerPanelSlot: (profile: ProfileId, el: HTMLElement | null) => void;
   /** Onglets et pages de panneau de cette fenêtre (menu des pages). */
   pages: BrowserTab[];
+  /** Détruit les pages des panneaux (extension désactivée). */
+  closePanelPages: () => void;
   /** Nouvelle fenêtre sur un profil ; avec `detach`, les onglets de ce profil y partent. */
   newWindow: (profile: ProfileId, detach?: boolean, tab?: number) => void;
   /** Déplace un onglet juste avant un autre (null : à la fin). */
@@ -865,7 +867,9 @@ export function useBrowser(
   return {
     tabs, tabsOf, pane, focused, focus, split: showSplit, setSplit: setSplitState, secondary, setSecondary,
     go, activate, close, home, newTab, action, registerSlot, setSuspended,
-    pages, panelPage: (profile) => panelPages.find((t) => t.profile === profile) ?? null, openPanelPage, registerPanelSlot,
+    pages,
+    closePanelPages: () => panelPagesRef.current.forEach((t) => { invoke("browser_close", { id: t.id }).catch(fail); }),
+    panelPage: (profile) => panelPages.find((t) => t.profile === profile) ?? null, openPanelPage, registerPanelSlot,
     devtoolsOpen: (id) => devtools.includes(id), toggleDevtools, undockDevtools, registerDevtoolsSlot, newWindow, move, reopen, tabAction,
     strip, groups: Object.values(groupMap), groupOf, createGroup, addToGroup, removeFromGroup, updateGroup, ungroup, closeGroup,
     error,

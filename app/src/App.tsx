@@ -28,7 +28,7 @@ import { withTransition } from "./motion";
 import { ProfileSwitcher } from "./components/ProfileSwitcher";
 import { ClaudePanel } from "./widgets/ClaudePanel";
 import { claudeLogoUrl } from "./components/BrandIcons";
-import { DockedPlayer, FloatingPlayer, RailPlayer, type PlayerDock } from "./widgets/MediaWidget";
+import { DockedPlayer, FloatingPlayer, RailPlayer, TitlebarPlayer, type PlayerDock, type PlayerLook } from "./widgets/MediaWidget";
 import { askClaude, CLAUDE_EVENT, CLAUDE_HOME, claudeUrl, type ClaudeRequest } from "./browser/claude";
 import { useBackground } from "./settings/backgrounds";
 import type { Block } from "./settings/layout";
@@ -211,6 +211,16 @@ export function App() {
   // principale, au lancement (après la reprise de la session) puis à chaque lien reçu.
   const browserRef = useRef(browser);
   browserRef.current = browser;
+  const c0RailWidgets = theme.chrome.railWidgets;
+  const enabledWidgets = c0RailWidgets.join("|");
+  useEffect(() => {
+    const enabled = new Set(c0RailWidgets);
+    setPanels((all) => {
+      const kept = Object.fromEntries(Object.entries(all).map(([p, kind]) => [p, kind && enabled.has(kind) ? kind : null]));
+      return Object.entries(kept).some(([p, kind]) => kind !== all[p]) ? kept : all;
+    });
+    if (!enabled.has("claude")) browserRef.current.closePanelPages();
+  }, [enabledWidgets]); // eslint-disable-line react-hooks/exhaustive-deps
   // « Demander à Claude » (clic droit, palette, panneau) : panneau Claude du profil ouvert sur la question.
   useEffect(() => {
     const onClaude = (e: Event) => {
@@ -336,6 +346,10 @@ export function App() {
     onHide: () => updateTheme({ chrome: { ...c, mediaFloat: false } }),
   };
   const edgeDock = playerOn && (c.mediaDock === "top" || c.mediaDock === "bottom" || c.mediaDock === "right") ? c.mediaDock : null;
+  const playerLook: PlayerLook = {
+    style: c.playerStyle, surface: c.playerSurface, edge: c.playerEdgeSurface, align: c.playerAlign, width: c.playerWidth,
+    tone: readableOn(c.playerEdgeColor) === "#fff" ? "light" : "dark",
+  };
   const chromeVars = {
     "--rail-width": c.railStyle === "edge" ? "58px" : `${rail.width}px`,
     "--win-pad": `${c.windowPadding}px`,
@@ -358,6 +372,11 @@ export function App() {
     "--edge-color": c.edgeOpacity == null ? c.edgeColor
       : `rgba(${parseInt(c.edgeColor.slice(1, 3), 16)}, ${parseInt(c.edgeColor.slice(3, 5), 16)}, ${parseInt(c.edgeColor.slice(5, 7), 16)}, ${c.edgeOpacity})`,
     ...(c.edgeOpacity != null ? { "--edge-alpha": c.edgeOpacity } : {}),
+    // Mini-lecteur : arrondi et couleur de son bord renflé.
+    "--player-radius": `${c.playerRadius}px`,
+    "--player-edge-color": c.playerEdgeOpacity == null ? c.playerEdgeColor
+      : `rgba(${parseInt(c.playerEdgeColor.slice(1, 3), 16)}, ${parseInt(c.playerEdgeColor.slice(3, 5), 16)}, ${parseInt(c.playerEdgeColor.slice(5, 7), 16)}, ${c.playerEdgeOpacity})`,
+    ...(c.playerEdgeOpacity != null ? { "--player-edge-alpha": c.playerEdgeOpacity } : {}),
   } as CSSProperties;
   const profiles = profileIds.map(profile);
 
@@ -402,7 +421,7 @@ export function App() {
         player={playerOn && c.mediaDock === "rail" ? (wide) => <RailPlayer wide={wide} {...playerProps} /> : undefined} />
 
       <div className="page">
-        {edgeDock === "top" && <DockedPlayer dock="top" {...playerProps} />}
+        {edgeDock === "top" && <DockedPlayer dock="top" look={playerLook} {...playerProps} />}
         {editingLayout ? (
           <>
             <div className="drag-bar" onMouseDown={dragWindow}><WindowControls /></div>
@@ -419,7 +438,9 @@ export function App() {
               ? visiblePanes.filter((v) => browser.pane(v).activeTab === pageFullscreen) : visiblePanes).map((p, i) => (
               <BrowserPane key={p} browser={browser} profile={profile(p)} split={browser.split} choices={profiles}
                 onChooseProfile={(chosen) => withTransition(() => (i === 0 ? browser.focus(chosen) : browser.setSecondary(chosen)))}
-                home={homeFor(p)} controls={i === visiblePanes.length - 1 ? <WindowControls /> : null}
+                home={homeFor(p)} controls={i === visiblePanes.length - 1
+                  ? <>{playerOn && c.mediaDock === "titlebar" && <TitlebarPlayer {...playerProps} />}<WindowControls /></>
+                  : null}
                 isBookmarked={(url) => own.has(p, url)} onToggleBookmark={(url, title) => own.toggle(p, url, title)}
                 onMoreSettings={() => { setSettingsTab("appearance"); setDrawer("settings"); }}
                 onZoomSettings={() => { setSettingsTab("general"); setDrawer("settings"); }}
@@ -432,9 +453,9 @@ export function App() {
             ))}
           </div>
         )}
-        {edgeDock === "bottom" && <DockedPlayer dock="bottom" {...playerProps} />}
+        {edgeDock === "bottom" && <DockedPlayer dock="bottom" look={playerLook} {...playerProps} />}
       </div>
-      {edgeDock === "right" && <DockedPlayer dock="right" {...playerProps} />}
+      {edgeDock === "right" && <DockedPlayer dock="right" look={playerLook} {...playerProps} />}
 
       {/* Toujours présent (caché hors plein écran) : l’image du profil est déjà chargée quand il apparaît. */}
       <button className={`fullscreen-exit${exitHover ? " fullscreen-exit--open" : ""}`} hidden={!fullscreen || pageFullscreen != null} onClick={toggleFullscreen}
@@ -451,7 +472,7 @@ export function App() {
 
       <MenuHost onRects={setMenuRects} />
 
-      {playerOn && c.mediaDock === "free" && <FloatingPlayer onRect={setPlayerRect} {...playerProps} />}
+      {playerOn && c.mediaDock === "free" && <FloatingPlayer onRect={setPlayerRect} surface={c.playerSurface} {...playerProps} />}
 
       <ProfileSwitcher profiles={byRecent.map(profile)} onRect={setSwitcherRect}
         onPick={(p) => withTransition(() => browser.focus(p))}

@@ -499,3 +499,16 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
   dans la barre latérale, ou en bordure haut / bas / droite (barre flottante : les pages lui font place).
 - Test `scripts/tests/integrations.test.cjs` : 19/19 ; notes 21/21, sélecteur 11/11, menus 19/19. Version installée.
 - Non vérifié : lecture réelle de Spotify (rien ne jouait pendant les tests), claude.ai connecté.
+
+## 2026-11-05 — Mini-lecteur : section d'Apparence, styles de la barre latérale, barre du haut
+
+- Apparence → « Mini-lecteur » (visible quand il est activé) : place choisie sur des vignettes de fenêtre (libre,
+  barre du haut, barre latérale, bord du haut, du bas, droit). En bordure : mêmes styles que la barre latérale
+  (bord renflé avec couleur / verre / sans fond, opacité ; flottant ; collé au bord ; surface verre / plein / aucun
+  fond ; arrondi), taille (petit à toute la largeur) et alignement ; « Reprendre le style de la barre latérale ».
+  Réglages `chrome.player*`. Bord renflé : liseré `.media-line` le long du bord, congés en masques radiaux.
+- « Barre du haut » : lecteur discret à gauche des boutons de la fenêtre (pochette, titre, lecture/pause, suivant,
+  filet de progression).
+- Extension désactivée : son panneau ouvert se ferme ; Claude désactivé : ses pages claude.ai sont détruites
+  (`closePanelPages`).
+- Test integrations : 24/24 (lecture Spotify réelle vue pendant le test). Version installée.

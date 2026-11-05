@@ -66,19 +66,45 @@ const settings = (chrome) => `localStorage.setItem("calti.settings.v3", JSON.str
   // Places du mini-lecteur (réglage) : barre latérale, haut, bas, droite ; les pages lui font place.
   const page = `(() => { const r = document.querySelector(".pane__content").getBoundingClientRect(); return { top: r.top, bottom: r.bottom, right: r.right }; })()`;
   const before = await ui.ev(page);
-  const setDock = (value) => ui.ev(`(() => { const s = [...document.querySelectorAll("select.field")].find((x) => [...x.options].some((o) => o.value === "rail"));
-    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(s, ${JSON.stringify(value)}); s.dispatchEvent(new Event("change", { bubbles: true })); })()`);
-  for (const dock of ["rail", "top", "bottom", "right"]) {
+  // Apparence → Mini-lecteur.
+  await ui.ev(`[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Apparence").click()`);
+  await sleep(400);
+  await ui.ev(`[...document.querySelectorAll(".sgroup__head")].find((b) => b.textContent.includes("Mini-lecteur")).click()`);
+  await sleep(400);
+  t.check("section Mini-lecteur dans Apparence, 6 places", await ui.ev(`document.querySelectorAll(".placement").length`) === 6);
+  const setDock = (value) => ui.ev(`document.querySelector('.placement[data-placement="${value}"]').click()`);
+  const segment = (label) => ui.ev(`[...document.querySelectorAll(".sgroup--open .segmented button")].find((b) => b.textContent.trim() === ${JSON.stringify(label)}).click()`);
+  for (const dock of ["rail", "titlebar", "top", "bottom", "right"]) {
     await setDock(dock);
     await sleep(600);
     const shown = await ui.ev(`!!document.querySelector('[data-media-dock="${dock}"]') && !document.querySelector(".media-float")`);
     const now = await ui.ev(page);
     const room = dock === "top" ? now.top > before.top + 40 : dock === "bottom" ? now.bottom < before.bottom - 40
-      : dock === "right" ? now.right < before.right - 150 : await ui.ev(`!!document.querySelector(".rail [data-media-dock=rail]")`);
+      : dock === "right" ? now.right < before.right - 150
+      : dock === "titlebar" ? await ui.ev(`!!document.querySelector(".pane__bar [data-media-dock=titlebar] + .window-controls")`)
+      : await ui.ev(`!!document.querySelector(".rail [data-media-dock=rail]")`);
     if (dock === "bottom") await ui.shot(path.join(process.env.TEMP, "calti-dock-bottom.png"));
     if (dock === "right") await ui.shot(path.join(process.env.TEMP, "calti-dock-right.png"));
-    t.check(`lecteur ${dock === "rail" ? "dans la barre latérale" : `en bordure (${dock})`}, place faite`, shown && room, { before, now });
+    t.check(`lecteur ${dock === "rail" ? "dans la barre latérale" : dock === "titlebar" ? "dans la barre du haut" : `en bordure (${dock})`}, place faite`, shown && room, { before, now });
   }
+  // Styles comme la barre latérale : bord renflé (liseré + collé au bord), collé au bord, plein.
+  await setDock("bottom");
+  await sleep(300);
+  await segment("Bord renflé");
+  await sleep(400);
+  const edge = await ui.ev(`(() => { const d = document.querySelector(".media-dock"); const r = d.getBoundingClientRect();
+    return { style: d.dataset.style, line: !!document.querySelector(".media-line--bottom"), gap: innerHeight - r.bottom, fill: getComputedStyle(d).backgroundColor }; })()`);
+  t.check("bord renflé : liseré et lecteur collé au bord", edge.style === "edge" && edge.line && Math.abs(edge.gap) < 2, edge);
+  await ui.shot(path.join(process.env.TEMP, "calti-dock-edge.png"));
+  await segment("Flottant");
+  await sleep(300);
+  await segment("Plein");
+  await sleep(300);
+  t.check("flottant plein", await ui.ev(`(() => { const d = document.querySelector(".media-dock"); return d.dataset.style === "floating" && d.dataset.surface === "solid" && !document.querySelector(".media-line"); })()`));
+  await segment("Petit");
+  await segment("À droite");
+  await sleep(300);
+  t.check("taille et alignement", await ui.ev(`(() => { const d = document.querySelector(".media-dock"); const r = d.getBoundingClientRect(); const c = document.querySelector(".pane__content").getBoundingClientRect(); return r.width <= 422 && Math.abs(r.right - c.right) < 3; })()`));
   await setDock("free");
   await sleep(400);
 
@@ -103,8 +129,15 @@ const settings = (chrome) => `localStorage.setItem("calti.settings.v3", JSON.str
   tabs = await ui.ev(invoke("browser_tabs"));
   const panels = tabs.filter((x) => x.panel);
   t.check("question envoyée à la même page", panels.length === 1 && panels[0].id === panel.id, panels.map((x) => x.url));
-  t.check("menu des pages : « Demander à Claude » prévu", await ui.ev(`typeof document.querySelector(".claude") === "object"`));
   await ui.shot(path.join(process.env.TEMP, "calti-claude.png"));
+
+  // Extensions désactivées : panneau fermé, page Claude détruite.
+  await ui.ev(`[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Général").click()`);
+  await sleep(400);
+  await ui.ev(`[...document.querySelectorAll(".ext")].find((b) => b.querySelector("strong").textContent === "Claude").click()`);
+  await sleep(1200);
+  tabs = await ui.ev(invoke("browser_tabs"));
+  t.check("Claude désactivé : panneau fermé et page détruite", !tabs.some((x) => x.panel) && !(await ui.ev(`!!document.querySelector(".pane__panel--claude")`)), tabs.map((x) => x.url));
 
   t.report();
   ui.close();

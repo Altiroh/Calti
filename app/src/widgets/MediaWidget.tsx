@@ -6,6 +6,7 @@ import { Card } from "../components/Card";
 import { Icon } from "../components/Icon";
 import { openMenu, type MenuEntry } from "../components/ContextMenu";
 import { appName, clock, control, isSpotify, useMedia } from "./media";
+import { SpotifyPlus } from "../components/BrandIcons";
 import "./MediaWidget.css";
 
 const PlayIcon = ({ playing, size = 18 }: { playing: boolean; size?: number }) => (
@@ -67,11 +68,23 @@ function Player({ brave, compact = false }: { brave?: Brave; compact?: boolean }
 }
 
 /** Place du mini-lecteur : libre (où on veut), dans la barre latérale, ou en bordure de la fenêtre. */
-export type PlayerDock = "free" | "rail" | "top" | "bottom" | "right";
+export type PlayerDock = "free" | "rail" | "titlebar" | "top" | "bottom" | "right";
 export const dockLabels: Record<PlayerDock, string> = {
-  free: "Libre, où je veux", rail: "Dans la barre latérale", top: "En haut", bottom: "En bas", right: "À droite",
+  free: "Libre, où je veux", rail: "Dans la barre latérale", titlebar: "Barre du haut, discret",
+  top: "Bord du haut", bottom: "Bord du bas", right: "Bord droit",
 };
-const dockIcons = { free: "layers", rail: "sidebar", top: "collapse", bottom: "collapse", right: "split" } as const;
+const dockIcons = { free: "layers", rail: "sidebar", titlebar: "window", top: "collapse", bottom: "collapse", right: "split" } as const;
+
+/** Apparence du lecteur en bordure (réglages « Mini-lecteur » d'Apparence). */
+export interface PlayerLook {
+  style: "floating" | "attached" | "edge";
+  surface: "glass" | "solid" | "none";
+  edge: "color" | "glass" | "none";
+  /** Couleur du bord renflé sombre ou claire : texte inversé. */
+  tone?: "light" | "dark";
+  align: "start" | "center" | "end";
+  width: "s" | "m" | "l" | "full";
+}
 
 /** Entrées communes du clic droit : position, masquer. */
 function playerMenu(dock: PlayerDock, setDock: (d: PlayerDock) => void, onHide: () => void, extra: MenuEntry[] = []): MenuEntry[] {
@@ -90,13 +103,55 @@ interface DockProps {
   onHide: () => void;
 }
 
-/** Lecteur en bordure de la fenêtre (haut, bas, droite), flottant comme la barre latérale : les pages lui font place. */
-export function DockedPlayer({ dock, setDock, onHide }: DockProps & { dock: "top" | "bottom" | "right" }) {
+/**
+ * Lecteur en bordure de la fenêtre (haut, bas, droite), avec les styles de la barre latérale : flottant, collé au
+ * bord, ou bord renflé (liseré le long du bord, renflé là où est le lecteur). Les pages lui font place.
+ */
+export function DockedPlayer({ dock, look, setDock, onHide }: DockProps & { dock: "top" | "bottom" | "right"; look: PlayerLook }) {
+  const edge = look.style === "edge";
   return (
-    <div className={`media-dock media-dock--${dock} glass`} data-media-dock={dock}
-      onContextMenu={(e) => { e.preventDefault(); openMenu(e, playerMenu(dock, setDock, onHide)); }}>
-      <Player compact />
-    </div>
+    <>
+      {edge && look.edge !== "none" && <span className={`media-line media-line--${dock}`} data-edge={look.edge} aria-hidden="true" />}
+      <div className={`media-dock media-dock--${dock} glass`} data-media-dock={dock}
+        data-style={look.style} data-surface={edge ? undefined : look.surface} data-edge={edge ? look.edge : undefined}
+        data-tone={edge && look.edge === "color" ? look.tone : undefined} data-align={look.align} data-width={look.width}
+        onContextMenu={(e) => { e.preventDefault(); openMenu(e, playerMenu(dock, setDock, onHide)); }}>
+        <div className="media-dock__inner"><Player compact /></div>
+      </div>
+    </>
+  );
+}
+
+/** Lecteur discret dans la barre du haut, à gauche des boutons de la fenêtre. */
+export function TitlebarPlayer({ setDock, onHide }: DockProps) {
+  const { media, position } = useMedia();
+  const menu = (e: { clientX: number; clientY: number; preventDefault: () => void }) => { e.preventDefault(); openMenu(e, playerMenu("titlebar", setDock, onHide)); };
+  if (!media) {
+    return (
+      <span className="media-title media-title--idle" data-media-dock="titlebar" onContextMenu={menu} title="Rien en lecture">
+        <SpotifyPlus size={18} />
+      </span>
+    );
+  }
+  const progress = media.duration > 0 ? Math.min(1, position / media.duration) : 0;
+  return (
+    <span className={`media-title${media.playing ? " media-title--playing" : ""}${isSpotify(media) ? " media--spotify" : ""}`}
+      data-media-dock="titlebar" onContextMenu={menu} title={`${media.title}${media.artist ? ` — ${media.artist}` : ""}`}
+      style={{ "--progress": progress } as CSSProperties}>
+      <span className="media-title__cover">
+        {media.cover ? <img src={media.cover} alt="" draggable={false} /> : <SpotifyPlus size={16} plus={false} />}
+      </span>
+      <span className="media-title__text">
+        <strong>{media.title || "Sans titre"}</strong>
+        {media.artist && <span>{media.artist}</span>}
+      </span>
+      <button className="media-title__btn" aria-label={media.playing ? "Pause" : "Lecture"} onClick={() => control("toggle")}>
+        <PlayIcon playing={media.playing} size={13} />
+      </button>
+      <button className="media-title__btn" aria-label="Suivant" disabled={!media.canNext} onClick={() => control("next")}>
+        <SkipIcon next size={12} />
+      </button>
+    </span>
   );
 }
 
@@ -154,7 +209,7 @@ function clampBox(b: Box): Box {
 }
 
 /** Mini-lecteur posé au-dessus des pages : glisser pour le déplacer, coin pour le redimensionner. */
-export function FloatingPlayer({ onRect, onHide, setDock }: DockProps & { onRect: (r: Cutout | null) => void }) {
+export function FloatingPlayer({ onRect, onHide, setDock, surface }: DockProps & { onRect: (r: Cutout | null) => void; surface: PlayerLook["surface"] }) {
   const [box, setBox] = useState<Box>(() => clampBox(loadBox()));
   const el = useRef<HTMLDivElement>(null);
   const drag = useRef<{ mode: "move" | "resize"; x0: number; y0: number; start: Box } | null>(null);
@@ -200,7 +255,7 @@ export function FloatingPlayer({ onRect, onHide, setDock }: DockProps & { onRect
 
   const layout = box.h < 120 ? "bar" : box.w < 300 ? "tall" : "wide";
   return (
-    <div ref={el} className={`media-float glass media-float--${layout}`}
+    <div ref={el} className={`media-float glass media-float--${layout}`} data-surface={surface}
       style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
       onPointerDown={start("move")} onPointerMove={move} onPointerUp={end} onPointerCancel={end}
       onContextMenu={(e) => {

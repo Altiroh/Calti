@@ -118,19 +118,7 @@ function General() {
             <span className="ext__switch" aria-hidden="true" />
           </button>
         </div>
-        {c.mediaFloat && (
-          <label className="pblock__field">
-            <span>Place du mini-lecteur</span>
-            <select className="field" value={c.mediaDock}
-              onChange={(e) => updateTheme({ chrome: { ...c, mediaDock: e.target.value as ChromeSettings["mediaDock"] } })}>
-              <option value="free">Libre, où je veux (flottant)</option>
-              <option value="rail">Dans la barre latérale</option>
-              <option value="top">En haut de la fenêtre</option>
-              <option value="bottom">En bas de la fenêtre</option>
-              <option value="right">À droite de la fenêtre</option>
-            </select>
-          </label>
-        )}
+        {c.mediaFloat && <p className="settings__hint">Place et style du mini-lecteur : Apparence → Mini-lecteur.</p>}
         <p className="settings__hint">Une extension activée a son raccourci dans la barre latérale ; elle s'ouvre à côté de la page. Le bloc « Lecture en cours » s'ajoute aussi à l'accueil (Modifier la disposition).</p>
       </Section>
 
@@ -200,6 +188,36 @@ function ClipboardRetention() {
 }
 
 /* --- Apparence ----------------------------------------------------------------- */
+
+type Dock = ChromeSettings["mediaDock"];
+const placements: { id: Dock; label: string }[] = [
+  { id: "free", label: "Libre" },
+  { id: "titlebar", label: "Barre du haut" },
+  { id: "rail", label: "Barre latérale" },
+  { id: "top", label: "Bord du haut" },
+  { id: "bottom", label: "Bord du bas" },
+  { id: "right", label: "Bord droit" },
+];
+
+/** Place du mini-lecteur : vignettes de la fenêtre, la place du lecteur en vert. */
+function PlayerPlacement({ value, onChange }: { value: Dock; onChange: (d: Dock) => void }) {
+  return (
+    <div className="placements" role="radiogroup" aria-label="Place du mini-lecteur">
+      {placements.map((pl) => (
+        <button key={pl.id} role="radio" aria-checked={value === pl.id} data-placement={pl.id}
+          className={`placement${value === pl.id ? " placement--on" : ""}`} onClick={() => onChange(pl.id)}>
+          <span className={`placement__win placement__win--${pl.id}`} aria-hidden="true">
+            <span className="placement__rail" />
+            <span className="placement__bar" />
+            <span className="placement__page" />
+            <span className="placement__player" />
+          </span>
+          <span className="placement__label">{pl.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /** Groupe repliable : un seul ouvert à la fois, pour garder le panneau lisible. */
 function Group({ icon, title, color, open, onToggle, children }: {
@@ -376,6 +394,67 @@ function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
         <Slider label="Arrondi" value={c.railRadius} min={0} max={36} step={1} format={px} onChange={(railRadius) => setChrome({ railRadius })} />
         <p className="settings__hint">Les raccourcis de la barre se choisissent dans Général → Extensions.</p>
       </Group>
+
+      {c.mediaFloat && (
+        <Group icon="sound" title="Mini-lecteur" color="#1ed760" {...group("player")}>
+          <PlayerPlacement value={c.mediaDock} onChange={(mediaDock) => setChrome({ mediaDock })} />
+          {(c.mediaDock === "top" || c.mediaDock === "bottom" || c.mediaDock === "right") && (
+            <>
+              <Segmented value={c.playerStyle} onChange={(playerStyle) => setChrome({ playerStyle })}
+                options={[["edge", "Bord renflé"], ["floating", "Flottant"], ["attached", "Collé au bord"]]} />
+              {c.playerStyle === "edge" ? (
+                <>
+                  <Segmented value={c.playerEdgeSurface} onChange={(playerEdgeSurface) => setChrome({ playerEdgeSurface })}
+                    options={[["color", "Couleur"], ["glass", "Verre"], ["none", "Sans fond"]]} />
+                  {c.playerEdgeSurface === "color" && (
+                    <div className="player-colors">
+                      <ColorField label="Couleur du bord" value={c.playerEdgeColor} optional={false}
+                        onChange={(playerEdgeColor) => playerEdgeColor && setChrome({ playerEdgeColor })} />
+                      <button className="chip-btn" onClick={() => setChrome({ playerEdgeColor: c.edgeColor, playerEdgeOpacity: c.edgeOpacity })}>
+                        Comme la barre latérale
+                      </button>
+                    </div>
+                  )}
+                  {c.playerEdgeSurface !== "none" && (
+                    <Slider label="Opacité" value={c.playerEdgeOpacity ?? (c.playerEdgeSurface === "color" ? 1 : theme.glassOpacity)}
+                      min={0.05} max={1} step={0.05} format={pct} onChange={(playerEdgeOpacity) => setChrome({ playerEdgeOpacity })} />
+                  )}
+                </>
+              ) : (
+                <Segmented value={c.playerSurface} onChange={(playerSurface) => setChrome({ playerSurface })} options={surfaces} />
+              )}
+              <Slider label="Arrondi" value={c.playerRadius} min={0} max={36} step={1} format={px} onChange={(playerRadius) => setChrome({ playerRadius })} />
+              <div className="player-row">
+                <span>Taille</span>
+                <Segmented value={c.playerWidth} onChange={(playerWidth) => setChrome({ playerWidth })}
+                  options={[["s", "Petit"], ["m", "Moyen"], ["l", "Grand"], ["full", c.mediaDock === "right" ? "Haut. max" : "Toute la largeur"]]} />
+              </div>
+              {c.playerWidth !== "full" && (
+                <div className="player-row">
+                  <span>Alignement</span>
+                  <Segmented value={c.playerAlign} onChange={(playerAlign) => setChrome({ playerAlign })}
+                    options={c.mediaDock === "right"
+                      ? [["start", "En haut"], ["center", "Au milieu"], ["end", "En bas"]]
+                      : [["start", "À gauche"], ["center", "Au centre"], ["end", "À droite"]]} />
+                </div>
+              )}
+              <button className="chip-btn player-copy" onClick={() => setChrome({
+                playerStyle: c.railStyle, playerSurface: c.railSurface, playerRadius: c.railRadius,
+                playerEdgeSurface: c.edgeSurface, playerEdgeColor: c.edgeColor, playerEdgeOpacity: c.edgeOpacity,
+              })}>Reprendre le style de la barre latérale</button>
+            </>
+          )}
+          {c.mediaDock === "free" && (
+            <>
+              <Segmented value={c.playerSurface} onChange={(playerSurface) => setChrome({ playerSurface })} options={surfaces} />
+              <Slider label="Arrondi" value={c.playerRadius} min={0} max={36} step={1} format={px} onChange={(playerRadius) => setChrome({ playerRadius })} />
+              <p className="settings__hint">Glissez le lecteur où vous voulez, tirez son coin pour sa taille ; clic droit : barre, carte ou pochette.</p>
+            </>
+          )}
+          {c.mediaDock === "rail" && <p className="settings__hint">Il prend le style de la barre latérale (groupe ci-dessus).</p>}
+          {c.mediaDock === "titlebar" && <p className="settings__hint">Discret, à gauche des boutons de la fenêtre : pochette, titre, lecture/pause et suivant ; un filet montre la progression.</p>}
+        </Group>
+      )}
 
       <Group icon="tabs" title="Onglets" color="#1f8c8c" {...group("tabs")}>
         <Segmented value={c.tabActive} onChange={(tabActive) => setChrome({ tabActive })}

@@ -60,9 +60,19 @@ export interface ChromeSettings {
   barButtons: { nav: boolean; reload: boolean; star: boolean; detach: boolean };
   /** Widgets en raccourci dans la barre latérale : un clic ouvre le widget à côté de la page. */
   railWidgets: BarWidget[];
-  /** Mini-lecteur (lecture en cours), et sa place : libre, barre latérale, bord haut, bas ou droit. */
+  /** Mini-lecteur (lecture en cours), et sa place : libre, barre latérale, barre du haut, bord haut, bas ou droit. */
   mediaFloat: boolean;
-  mediaDock: "free" | "rail" | "top" | "bottom" | "right";
+  mediaDock: "free" | "rail" | "titlebar" | "top" | "bottom" | "right";
+  /** Mini-lecteur en bordure : mêmes styles que la barre latérale (flottant, collé au bord, bord renflé). */
+  playerStyle: "floating" | "attached" | "edge";
+  playerSurface: BarSurface;
+  playerRadius: number;
+  playerEdgeSurface: "color" | "glass" | "none";
+  playerEdgeColor: string;
+  playerEdgeOpacity: number | null;
+  /** Haut et bas : alignement et largeur. */
+  playerAlign: "start" | "center" | "end";
+  playerWidth: "s" | "m" | "l" | "full";
   /** Barre latérale : mêmes choix. */
   /** « edge » : fin liseré noir collé au bord, renflé là où sont les boutons. */
   railStyle: "floating" | "attached" | "edge";
@@ -109,6 +119,14 @@ export const defaultChrome: ChromeSettings = {
   railWidgets: ["clipboard", "history", "notes"],
   mediaFloat: false,
   mediaDock: "free",
+  playerStyle: "floating",
+  playerSurface: "glass",
+  playerRadius: 20,
+  playerEdgeSurface: "color",
+  playerEdgeColor: "#0b0d10",
+  playerEdgeOpacity: null,
+  playerAlign: "center",
+  playerWidth: "m",
   railStyle: "edge",
   edgeSurface: "color",
   edgeColor: "#0b0d10",
