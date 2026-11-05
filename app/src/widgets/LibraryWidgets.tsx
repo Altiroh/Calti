@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { useState, type MouseEvent } from "react";
 import type { Brave } from "../browser/adapter";
 import type { LibraryEntry } from "../browser/library";
 import { Card } from "../components/Card";
@@ -140,30 +140,4 @@ export function ClipboardWidget({ brave }: { brave: Brave }) {
 function ClipImage({ id }: { id: string }) {
   const url = useBackground(clipImageKey(id), 1);
   return url ? <img className="lib-thumb" src={url} alt="" /> : <span className="lib-thumb" />;
-}
-
-/** Bloc-notes du profil, enregistré au fil de la frappe. */
-export function NotesWidget({ profile }: { profile: string }) {
-  const key = `calti.notes.${profile}`;
-  const [text, setText] = useState(() => localStorage.getItem(key) ?? "");
-  const timer = useRef(0);
-  useEffect(() => {
-    setText(localStorage.getItem(key) ?? "");
-    const onStorage = (e: StorageEvent) => e.key === key && setText(e.newValue ?? "");
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, [key]);
-  const change = (value: string) => {
-    setText(value);
-    clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => {
-      try { localStorage.setItem(key, value); } catch { /* non persisté */ }
-    }, 300);
-  };
-  return (
-    <Card title="Notes">
-      <textarea className="lib-notes" value={text} placeholder="Une idée, une liste, un numéro…" spellCheck
-        onChange={(e) => change(e.target.value)} onPointerDown={(e) => e.stopPropagation()} />
-    </Card>
-  );
 }

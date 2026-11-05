@@ -1,4 +1,4 @@
-/* Historique, copies récentes et notes. */
+/* Historique et copies récentes. */
 
 .lib-list {
   display: flex;
@@ -131,8 +131,7 @@
   gap: 4px;
 }
 
-.lib-filter,
-.lib-notes {
+.lib-filter {
   width: 100%;
   font: inherit;
   font-size: 13px;
@@ -151,16 +150,8 @@
   padding: 0 10px;
 }
 
-.lib-notes {
-  flex: 1;
-  min-height: 0;
-  padding: 10px 12px;
-  line-height: 1.5;
-  resize: none;
-}
 
-.lib-filter:focus,
-.lib-notes:focus {
+.lib-filter:focus {
   background: var(--surface-solid);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }

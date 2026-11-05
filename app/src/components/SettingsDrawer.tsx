@@ -61,7 +61,7 @@ export function SettingsDrawer({ open, tab, onTab, installs, bookmarkSources, on
 const extensions: { id: BarWidget; icon: IconName; colors: [string, string]; description: string }[] = [
   { id: "clipboard", icon: "clipboard", colors: ["#ff9a44", "#ff5f6d"], description: "Textes, liens et images copiés récemment." },
   { id: "history", icon: "history", colors: ["#4facfe", "#2f5fa8"], description: "Pages visitées par le profil, avec un filtre." },
-  { id: "notes", icon: "notes", colors: ["#ffd166", "#f4a261"], description: "Bloc-notes du profil, enregistré au fil de la frappe." },
+  { id: "notes", icon: "notes", colors: ["#ffd166", "#f4a261"], description: "Notes en couleurs, rangées en groupes, partageables entre profils." },
   { id: "ruler", icon: "ruler", colors: ["#ff3d7f", "#a259ff"], description: "Règles, repères et grille de colonnes sur la page." },
   { id: "bookmarks", icon: "star", colors: ["#f9d423", "#f7971e"], description: "Favoris de Calti et de Brave." },
   { id: "tabs", icon: "tabs", colors: ["#43e97b", "#1f8c8c"], description: "Onglets ouverts du profil." },

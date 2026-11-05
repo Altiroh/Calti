@@ -1,0 +1,511 @@
+/* Notes : liste ou grille de cartes colorées, groupes repliables, éditeur. */
+
+.notes-card {
+  --note: var(--text-faint);
+}
+
+.notes__actions {
+  display: flex;
+  gap: 2px;
+}
+
+.notes__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: calc(var(--radius-sm, 8px) + 1px);
+  color: var(--text-dim);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+
+.notes__icon:hover {
+  color: var(--text);
+  background: var(--surface-hover, var(--surface));
+}
+
+.notes__icon--on {
+  color: var(--accent-fg, var(--accent));
+  background: var(--accent-soft);
+}
+
+.notes {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: calc(10px * var(--density, 1));
+  min-height: 0;
+  margin: 0 -6px;
+  padding: 2px 6px 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.notes__section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: var(--radius-md, 12px);
+  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.notes__section--loose:empty {
+  display: none;
+}
+
+/* Liste : lignes avec un liseré de couleur ; grille : cartes teintées façon post-it. */
+.notes__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notes__list:empty {
+  display: none;
+}
+
+.notes__list--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 8px;
+}
+
+.note {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: calc(8px * var(--density, 1)) 10px calc(8px * var(--density, 1)) 14px;
+  border-radius: var(--radius-sm, 10px);
+  background: var(--surface);
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+  animation: tab-in 240ms var(--ease) both;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.note::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 5px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--note);
+  opacity: 0.35;
+}
+
+.note--tinted::before {
+  opacity: 1;
+}
+
+.note--tinted {
+  background: color-mix(in srgb, var(--note) 12%, var(--surface));
+}
+
+.note:hover,
+.note:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--note) 45%, transparent);
+  background: color-mix(in srgb, var(--note) 18%, var(--surface));
+}
+
+.notes__list--grid .note {
+  min-height: 92px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 12px);
+}
+
+.notes__list--grid .note::before {
+  top: 0;
+  right: 14px;
+  bottom: auto;
+  left: 14px;
+  width: auto;
+  height: 3px;
+}
+
+.notes__list--grid .note--tinted {
+  background: color-mix(in srgb, var(--note) 22%, var(--surface));
+}
+
+.note__title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.note__title > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.note__title svg {
+  flex: none;
+  color: var(--note);
+}
+
+.note--pinned:not(.note--tinted) .note__title svg {
+  color: var(--accent-fg, var(--accent));
+}
+
+.note__preview {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-dim);
+  white-space: pre-line;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.notes__list--grid .note__preview {
+  -webkit-line-clamp: 4;
+}
+
+.note__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.notes__list--grid .note__meta {
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.note__time {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.note__owner {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--owner);
+  background: color-mix(in srgb, var(--owner) 16%, transparent);
+  white-space: nowrap;
+}
+
+.note__shared {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 16px;
+  border-radius: 999px;
+  color: #2fb3a3;
+  background: color-mix(in srgb, #2fb3a3 16%, transparent);
+}
+
+/* Groupes */
+.notes__group-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 0 4px 0 6px;
+  border-radius: var(--radius-sm, 10px);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+  transition: background var(--dur) var(--ease);
+}
+
+.notes__group-head:hover {
+  background: color-mix(in srgb, var(--group) 10%, transparent);
+}
+
+.notes__chevron {
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+  transform: rotate(90deg);
+  transition: transform var(--dur) var(--ease);
+}
+
+.notes__group--collapsed .notes__chevron {
+  transform: none;
+}
+
+.notes__dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 4px;
+  background: var(--group);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--group) 22%, transparent);
+}
+
+.notes__group-name {
+  overflow: hidden;
+  min-width: 0;
+  color: var(--text);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.notes__rename {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 8px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface-solid);
+  border: 1px solid var(--accent-border);
+  border-radius: 7px;
+  outline: none;
+}
+
+.notes__count {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  text-align: center;
+  color: var(--group);
+  background: color-mix(in srgb, var(--group) 15%, transparent);
+}
+
+.notes__icon--hover {
+  width: 24px;
+  height: 24px;
+  opacity: 0;
+}
+
+.notes__group-head:hover .notes__icon--hover,
+.notes__icon--hover:focus-visible {
+  opacity: 1;
+}
+
+.notes__group .notes__list {
+  margin-left: 10px;
+  padding-left: 8px;
+  border-left: 2px solid color-mix(in srgb, var(--group) 35%, transparent);
+}
+
+.notes__hint {
+  margin: 0 0 0 18px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+.notes__empty {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 1px dashed var(--surface-border);
+  border-radius: var(--radius-md, 12px);
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-dim);
+  transition: background var(--dur) var(--ease);
+}
+
+.notes__empty:hover {
+  background: var(--surface);
+}
+
+.notes__empty svg {
+  color: #f5c542;
+}
+
+.notes__empty small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+/* Glisser-déposer */
+.notes--dragging {
+  position: relative;
+  z-index: 5;
+  opacity: 0.92;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+  cursor: grabbing;
+  pointer-events: none;
+  animation: none;
+  transition: none;
+}
+
+.drop-before {
+  box-shadow: 0 -3px 0 -1px var(--accent);
+}
+
+.drop-after {
+  box-shadow: 0 3px 0 -1px var(--accent);
+}
+
+.notes__list--grid .drop-before {
+  box-shadow: -3px 0 0 -1px var(--accent);
+}
+
+.notes__list--grid .drop-after {
+  box-shadow: 3px 0 0 -1px var(--accent);
+}
+
+.drop-into {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-border);
+}
+
+/* Éditeur */
+.note-editor {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  animation: tab-in 200ms var(--ease) both;
+}
+
+.note-editor__bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.note-editor__title {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 8px);
+  outline: none;
+}
+
+.note-editor__title:focus {
+  background: var(--surface);
+  border-color: var(--surface-border);
+}
+
+.note-editor__colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 4px;
+}
+
+.note-editor__color {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.note-editor__color:hover {
+  transform: scale(1.15);
+}
+
+.note-editor__color.is-on {
+  box-shadow: 0 0 0 2px var(--surface-solid), 0 0 0 4px var(--swatch, var(--text-faint));
+}
+
+.note-editor__color--none {
+  background: linear-gradient(135deg, transparent 45%, var(--text-faint) 45% 55%, transparent 55%), var(--surface);
+  box-shadow: inset 0 0 0 1px var(--surface-border);
+}
+
+.note-editor__text {
+  flex: 1;
+  min-height: 0;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md, 10px);
+  outline: none;
+  resize: none;
+  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.note-editor.note--tinted .note-editor__text {
+  background: color-mix(in srgb, var(--note) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--note) 35%, transparent);
+}
+
+.note-editor__text:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--note) 25%, var(--accent-soft));
+}
+
+.note-editor__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.note-editor__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 50%;
+  height: 26px;
+  padding: 0 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.note-editor__chip:hover {
+  color: var(--text);
+  background: var(--surface-hover, var(--surface));
+}
+
+.note-editor__chip .notes__dot {
+  width: 8px;
+  height: 8px;
+  box-shadow: none;
+}
+
+.note-editor__info {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Pendant un glisser : place visible pour « sans groupe », même vide. */
+.notes:has(.notes--dragging) .notes__section--loose {
+  min-height: 34px;
+  border: 1px dashed var(--surface-border);
+}

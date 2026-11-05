@@ -452,3 +452,17 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
     éventuelle perte suivante.
 - Vérifié (`persistence.test.cjs`, 11/11) : cas reproduit (stockage vide avec génération plus récente) → profils
   repris, copie intacte, copie sans profil refusée, journal tenu. Version installée relancée : profils retrouvés.
+
+## 2026-11-05 — Notes : groupes, couleurs, organisation, partage entre profils
+
+- Nouveau widget `app/src/widgets/NotesWidget.tsx` (+ `.css`) et carnet `widgets/notes.ts` (clé `calti.notebook`,
+  commune à toutes les fenêtres et reprise dans la copie `etat.json`). Chaque note a un titre, un texte, une couleur
+  (9 teintes), un groupe, une épingle, un profil d'origine et un partage (`[]` ce profil, liste de profils, ou
+  `"all"`). Les groupes ont un nom, une couleur et un partage ; partager un groupe partage ses notes.
+- Liste ou grille de cartes, tri libre / modifiées récemment / titre, groupes repliables (préférences par profil,
+  `calti.notes.view.<profil>`), recherche au-delà de 5 notes. Glisser-déposer au pointeur pour réordonner les notes,
+  les ranger dans un groupe et réordonner les groupes. Menus (clic droit) : couleur, groupe, partage, épingle,
+  dupliquer, copier, supprimer. Éditeur : titre, texte enregistré au fil de la frappe, couleurs, groupe, partage ;
+  une note laissée vide est supprimée en revenant.
+- Anciens blocs-notes (`calti.notes.<profil>`) repris chacun en une note de leur profil, puis retirés.
+- Test `scripts/tests/notes.test.cjs` : 21/21. Version installée.
