@@ -316,7 +316,7 @@ export function NotesWidget({ profile }: { profile: string }) {
           {total === 0 && (
             <button className="notes__empty" onClick={() => newNote()}>
               <Icon name="notes" size={20} />
-              <span>Une idée, une liste, un numéro…<small>Cliquez pour écrire une note</small></span>
+              <span>Nouvelle note</span>
             </button>
           )}
         </section>
@@ -346,7 +346,7 @@ export function NotesWidget({ profile }: { profile: string }) {
                 <button className="notes__icon notes__icon--hover" title="Options du groupe" aria-label="Options du groupe"
                   onClick={(e) => { e.stopPropagation(); groupMenu(e, g); }}><Icon name="more" size={13} /></button>
               </header>
-              {!collapsed && (list.length ? renderList(list) : <p className="notes__hint">Glissez une note ici.</p>)}
+              {!collapsed && list.length > 0 && renderList(list)}
             </section>
           );
         })}

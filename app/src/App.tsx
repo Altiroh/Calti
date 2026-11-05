@@ -443,7 +443,12 @@ export function App() {
               <BrowserPane key={p} browser={browser} profile={profile(p)} split={browser.split} choices={profiles}
                 onChooseProfile={(chosen) => withTransition(() => (i === 0 ? browser.focus(chosen) : browser.setSecondary(chosen)))}
                 home={homeFor(p)} controls={i === visiblePanes.length - 1
-                  ? <>{playerOn && c.mediaDock === "titlebar" && <TitlebarPlayer {...playerProps} />}<WindowControls /></>
+                  ? <>{playerOn && c.mediaDock === "titlebar" && <TitlebarPlayer {...playerProps}
+                    look={{ surface: c.playerSurface, text: c.playerTitleText, progress: c.playerTitleProgress }}
+                    onLook={(l) => updateTheme({ chrome: { ...c,
+                      ...(l.surface ? { playerSurface: l.surface } : {}),
+                      ...(l.text !== undefined ? { playerTitleText: l.text } : {}),
+                      ...(l.progress !== undefined ? { playerTitleProgress: l.progress } : {}) } })} />}<WindowControls /></>
                   : null}
                 isBookmarked={(url) => own.has(p, url)} onToggleBookmark={(url, title) => own.toggle(p, url, title)}
                 onMoreSettings={() => { setSettingsTab("appearance"); setDrawer("settings"); }}

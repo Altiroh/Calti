@@ -873,3 +873,42 @@
 .media-rail__skip button:disabled {
   opacity: 0.3;
 }
+
+/* Barre du haut : fond (verre, plein, aucun), comme une pastille. */
+.media-title[data-surface="glass"],
+.media-title[data-surface="solid"] {
+  height: 34px;
+  padding: 0 6px 0 5px;
+  border-radius: min(var(--player-radius, 20px), 17px);
+  border: 1px solid var(--glass-border);
+  background: rgba(var(--glass-rgb), var(--menu-alpha, 0.86));
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+}
+
+.media-title[data-surface="solid"] {
+  background: rgba(var(--glass-rgb), 0.97);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.media-title[data-surface="glass"]:hover,
+.media-title[data-surface="solid"]:hover {
+  background: rgba(var(--glass-rgb), 0.97);
+}
+
+.media-title:not([data-progress])::after {
+  display: none;
+}
+
+.media-title[data-surface="glass"]::after,
+.media-title[data-surface="solid"]::after {
+  left: 10px;
+  right: 10px;
+  bottom: 2px;
+}
+
+.media-title--idle {
+  opacity: 0.6;
+}

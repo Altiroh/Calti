@@ -519,3 +519,11 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
   extensions activées sans raccourci). Sans raccourci, elle s'ouvre depuis la palette (« Ouvrir … », pour toutes
   les extensions activées).
 - Test integrations : 26/26. À installer : Calti ouvert ne se fermait pas (fenêtre « SIG-MR : Maintenance »).
+
+## 2026-11-05 — Lecteur de la barre du haut réglable, textes épurés
+
+- Barre du haut : le lecteur a un fond (verre, plein, aucun ; pastille lisible sur n'importe quel fond), un arrondi,
+  titre et progression au choix — dans Apparence → Mini-lecteur et au clic droit.
+- Textes épurés : explications des réglages retirées, descriptions des extensions en quelques mots, états vides
+  sans phrase (notes, lecture, Claude, sélecteur de profils).
+- Tests : integrations 26/26, notes 21/21, sélecteur 11/11. Version installée.

@@ -60,14 +60,14 @@ export function SettingsDrawer({ open, tab, onTab, installs, bookmarkSources, on
 
 /** Extensions de Calti : icône, couleur et description ; activées, elles ont leur raccourci dans la barre latérale. */
 const extensions: { id: BarWidget; icon: IconName; colors: [string, string]; description: string }[] = [
-  { id: "clipboard", icon: "clipboard", colors: ["#ff9a44", "#ff5f6d"], description: "Textes, liens et images copiés récemment." },
-  { id: "history", icon: "history", colors: ["#4facfe", "#2f5fa8"], description: "Pages visitées par le profil, avec un filtre." },
-  { id: "notes", icon: "notes", colors: ["#ffd166", "#f4a261"], description: "Notes en couleurs, rangées en groupes, partageables entre profils." },
-  { id: "ruler", icon: "ruler", colors: ["#ff3d7f", "#a259ff"], description: "Règles, repères et grille de colonnes sur la page." },
+  { id: "clipboard", icon: "clipboard", colors: ["#ff9a44", "#ff5f6d"], description: "Textes, liens et images copiés." },
+  { id: "history", icon: "history", colors: ["#4facfe", "#2f5fa8"], description: "Pages visitées." },
+  { id: "notes", icon: "notes", colors: ["#ffd166", "#f4a261"], description: "Notes, groupes, couleurs, partage." },
+  { id: "ruler", icon: "ruler", colors: ["#ff3d7f", "#a259ff"], description: "Règles et grille sur la page." },
   { id: "bookmarks", icon: "star", colors: ["#f9d423", "#f7971e"], description: "Favoris de Calti et de Brave." },
-  { id: "tabs", icon: "tabs", colors: ["#43e97b", "#1f8c8c"], description: "Onglets ouverts du profil." },
-  { id: "claude", icon: "spark", colors: ["#e8916b", "#c15f3c"], description: "claude.ai à côté de la page, avec votre compte. Clic droit sur un texte : « Demander à Claude »." },
-  { id: "media", icon: "sound", colors: ["#2a2f36", "#121212"], description: "Spotify ou toute lecture de Windows : pochette, titre, lecture/pause, suivant." },
+  { id: "tabs", icon: "tabs", colors: ["#43e97b", "#1f8c8c"], description: "Onglets du profil." },
+  { id: "claude", icon: "spark", colors: ["#e8916b", "#c15f3c"], description: "claude.ai à côté de la page." },
+  { id: "media", icon: "sound", colors: ["#2a2f36", "#121212"], description: "Spotify et toute lecture en cours." },
 ];
 
 const shortcuts: [string, string][] = [
@@ -127,13 +127,11 @@ function General() {
             <span className="ext__icon ext__icon--spotify"><SpotifyPlus size={26} /></span>
             <span className="ext__text">
               <strong>Mini-lecteur</strong>
-              <span>Lecture en cours toujours visible : libre (à glisser, coin pour la taille), dans la barre latérale ou en bordure de la fenêtre.</span>
+              <span>Lecture en cours toujours visible.</span>
             </span>
             <span className="ext__switch" aria-hidden="true" />
           </button>
         </div>
-        {c.mediaFloat && <p className="settings__hint">Place et style du mini-lecteur : Apparence → Mini-lecteur.</p>}
-        <p className="settings__hint">Une extension s'ouvre à côté de la page : par son raccourci dans la barre latérale, ou, sans raccourci, depuis la palette (Ctrl+K). Le bloc « Lecture en cours » s'ajoute aussi à l'accueil (Modifier la disposition).</p>
       </Section>
 
       <Section title="Recherche">
@@ -152,10 +150,6 @@ function General() {
             </select>
           </label>
         )}
-        <p className="settings__hint">
-          Comme dans un navigateur, la saisie est envoyée au moteur de recherche du profil pour proposer des suites.
-          Désactivé, seules vos recherches passées, vos favoris et votre historique sont proposés.
-        </p>
       </Section>
 
       <ZoomSettings />
@@ -170,14 +164,10 @@ function General() {
             <div key={keys} className="keys__row"><dt><kbd>{keys}</kbd></dt><dd>{label}</dd></div>
           ))}
         </dl>
-        <p className="settings__hint">Clic droit sur la barre du haut, un onglet ou le bouton Recharger : menus d'actions.</p>
       </Section>
 
       <Section title="À propos">
-        <p className="settings__hint">
-          Calti · navigateur personnel sur WebView2. Chaque profil garde ses onglets, connexions et mots de passe dans son
-          propre dossier ; rien ne quitte cet ordinateur.
-        </p>
+        <p className="settings__hint">Calti · WebView2</p>
       </Section>
     </>
   );
@@ -194,9 +184,7 @@ function ClipboardRetention() {
           {retentionChoices.map(([hours, label]) => <option key={hours} value={hours}>{label}</option>)}
         </select>
       </label>
-      <p className="settings__hint">
-        Au-delà, les copies (textes, liens, images) sont supprimées automatiquement. Les 40 dernières au plus sont gardées.
-      </p>
+      <p className="settings__hint">40 copies au plus.</p>
     </Section>
   );
 }
@@ -284,10 +272,6 @@ function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
       </Group>
 
       <Group icon="layers" title="Style global" color="#ff7a59" {...group("global")}>
-        <p className="settings__hint">
-          Réglé ici une fois pour toute l'interface : barres, onglets, pages, panneaux, menus et dialogues. Chaque élément
-          reste ajustable plus bas.
-        </p>
         <Segmented value={c.surface} onChange={(surface) => setChrome({
           surface,
           barSurface: c.barSurface === "none" ? "none" : surface,
@@ -406,7 +390,6 @@ function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
           <Segmented value={c.railSurface} onChange={(railSurface) => setChrome({ railSurface })} options={surfaces} />
         )}
         <Slider label="Arrondi" value={c.railRadius} min={0} max={36} step={1} format={px} onChange={(railRadius) => setChrome({ railRadius })} />
-        <p className="settings__hint">Les raccourcis de la barre se choisissent dans Général → Extensions.</p>
       </Group>
 
       {c.mediaFloat && (
@@ -462,11 +445,16 @@ function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
             <>
               <Segmented value={c.playerSurface} onChange={(playerSurface) => setChrome({ playerSurface })} options={surfaces} />
               <Slider label="Arrondi" value={c.playerRadius} min={0} max={36} step={1} format={px} onChange={(playerRadius) => setChrome({ playerRadius })} />
-              <p className="settings__hint">Glissez le lecteur où vous voulez, tirez son coin pour sa taille ; clic droit : barre, carte ou pochette.</p>
             </>
           )}
-          {c.mediaDock === "rail" && <p className="settings__hint">Il prend le style de la barre latérale (groupe ci-dessus).</p>}
-          {c.mediaDock === "titlebar" && <p className="settings__hint">Discret, à gauche des boutons de la fenêtre : pochette, titre, lecture/pause et suivant ; un filet montre la progression.</p>}
+          {c.mediaDock === "titlebar" && (
+            <>
+              <Segmented value={c.playerSurface} onChange={(playerSurface) => setChrome({ playerSurface })} options={surfaces} />
+              <Slider label="Arrondi" value={c.playerRadius} min={0} max={36} step={1} format={px} onChange={(playerRadius) => setChrome({ playerRadius })} />
+              <Check label="Titre et artiste" checked={c.playerTitleText} onChange={(playerTitleText) => setChrome({ playerTitleText })} />
+              <Check label="Progression" checked={c.playerTitleProgress} onChange={(playerTitleProgress) => setChrome({ playerTitleProgress })} />
+            </>
+          )}
         </Group>
       )}
 
@@ -488,7 +476,6 @@ function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
       </Group>
 
       <Group icon="code" title="Avancé" color="#5f6368" {...group("advanced")}>
-        <p className="settings__hint">CSS libre, appliqué en direct après tous les styles de Calti.</p>
         <textarea className="field field--code" rows={7} spellCheck={false} value={c.customCss}
           placeholder={".ptab { font-size: 14px; }\n.rail { opacity: .9; }"}
           onChange={(e) => setChrome({ customCss: e.target.value })} />
@@ -573,7 +560,6 @@ function Profiles({ installs, bookmarkSources }: { installs: BraveInstall[]; boo
   return (
     <>
       <Section title="Vos profils">
-        <p className="settings__hint">Chaque profil a ses propres onglets, connexions, mots de passe et préférences.</p>
         {profileIds.map((id) => {
           const p = profile(id);
           const expanded = openId === id;
@@ -622,7 +608,6 @@ function Profiles({ installs, bookmarkSources }: { installs: BraveInstall[]; boo
                   <Block title="Confidentialité">
                     <Check label="Bloquer les publicités et les traqueurs" checked={p.blockAds !== false}
                       onChange={(blockAds) => update({ blockAds })} />
-                    <p className="settings__hint">Le bouclier de la barre d'adresse compte les éléments bloqués et suspend le blocage sur un site.</p>
                     <ProfileData profile={id} />
                   </Block>
 

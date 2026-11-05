@@ -29,7 +29,6 @@ function Player({ brave, compact = false }: { brave?: Brave; compact?: boolean }
         <span className="media__cover media__cover--empty"><Icon name="sound" size={22} /></span>
         <span className="media__text">
           <strong>Rien en lecture</strong>
-          <span>Lancez Spotify ou une vidéo : elle s'affichera ici.</span>
         </span>
         {brave && !compact && (
           <button className="chip-btn" onClick={() => brave.send({ type: "openUrl", url: "https://open.spotify.com/", where: "new" })}>Ouvrir Spotify</button>
@@ -123,12 +122,29 @@ export function DockedPlayer({ dock, look, setDock, onHide }: DockProps & { dock
 }
 
 /** Lecteur discret dans la barre du haut, à gauche des boutons de la fenêtre. */
-export function TitlebarPlayer({ setDock, onHide }: DockProps) {
+export interface TitleLook {
+  surface: PlayerLook["surface"];
+  text: boolean;
+  progress: boolean;
+}
+
+export function TitlebarPlayer({ setDock, onHide, look, onLook }: DockProps & { look: TitleLook; onLook: (patch: Partial<TitleLook>) => void }) {
   const { media, position } = useMedia();
-  const menu = (e: { clientX: number; clientY: number; preventDefault: () => void }) => { e.preventDefault(); openMenu(e, playerMenu("titlebar", setDock, onHide)); };
+  const menu = (e: { clientX: number; clientY: number; preventDefault: () => void }) => {
+    e.preventDefault();
+    openMenu(e, playerMenu("titlebar", setDock, onHide, [
+      { label: "Fond", icon: "palette", tone: "pink", items: ([["glass", "Verre"], ["solid", "Plein"], ["none", "Aucun"]] as const).map(([v, label]) => ({
+        label, checked: look.surface === v, action: () => onLook({ surface: v }),
+      })) },
+      { label: "Titre", icon: "text", tone: "slate", checked: look.text, action: () => onLook({ text: !look.text }) },
+      { label: "Progression", icon: "minimize", tone: "green", checked: look.progress, action: () => onLook({ progress: !look.progress }) },
+      "-",
+    ]));
+  };
+  const attrs = { "data-media-dock": "titlebar", "data-surface": look.surface, "data-text": look.text || undefined, "data-progress": look.progress || undefined };
   if (!media) {
     return (
-      <span className="media-title media-title--idle" data-media-dock="titlebar" onContextMenu={menu} title="Rien en lecture">
+      <span className="media-title media-title--idle" {...attrs} onContextMenu={menu} title="Rien en lecture">
         <SpotifyPlus size={18} />
       </span>
     );
@@ -136,15 +152,17 @@ export function TitlebarPlayer({ setDock, onHide }: DockProps) {
   const progress = media.duration > 0 ? Math.min(1, position / media.duration) : 0;
   return (
     <span className={`media-title${media.playing ? " media-title--playing" : ""}${isSpotify(media) ? " media--spotify" : ""}`}
-      data-media-dock="titlebar" onContextMenu={menu} title={`${media.title}${media.artist ? ` — ${media.artist}` : ""}`}
+      {...attrs} onContextMenu={menu} title={`${media.title}${media.artist ? ` — ${media.artist}` : ""}`}
       style={{ "--progress": progress } as CSSProperties}>
       <span className="media-title__cover">
         {media.cover ? <img src={media.cover} alt="" draggable={false} /> : <SpotifyPlus size={16} plus={false} />}
       </span>
-      <span className="media-title__text">
-        <strong>{media.title || "Sans titre"}</strong>
-        {media.artist && <span>{media.artist}</span>}
-      </span>
+      {look.text && (
+        <span className="media-title__text">
+          <strong>{media.title || "Sans titre"}</strong>
+          {media.artist && <span>{media.artist}</span>}
+        </span>
+      )}
       <button className="media-title__btn" aria-label={media.playing ? "Pause" : "Lecture"} onClick={() => control("toggle")}>
         <PlayIcon playing={media.playing} size={13} />
       </button>

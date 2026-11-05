@@ -149,10 +149,9 @@ export function ProfileSwitcher({ profiles, info, onPick, onRect }: Props) {
           })}
         </div>
         <div className="pswitch__hint">
-          <span><kbd>Alt</kbd>+<kbd>²</kbd> suivant</span>
-          <span><kbd>Maj</kbd> précédent</span>
-          <span>relâcher <kbd>Alt</kbd> pour ouvrir</span>
-          <span><kbd>Échap</kbd> annuler</span>
+          <span><kbd>Alt</kbd>+<kbd>²</kbd></span>
+          <span><kbd>Maj</kbd> ←</span>
+          <span><kbd>Échap</kbd></span>
         </div>
       </div>
     </div>

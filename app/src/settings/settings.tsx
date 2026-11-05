@@ -75,6 +75,9 @@ export interface ChromeSettings {
   /** Haut et bas : alignement et largeur. */
   playerAlign: "start" | "center" | "end";
   playerWidth: "s" | "m" | "l" | "full";
+  /** Barre du haut : titre et artiste affichés, filet de progression. */
+  playerTitleText: boolean;
+  playerTitleProgress: boolean;
   /** Barre latérale : mêmes choix. */
   /** « edge » : fin liseré noir collé au bord, renflé là où sont les boutons. */
   railStyle: "floating" | "attached" | "edge";
@@ -130,6 +133,8 @@ export const defaultChrome: ChromeSettings = {
   playerEdgeOpacity: null,
   playerAlign: "center",
   playerWidth: "m",
+  playerTitleText: true,
+  playerTitleProgress: true,
   railStyle: "edge",
   edgeSurface: "color",
   edgeColor: "#0b0d10",

@@ -35,7 +35,7 @@ export function ClaudePanel({ browser, profile }: { browser: Browser; profile: P
         </span>
       </header>
       <div className="claude__page" ref={slot} data-panel-page={page?.id ?? ""}>
-        <span className="claude__wait"><ClaudeLogo size={26} />Chargement de Claude…</span>
+        <span className="claude__wait"><ClaudeLogo size={26} /></span>
       </div>
     </section>
   );
