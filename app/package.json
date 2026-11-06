@@ -11,6 +11,7 @@
     "unslop:story": "node ../scripts/unslop.mjs story"
   },
   "dependencies": {
+    "@fortawesome/free-solid-svg-icons": "^7.3.1",
     "@tauri-apps/api": "^2",
     "react": "^19",
     "react-dom": "^19"

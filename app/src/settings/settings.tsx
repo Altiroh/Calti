@@ -44,6 +44,7 @@ export const barWidgetLabels = {
   ruler: "Règle et grille",
   claude: "Claude",
   media: "Lecture en cours",
+  groups: "Groupes",
 } as const;
 export type BarWidget = keyof typeof barWidgetLabels;
 
@@ -58,6 +59,10 @@ export interface ChromeSettings {
   addressWidth: "s" | "m" | "l";
   /** Boutons affichés dans la barre du haut. */
   barButtons: { nav: boolean; reload: boolean; star: boolean; detach: boolean };
+  /** Seconde barre sous la barre du haut : groupes enregistrés, favoris. */
+  subBar: boolean;
+  subBarGroups: boolean;
+  subBarBookmarks: boolean;
   /** Widgets en raccourci dans la barre latérale : un clic ouvre le widget à côté de la page. */
   railWidgets: BarWidget[];
   /** Extensions activées sans raccourci dans la barre latérale (ouvertes depuis la palette). */
@@ -121,6 +126,9 @@ export const defaultChrome: ChromeSettings = {
   barHeight: 48,
   addressWidth: "m",
   barButtons: { nav: true, reload: true, star: true, detach: true },
+  subBar: false,
+  subBarGroups: true,
+  subBarBookmarks: false,
   railWidgets: ["clipboard", "history", "notes"],
   railHidden: [],
   mediaFloat: false,

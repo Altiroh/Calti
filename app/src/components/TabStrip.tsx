@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, type CSSProperties, type MouseEvent, type Poin
 import { invoke } from "@tauri-apps/api/core";
 import { type Browser, type BrowserTab, type ProfileId, type TabGroup } from "../browser/useBrowser";
 import { Favicon } from "./Favicon";
+import { FaIcon } from "./FaIcon";
 import { openGroupDialog } from "./GroupDialog";
 import { Icon } from "./Icon";
 import { openMenu } from "./ContextMenu";
@@ -62,11 +63,12 @@ export function TabStrip({ browser, profile }: Props) {
     const at = below(e);
     openMenu(e, [
       { header: group.name || "Groupe sans nom" },
-      { label: "Nom et couleur…", icon: "edit", tone: "violet", action: () => openGroupDialog({ kind: "edit", groupId: group.id, ...at }) },
+      { label: "Nom, couleur et icône…", icon: "edit", tone: "violet", action: () => openGroupDialog({ kind: "edit", groupId: group.id, ...at }) },
       { label: group.collapsed ? "Déplier" : "Replier", icon: "collapse", tone: "blue", action: () => browser.updateGroup(group.id, { collapsed: !group.collapsed }) },
       "-",
       { label: "Dissocier (garder les onglets)", icon: "layers", tone: "slate", action: () => browser.ungroup(group.id) },
-      { label: "Fermer le groupe", icon: "close", danger: true, action: () => browser.closeGroup(group.id) },
+      { label: "Fermer et enregistrer", icon: "save", tone: "teal", action: () => browser.closeGroup(group.id, true) },
+      { label: "Fermer sans enregistrer", icon: "close", danger: true, action: () => browser.closeGroup(group.id, false) },
     ]);
   };
 
@@ -96,7 +98,7 @@ export function TabStrip({ browser, profile }: Props) {
     const chips = [...strip.querySelectorAll<HTMLElement>(".ptab[data-tab]")].map((el) => {
       const r = el.getBoundingClientRect();
       return { id: Number(el.dataset.tab), el, left: r.left, right: r.right };
-    });
+    }).filter((c) => c.right - c.left > 4);
     const from = chips.findIndex((c) => c.id === t.id);
     drag.current = { id: t.id, el: e.currentTarget, x0: e.clientX, y0: e.clientY, moved: false, out: false, chips, from, target: from };
     // Capture : le glisser continue même hors de la barre ou de la fenêtre.
@@ -197,14 +199,20 @@ export function TabStrip({ browser, profile }: Props) {
   return (
     <div className="strip">
       {items.map((item) => item.kind === "tab" ? tabChip(item.tab) : (
-        <div key={item.group.id} className={`tgroup${item.group.collapsed ? " tgroup--collapsed" : ""}`}
+        <div key={item.group.id} data-group={item.group.id} className={`tgroup${item.group.collapsed ? " tgroup--collapsed" : ""}`}
           style={{ "--group": item.group.color } as CSSProperties}>
-          <button className="tgroup__chip" title={`${item.group.name || "Groupe"} · ${item.tabs.length} onglet${item.tabs.length > 1 ? "s" : ""} (clic droit : options)`}
+          <button className="tgroup__chip" title={`${item.group.name || "Groupe"} · ${item.tabs.length} onglet${item.tabs.length > 1 ? "s" : ""}`}
+            aria-expanded={!item.group.collapsed}
             onClick={() => browser.updateGroup(item.group.id, { collapsed: !item.group.collapsed })}
             onContextMenu={(e) => groupMenu(e, item.group)}>
-            {item.group.name || <span className="tgroup__count">{item.tabs.length}</span>}
+            {item.group.icon && <FaIcon name={item.group.icon} size={13} />}
+            {item.group.name && <span className="tgroup__name">{item.group.name}</span>}
+            {(!item.group.name || item.group.collapsed) && <span className="tgroup__count">{item.tabs.length}</span>}
           </button>
-          {!item.group.collapsed && item.tabs.map((t) => tabChip(t, item.group))}
+          {/* Toujours rendus : repli et dépli glissent (largeur animée), sans saut. */}
+          <div className="tgroup__tabs" aria-hidden={item.group.collapsed || undefined}>
+            <div className="tgroup__inner">{item.tabs.map((t) => tabChip(t, item.group))}</div>
+          </div>
         </div>
       ))}
       <button className={`ptab ptab--new${pane.activeTab == null ? " ptab--active" : ""}`}

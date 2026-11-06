@@ -1,0 +1,104 @@
+// Seconde barre, sous la barre du haut : groupes enregistrés (un clic les rouvre) et, au choix, les favoris.
+// Panneau « Groupes » : groupes ouverts et enregistrés du profil.
+import type { CSSProperties, MouseEvent } from "react";
+import type { Browser, ProfileId, SavedGroup } from "../browser/useBrowser";
+import type { LibraryEntry } from "../browser/library";
+import { Card } from "./Card";
+import { openMenu } from "./ContextMenu";
+import { Favicon } from "./Favicon";
+import { FaIcon } from "./FaIcon";
+import { Icon } from "./Icon";
+import { hostname, siteIcon } from "./siteIcon";
+import "./SubBar.css";
+
+const savedMenu = (e: MouseEvent, browser: Browser, g: SavedGroup) => {
+  e.preventDefault();
+  openMenu(e, [
+    { header: g.name || "Groupe sans nom" },
+    { label: "Rouvrir", icon: "undo", tone: "teal", action: () => browser.reopenGroup(g.id) },
+    "-",
+    { label: "Supprimer le groupe enregistré", icon: "trash", danger: true, action: () => browser.deleteSavedGroup(g.id) },
+  ]);
+};
+
+function GroupMark({ g }: { g: { name: string; color: string; icon?: string } }) {
+  return g.icon ? <FaIcon name={g.icon} size={12} /> : <span className="sgroup-dot" />;
+}
+
+export function SubBar({ browser, profile, bookmarks, groups, marks }: {
+  browser: Browser;
+  profile: ProfileId;
+  bookmarks: LibraryEntry[];
+  /** Montrer les groupes enregistrés, les favoris. */
+  groups: boolean;
+  marks: boolean;
+}) {
+  const saved = groups ? browser.savedGroups.filter((g) => g.profile === profile) : [];
+  const shownMarks = marks ? bookmarks : [];
+  if (!saved.length && !shownMarks.length) return null;
+  return (
+    <nav className="subbar glass" aria-label="Seconde barre">
+      {saved.map((g) => (
+        <button key={g.id} className="subbar__group" style={{ "--group": g.color } as CSSProperties}
+          title={`${g.name || "Groupe"} · ${g.tabs.length} onglet${g.tabs.length > 1 ? "s" : ""}`}
+          onClick={() => browser.reopenGroup(g.id)} onContextMenu={(e) => savedMenu(e, browser, g)}>
+          <GroupMark g={g} />
+          <span>{g.name || "Groupe"}</span>
+          <small>{g.tabs.length}</small>
+        </button>
+      ))}
+      {saved.length > 0 && shownMarks.length > 0 && <span className="subbar__sep" />}
+      {shownMarks.map((b) => (
+        <button key={b.url} className="subbar__mark" title={b.url}
+          onClick={() => browser.go(b.url, profile)}
+          onMouseDown={(e) => e.button === 1 && e.preventDefault()}
+          onAuxClick={(e) => e.button === 1 && browser.go(b.url, profile, true, true)}>
+          <Favicon src={siteIcon(b.url)} size={14} />
+          <span>{b.title || hostname(b.url)}</span>
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+/** Panneau « Groupes » : ouverts (déplier, fermer et enregistrer) et enregistrés (rouvrir, supprimer). */
+export function GroupsWidget({ browser, profile }: { browser: Browser; profile: ProfileId }) {
+  const open = browser.groups.filter((g) => g.profile === profile && browser.tabsOf(profile).some((t) => browser.groupOf(t.id)?.id === g.id));
+  const saved = browser.savedGroups.filter((g) => g.profile === profile);
+  return (
+    <Card title="Groupes" className="groups-card">
+      <div className="groups">
+        {open.length > 0 && <h3>Ouverts</h3>}
+        {open.map((g) => {
+          const tabs = browser.tabsOf(profile).filter((t) => browser.groupOf(t.id)?.id === g.id);
+          return (
+            <div key={g.id} className="groups__row" style={{ "--group": g.color } as CSSProperties}>
+              <button className="groups__main" onClick={() => { browser.updateGroup(g.id, { collapsed: false }); if (tabs[0]) browser.activate(tabs[0].id); }}>
+                <span className="groups__mark"><GroupMark g={g} /></span>
+                <span className="groups__name">{g.name || "Groupe"}</span>
+                <small>{tabs.length}</small>
+              </button>
+              <button className="groups__act" title="Fermer et enregistrer" aria-label="Fermer et enregistrer" onClick={() => browser.closeGroup(g.id, true)}>
+                <Icon name="save" size={13} />
+              </button>
+            </div>
+          );
+        })}
+        {saved.length > 0 && <h3>Enregistrés</h3>}
+        {saved.map((g) => (
+          <div key={g.id} className="groups__row" style={{ "--group": g.color } as CSSProperties}>
+            <button className="groups__main" title={g.tabs.map((t) => t.title || hostname(t.url)).join("\n")} onClick={() => browser.reopenGroup(g.id)}>
+              <span className="groups__mark"><GroupMark g={g} /></span>
+              <span className="groups__name">{g.name || "Groupe"}</span>
+              <small>{g.tabs.length}</small>
+            </button>
+            <button className="groups__act" title="Supprimer" aria-label="Supprimer" onClick={() => browser.deleteSavedGroup(g.id)}>
+              <Icon name="trash" size={13} />
+            </button>
+          </div>
+        ))}
+        {!open.length && !saved.length && <p className="muted">Aucun groupe</p>}
+      </div>
+    </Card>
+  );
+}

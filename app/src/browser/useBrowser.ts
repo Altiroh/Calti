@@ -76,7 +76,35 @@ export interface TabGroup {
   name: string;
   color: string;
   collapsed: boolean;
+  /** Icône Font Awesome (nom, voir components/FaIcon), dessinée dans la couleur du groupe. */
+  icon?: string;
 }
+
+/** Groupe fermé et enregistré : rouvrable plus tard avec ses onglets, jusqu'à ce qu'on le supprime. */
+export interface SavedGroup {
+  id: string;
+  profile: ProfileId;
+  name: string;
+  color: string;
+  icon?: string;
+  tabs: { url: string; title: string }[];
+  savedAt: number;
+}
+
+const SAVED_GROUPS_KEY = "calti.savedGroups";
+const SAVED_GROUPS_EVENT = "calti:saved-groups";
+const readSavedGroups = (): SavedGroup[] => {
+  try {
+    const list = JSON.parse(localStorage.getItem(SAVED_GROUPS_KEY) ?? "[]");
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+};
+const writeSavedGroups = (list: SavedGroup[]) => {
+  try { localStorage.setItem(SAVED_GROUPS_KEY, JSON.stringify(list)); } catch { /* non persisté */ }
+  window.dispatchEvent(new Event(SAVED_GROUPS_EVENT));
+};
 
 /** Couleurs de groupe (celles de Brave et Chrome). */
 export const groupColors = ["#5f6368", "#1a73e8", "#d93025", "#f9ab00", "#188038", "#d01884", "#9334e6", "#007b83", "#fa903e"];
@@ -153,11 +181,16 @@ export interface Browser {
   createGroup: (tabId: number) => string;
   addToGroup: (tabId: number, groupId: string) => void;
   removeFromGroup: (tabId: number) => void;
-  updateGroup: (groupId: string, patch: Partial<Pick<TabGroup, "name" | "color" | "collapsed">>) => void;
+  updateGroup: (groupId: string, patch: Partial<Pick<TabGroup, "name" | "color" | "collapsed" | "icon">>) => void;
   /** Dissout le groupe (les onglets restent ouverts). */
   ungroup: (groupId: string) => void;
-  /** Ferme tous les onglets du groupe. */
-  closeGroup: (groupId: string) => void;
+  /** Ferme tous les onglets du groupe ; enregistré (rouvrable) sauf si `keep` vaut false. */
+  closeGroup: (groupId: string, keep?: boolean) => void;
+  /** Groupes fermés et enregistrés (tous profils). */
+  savedGroups: SavedGroup[];
+  /** Rouvre un groupe enregistré avec ses onglets (il quitte la liste des enregistrés). */
+  reopenGroup: (savedId: string) => void;
+  deleteSavedGroup: (savedId: string) => void;
   error: string | null;
 }
 
@@ -652,7 +685,7 @@ export function useBrowser(
     setMembership(({ [tabId]: _removed, ...m }) => m);
   }, []);
 
-  const updateGroup = useCallback((groupId: string, patch: Partial<Pick<TabGroup, "name" | "color" | "collapsed">>) => {
+  const updateGroup = useCallback((groupId: string, patch: Partial<Pick<TabGroup, "name" | "color" | "collapsed" | "icon">>) => {
     setGroupMap((g) => (g[groupId] ? { ...g, [groupId]: { ...g[groupId], ...patch } } : g));
   }, []);
 
@@ -711,10 +744,54 @@ export function useBrowser(
     invoke("browser_action", { id, action: act }).catch(fail);
   }, [fail]);
 
-  const closeGroup = useCallback((groupId: string) => {
-    for (const t of tabs.filter((t) => membership[t.id] === groupId)) close(t.id);
+  // --- Groupes enregistrés (fermés, rouvrables) ---------------------------------------
+  const [savedGroups, setSavedGroups] = useState<SavedGroup[]>(readSavedGroups);
+  useEffect(() => {
+    const reload = () => setSavedGroups(readSavedGroups());
+    const onStorage = (e: StorageEvent) => (e.key === SAVED_GROUPS_KEY || e.key === null) && reload();
+    window.addEventListener(SAVED_GROUPS_EVENT, reload);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(SAVED_GROUPS_EVENT, reload);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
+  const closeGroup = useCallback((groupId: string, keep = true) => {
+    const members = tabs.filter((t) => membership[t.id] === groupId);
+    const group = groupMap[groupId];
+    if (keep && group && members.length) {
+      const entry: SavedGroup = {
+        id: group.id, profile: group.profile, name: group.name, color: group.color, icon: group.icon,
+        tabs: members.map((t) => ({ url: t.url, title: t.title })), savedAt: Date.now(),
+      };
+      writeSavedGroups([entry, ...readSavedGroups().filter((g) => g.id !== group.id)]);
+    }
+    for (const t of members) close(t.id);
     ungroup(groupId);
-  }, [tabs, membership, close, ungroup]);
+  }, [tabs, membership, groupMap, close, ungroup]);
+
+  const deleteSavedGroup = useCallback((savedId: string) => {
+    writeSavedGroups(readSavedGroups().filter((g) => g.id !== savedId));
+  }, []);
+
+  const reopenGroup = useCallback(async (savedId: string) => {
+    const saved = readSavedGroups().find((g) => g.id === savedId);
+    if (!saved) return;
+    writeSavedGroups(readSavedGroups().filter((g) => g.id !== savedId));
+    const id = groupMap[saved.id] ? `g${Date.now().toString(36)}` : saved.id;
+    setGroupMap((g) => ({ ...g, [id]: { id, profile: saved.profile, name: saved.name, color: saved.color, icon: saved.icon, collapsed: false } }));
+    let first: number | null = null;
+    for (const t of saved.tabs) {
+      const tab: number | null = await invoke<number>("browser_open", { profile: saved.profile, url: t.url, lazyTitle: first == null ? null : t.title }).catch(() => null);
+      if (tab == null) continue;
+      setMembership((m) => ({ ...m, [tab]: id }));
+      if (first == null) {
+        first = tab;
+        show(saved.profile, tab);
+      }
+    }
+  }, [groupMap, show]);
 
   const home = useCallback((profile: ProfileId = focused) => show(profile, null), [focused, show]);
 
@@ -872,6 +949,7 @@ export function useBrowser(
     panelPage: (profile) => panelPages.find((t) => t.profile === profile) ?? null, openPanelPage, registerPanelSlot,
     devtoolsOpen: (id) => devtools.includes(id), toggleDevtools, undockDevtools, registerDevtoolsSlot, newWindow, move, reopen, tabAction,
     strip, groups: Object.values(groupMap), groupOf, createGroup, addToGroup, removeFromGroup, updateGroup, ungroup, closeGroup,
+    savedGroups, reopenGroup, deleteSavedGroup,
     error,
   };
 }

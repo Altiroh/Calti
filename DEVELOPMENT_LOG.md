@@ -569,3 +569,17 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
   fermée », « arrêt de Calti ») et des pannes de WebView2 de l'interface.
 - Test persistance 17/17 (nouveau : relance pendant que `etat.json` et le stockage sont verrouillés → attente, profils
   gardés). Menus 19/19, sélecteur 11/11, intégrations 26/26, fonctions 19/19. Installé.
+
+## 2026-11-06 — Nouvel onglet dans la barre d'adresse ; groupes d'onglets enrichis, seconde barre
+
+- Nouvel onglet (Ctrl+T, bouton +) : curseur dans la barre d'adresse du haut (test `newtab.test.cjs`, 2/2).
+- Groupes : icône Font Awesome (Free, SVG, `@fortawesome/free-solid-svg-icons`, `components/FaIcon.tsx`, 50 icônes)
+  dans la couleur du groupe, choisie dans le dialogue du groupe ; pastille à la hauteur des onglets (32 px) ; contour
+  de la couleur du groupe autour de ses onglets ; repli et dépli animés (grille 1fr → 0fr, onglets toujours rendus).
+- Groupes enregistrés (`calti.savedGroups`) : « Fermer et enregistrer » garde nom, couleur, icône et onglets ; rouvrir
+  (seconde barre, panneau « Groupes », palette) les rouvre et les retire de la liste ; « Supprimer » les oublie ;
+  « Fermer sans enregistrer » ferme pour de bon.
+- Seconde barre (`components/SubBar.tsx`, réglages `chrome.subBar`, `subBarGroups`, `subBarBookmarks`) : groupes
+  enregistrés et, au choix, favoris de Calti ; Apparence → Barre du haut, ou clic droit sur la barre → Afficher dans
+  la barre. Extension « Groupes » (panneau : ouverts et enregistrés).
+- Test `groups.test.cjs` : 12/12 ; menus, intégrations, sélecteur, persistance, fonctions : verts. Installé.

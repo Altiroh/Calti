@@ -1,4 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent, type ReactNode } from "react";
+import { SubBar } from "./SubBar";
+import type { LibraryEntry } from "../browser/library";
 import type { Suggestion } from "../browser/library";
 import { useSuggestions } from "../browser/webSuggestions";
 import { APP_EVENT, PANE_EVENT, type Browser, type Cutout } from "../browser/useBrowser";
@@ -43,6 +45,8 @@ interface Props {
   suggest: (input: string) => Suggestion[];
   /** Place de la liste de suggestions, retirée des pages pour la laisser voir. */
   onSuggestRect: (rect: Cutout | null) => void;
+  /** Favoris de Calti du profil (seconde barre). */
+  bookmarks: LibraryEntry[];
 }
 
 /** Éléments de la barre qui gardent leur propre menu (clic droit). */
@@ -50,7 +54,7 @@ const OWN_MENU = "button, a, input, .ptab, .tgroup";
 
 /** Volet de navigation d'un profil : une seule barre (navigation, adresse, onglets), puis le contenu. */
 export function BrowserPane({
-  browser, profile, split, choices, onChooseProfile, home, controls, isBookmarked, onToggleBookmark, onMoreSettings, onZoomSettings, panel, onPanel, renderWidget, suggest, onSuggestRect,
+  browser, profile, split, choices, onChooseProfile, home, controls, isBookmarked, onToggleBookmark, onMoreSettings, onZoomSettings, panel, onPanel, renderWidget, suggest, onSuggestRect, bookmarks,
 }: Props) {
   const id = profile.id;
   const { theme, updateTheme } = useSettings();
@@ -174,6 +178,10 @@ export function BrowserPane({
           { label: "Précédent / suivant", icon: "back", tone: "slate", checked: c.barButtons.nav, action: setButton("nav") },
           { label: "Recharger", icon: "reload", tone: "blue", checked: c.barButtons.reload, action: setButton("reload") },
           { label: "Favori", icon: "star", tone: "amber", checked: c.barButtons.star, action: setButton("star") },
+          "-",
+          { label: "Seconde barre", icon: "layout", tone: "violet", checked: c.subBar, action: () => updateTheme({ chrome: { ...c, subBar: !c.subBar } }) },
+          { label: "Groupes enregistrés", icon: "layers", tone: "violet", checked: c.subBarGroups, disabled: !c.subBar, action: () => updateTheme({ chrome: { ...c, subBarGroups: !c.subBarGroups } }) },
+          { label: "Favoris", icon: "star", tone: "amber", checked: c.subBarBookmarks, disabled: !c.subBar, action: () => updateTheme({ chrome: { ...c, subBarBookmarks: !c.subBarBookmarks } }) },
         ],
       },
       {
@@ -313,6 +321,8 @@ export function BrowserPane({
 
         {controls}
       </header>
+
+      {c.subBar && <SubBar browser={browser} profile={id} bookmarks={bookmarks} groups={c.subBarGroups} marks={c.subBarBookmarks} />}
 
       <div className="pane__body">
         {tools && dock.side === "bottom" ? <div className="pane__stack">{content}{tools}</div> : <>{content}{tools}</>}

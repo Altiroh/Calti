@@ -27,6 +27,7 @@ import { WindowControls } from "./components/WindowControls";
 import { withTransition } from "./motion";
 import { ProfileSwitcher } from "./components/ProfileSwitcher";
 import { ClaudePanel } from "./widgets/ClaudePanel";
+import { GroupsWidget } from "./components/SubBar";
 import { claudeLogoUrl } from "./components/BrandIcons";
 import { DockedPlayer, FloatingPlayer, RailPlayer, TitlebarPlayer, type PlayerDock, type PlayerLook } from "./widgets/MediaWidget";
 import { askClaude, CLAUDE_EVENT, CLAUDE_HOME, claudeUrl, type ClaudeRequest } from "./browser/claude";
@@ -288,6 +289,9 @@ export function App() {
     const openSettings = (t: SettingsTab) => () => { setSettingsTab(t); setDrawer("settings"); };
     return [
       { label: "Nouvel onglet", keys: "Ctrl+T", icon: "plus", run: () => browser.newTab(p) },
+      ...browser.savedGroups.filter((g) => g.profile === p).map((g) => ({
+        label: `Rouvrir le groupe « ${g.name || "sans nom"} »`, icon: "layers" as const, run: () => browser.reopenGroup(g.id),
+      })),
       // Extensions activées (avec ou sans raccourci dans la barre) : ouvertes à côté de la page.
       ...theme.chrome.railWidgets.filter((w) => w !== "claude").map((w) => ({
         label: `Ouvrir ${barWidgetLabels[w]}`, icon: widgetIcons[w], run: () => setPanel(p, w),
@@ -451,6 +455,7 @@ export function App() {
                       ...(l.progress !== undefined ? { playerTitleProgress: l.progress } : {}) } })} />}<WindowControls /></>
                   : null}
                 isBookmarked={(url) => own.has(p, url)} onToggleBookmark={(url, title) => own.toggle(p, url, title)}
+                bookmarks={own.of(p)}
                 onMoreSettings={() => { setSettingsTab("appearance"); setDrawer("settings"); }}
                 onZoomSettings={() => { setSettingsTab("general"); setDrawer("settings"); }}
                 panel={panels[p] ?? null} onPanel={(kind) => setPanel(p, kind)}
@@ -458,6 +463,7 @@ export function App() {
                 renderWidget={(kind) => kind === "ruler"
                   ? <RulerWidget visibleTabs={visibleTabs} />
                   : kind === "claude" ? <ClaudePanel browser={browser} profile={p} />
+                  : kind === "groups" ? <GroupsWidget browser={browser} profile={p} />
                   : renderBlock({ kind, x: 0, y: 0, w: 4, h: 8 }, homeContext(p))} />
             ))}
           </div>

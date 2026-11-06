@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { groupColors, type Browser, type Cutout } from "../browser/useBrowser";
+import { FaIcon, faIcons } from "./FaIcon";
 import "./GroupDialog.css";
 
 /** Création d'un groupe autour d'un onglet, ou modification d'un groupe ; x, y : coin haut gauche voulu. */
@@ -25,7 +26,7 @@ export function useGroupDialogRequest() {
   return { request, close: () => setRequest(null) };
 }
 
-const WIDTH = 300;
+const WIDTH = 340;
 const randomColor = () => groupColors[Math.floor(Math.random() * groupColors.length)];
 
 /**
@@ -41,6 +42,7 @@ export function GroupDialog({ request, browser, onClose, onRect }: {
   const group = request.kind === "edit" ? browser.groups.find((g) => g.id === request.groupId) : undefined;
   const [name, setName] = useState(group?.name ?? "");
   const [color, setColor] = useState(() => group?.color ?? randomColor());
+  const [icon, setIcon] = useState(group?.icon ?? "");
   const box = useRef<HTMLFormElement>(null);
   const left = Math.max(8, Math.min(request.x, window.innerWidth - WIDTH - 8));
 
@@ -60,9 +62,9 @@ export function GroupDialog({ request, browser, onClose, onRect }: {
     e.preventDefault();
     if (request.kind === "create") {
       const id = browser.createGroup(request.tabId);
-      browser.updateGroup(id, { name: name.trim(), color });
+      browser.updateGroup(id, { name: name.trim(), color, icon: icon || undefined });
     } else if (group) {
-      browser.updateGroup(group.id, { name: name.trim(), color });
+      browser.updateGroup(group.id, { name: name.trim(), color, icon: icon || undefined });
     }
     onClose();
   };
@@ -78,6 +80,16 @@ export function GroupDialog({ request, browser, onClose, onRect }: {
           <button key={c} type="button" role="radio" aria-checked={c === color} aria-label={c}
             className={`group-dialog__color${c === color ? " group-dialog__color--on" : ""}`} style={{ background: c }}
             onClick={() => setColor(c)} />
+        ))}
+      </div>
+      <div className="group-dialog__icons" role="radiogroup" aria-label="Icône">
+        <button type="button" role="radio" aria-checked={!icon} title="Sans icône"
+          className={`group-dialog__icon group-dialog__icon--none${!icon ? " group-dialog__icon--on" : ""}`} onClick={() => setIcon("")} />
+        {Object.keys(faIcons).map((n) => (
+          <button key={n} type="button" role="radio" aria-checked={n === icon} title={n}
+            className={`group-dialog__icon${n === icon ? " group-dialog__icon--on" : ""}`} onClick={() => setIcon(n)}>
+            <FaIcon name={n} size={13} />
+          </button>
         ))}
       </div>
       <div className="group-dialog__actions">

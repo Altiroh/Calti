@@ -66,6 +66,7 @@ const extensions: { id: BarWidget; icon: IconName; colors: [string, string]; des
   { id: "ruler", icon: "ruler", colors: ["#ff3d7f", "#a259ff"], description: "Règles et grille sur la page." },
   { id: "bookmarks", icon: "star", colors: ["#f9d423", "#f7971e"], description: "Favoris de Calti et de Brave." },
   { id: "tabs", icon: "tabs", colors: ["#43e97b", "#1f8c8c"], description: "Onglets du profil." },
+  { id: "groups", icon: "layers", colors: ["#9334e6", "#5f3dc4"], description: "Groupes ouverts et enregistrés." },
   { id: "claude", icon: "spark", colors: ["#e8916b", "#c15f3c"], description: "claude.ai à côté de la page." },
   { id: "media", icon: "sound", colors: ["#2a2f36", "#121212"], description: "Spotify et toute lecture en cours." },
 ];
@@ -368,6 +369,11 @@ function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
           <Check label="Précédent / suivant" checked={c.barButtons.nav} onChange={(nav) => setChrome({ barButtons: { ...c.barButtons, nav } })} />
           <Check label="Recharger" checked={c.barButtons.reload} onChange={(reload) => setChrome({ barButtons: { ...c.barButtons, reload } })} />
           <Check label="Favori ★" checked={c.barButtons.star} onChange={(star) => setChrome({ barButtons: { ...c.barButtons, star } })} />
+        </div>
+        <div className="settings__checks">
+          <Check label="Seconde barre" checked={c.subBar} onChange={(subBar) => setChrome({ subBar })} />
+          {c.subBar && <Check label="Groupes enregistrés" checked={c.subBarGroups} onChange={(subBarGroups) => setChrome({ subBarGroups })} />}
+          {c.subBar && <Check label="Favoris" checked={c.subBarBookmarks} onChange={(subBarBookmarks) => setChrome({ subBarBookmarks })} />}
         </div>
       </Group>
 
