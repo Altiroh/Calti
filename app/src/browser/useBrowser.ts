@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { animateTabClose } from "../components/closeAnimation";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "./windowEvents";
 import { availableMonitors, getCurrentWindow, PhysicalPosition, PhysicalSize } from "@tauri-apps/api/window";
@@ -725,7 +726,9 @@ export function useBrowser(
     if (!(showSplit && tab.profile === secondary)) setFocused(tab.profile);
   }, [tabs, show, showSplit, secondary, membership, groupMap, updateGroup]);
 
-  const close = useCallback((id: number) => {
+  const close = useCallback((id: number, animate = true) => {
+    // La poubelle : animation lancée avant le retrait (fantôme de l'onglet), sauf fermetures en série d'un groupe.
+    if (animate) animateTabClose(id);
     const tab = tabs.find((t) => t.id === id);
     if (tab && panes[tab.profile]?.activeTab === id) {
       // Comme un navigateur : on passe à l'onglet voisin, sinon à l'accueil.
@@ -773,7 +776,7 @@ export function useBrowser(
       };
       writeSavedGroups([entry, ...readSavedGroups().filter((g) => g.id !== group.id)]);
     }
-    for (const t of members) close(t.id);
+    for (const t of members) close(t.id, false);
     ungroup(groupId);
   }, [tabs, membership, groupMap, close, ungroup]);
 

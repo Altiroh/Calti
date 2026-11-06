@@ -596,3 +596,13 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
   un appui bref revient à l'onglet précédent (commande native `ctrl_held`, le focus passe à l'interface depuis une page).
 - Tests : tabswitch 6/6, groups 18/18, menus, intégrations, sélecteur, nouvel onglet, persistance, notes, fonctions :
   verts. Installé.
+
+## 2026-11-06 — Animation de fermeture d'un onglet
+
+- `components/closeAnimation.ts` : à la fermeture (croix, clic molette, Ctrl+W, menus), un fantôme de l'onglet est
+  posé au-dessus de la barre ; une poubelle sort de l'onglet, couvercle ouvert, l'onglet rétrécit et saute dedans en
+  courbe, le couvercle se referme, la poubelle s'écrase un peu puis disparaît (~1,2 s, Web Animations). Les voisins
+  gardent leur place pendant le saut puis glissent pour refermer le trou (FLIP). Plusieurs fermetures d'un coup :
+  simple fondu ; groupe fermé : sans animation ; mouvements coupés (réglage ou système) : aucune.
+- Test `closeanim.test.cjs` 5/5 (animations ralenties 4× pour en capturer les étapes) ; groupes, sélecteur d'onglets,
+  menus, nouvel onglet, fonctions : verts. Installé.
