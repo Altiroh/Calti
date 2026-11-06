@@ -90,12 +90,12 @@ export function BrowserPane({
       address.current?.select();
     };
     const onBookmark = (e: Event) => (e as CustomEvent).detail === id && toggleBookmark.current();
-    // Nouvel onglet : le curseur va dans la recherche de l'accueil (une fois affiché), sinon dans l'adresse.
+    // Nouvel onglet : le curseur va dans la barre d'adresse du haut (une fois l'accueil affiché).
     const onSearch = (e: Event) => {
       if ((e as CustomEvent).detail !== id) return;
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        const home = root.current?.querySelector<HTMLInputElement>(".pane__home .search__input");
-        (home ?? address.current)?.focus();
+        address.current?.focus();
+        address.current?.select();
       }));
     };
     window.addEventListener(PANE_EVENT.search, onSearch);
