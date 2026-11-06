@@ -101,6 +101,24 @@ pub fn install_shortcuts(app: &AppHandle, webview: &Webview, tab: u64) {
     });
 }
 
+/// Panne d'un processus WebView2 de l'interface (navigateur, rendu…) : notée au journal de la copie.
+pub fn watch_ui_process(app: &AppHandle, window: &tauri::WebviewWindow) {
+    let app = app.clone();
+    let _ = window.with_webview(move |platform| unsafe {
+        let Ok(core) = platform.controller().CoreWebView2() else { return };
+        let handler = webview2_com::ProcessFailedEventHandler::create(Box::new(move |_, args| {
+            let mut kind = webview2_com::Microsoft::Web::WebView2::Win32::COREWEBVIEW2_PROCESS_FAILED_KIND::default();
+            if let Some(args) = args {
+                let _ = args.ProcessFailedKind(&mut kind);
+            }
+            crate::state::note(&app, &format!("panne d'un processus WebView2 de l'interface (type {})", kind.0));
+            Ok(())
+        }));
+        let mut token = 0i64;
+        let _ = core.add_ProcessFailed(&handler, &mut token);
+    });
+}
+
 /// Rechargement sans le cache, comme Ctrl+F5 dans un navigateur.
 pub fn hard_reload(webview: &Webview) {
     let _ = webview.with_webview(|platform| unsafe {

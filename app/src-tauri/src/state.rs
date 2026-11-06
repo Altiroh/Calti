@@ -25,8 +25,75 @@ pub(crate) fn data_dir(app: &AppHandle) -> Option<PathBuf> {
 
 /// Copie enregistrée (JSON : génération, date, clés du stockage local), absente au tout premier lancement.
 #[tauri::command]
-pub fn state_load(app: AppHandle) -> Option<String> {
-    std::fs::read_to_string(data_dir(&app)?.join(FILE)).ok()
+pub fn state_load(app: AppHandle) -> Result<Option<String>, String> {
+    let Some(dir) = data_dir(&app) else { return Ok(None) };
+    read_retry(&dir.join(FILE))
+}
+
+/// Lit un fichier en réessayant pendant 3 s s'il est pris par un autre programme ; absent : None.
+fn read_retry(path: &std::path::Path) -> Result<Option<String>, String> {
+    let mut last = String::new();
+    for _ in 0..30 {
+        match std::fs::read_to_string(path) {
+            Ok(text) => return Ok(Some(text)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => last = e.to_string(),
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    Err(format!("copie illisible : {last}"))
+}
+
+/// Un fichier peut-il être ouvert (lecture, partage normal) ? Faux s'il est verrouillé par un autre programme.
+fn openable(path: &std::path::Path) -> bool {
+    std::fs::File::open(path).is_ok()
+}
+
+/// Le dossier WebView2 est-il encore tenu par un navigateur WebView2 (Calti précédent pas encore fermé) ?
+fn webview_busy(dir: &std::path::Path) -> bool {
+    use std::os::windows::fs::OpenOptionsExt;
+    let lock = dir.join("EBWebView").join("lockfile");
+    lock.exists() && std::fs::OpenOptions::new().read(true).write(true).share_mode(0).open(&lock).is_err()
+}
+
+/// Avant de créer la fenêtre : attend (10 s au plus) que le Calti précédent ait lâché son dossier WebView2 et que le
+/// stockage local et la copie soient lisibles. Sinon WebView2 repart d'un stockage vide et la copie est illisible.
+pub fn wait_for_files(app: &AppHandle) {
+    let Some(dir) = data_dir(app) else { return };
+    let leveldb = dir.join("EBWebView").join("Default").join("Local Storage").join("leveldb");
+    let start = std::time::Instant::now();
+    let mut reasons: Vec<String> = Vec::new();
+    loop {
+        let mut blocked = Vec::new();
+        if webview_busy(&dir) {
+            blocked.push("WebView2 du lancement précédent".to_string());
+        }
+        if let Ok(entries) = std::fs::read_dir(&leveldb) {
+            for e in entries.flatten() {
+                let path = e.path();
+                if path.file_name().is_some_and(|n| n != "LOCK") && path.is_file() && !openable(&path) {
+                    blocked.push(path.file_name().unwrap().to_string_lossy().to_string());
+                }
+            }
+        }
+        let copy = dir.join(FILE);
+        if copy.exists() && !openable(&copy) {
+            blocked.push(FILE.to_string());
+        }
+        if blocked.is_empty() || start.elapsed() > std::time::Duration::from_secs(10) {
+            if !reasons.is_empty() || !blocked.is_empty() {
+                append_log(app, &format!("attente au démarrage : {} ms ({}){}", start.elapsed().as_millis(), reasons.join(", "),
+                    if blocked.is_empty() { String::new() } else { format!(" ; toujours pris : {}", blocked.join(", ")) }));
+            }
+            return;
+        }
+        for b in blocked {
+            if !reasons.contains(&b) {
+                reasons.push(b);
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
 }
 
 /// Nombre de profils d'une copie (réglages `calti.settings.v3`, champ `profileOrder`).
@@ -47,9 +114,22 @@ fn append_log(app: &AppHandle, line: &str) {
         let _ = std::fs::rename(&path, dir.join("etat.log.old"));
     }
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
-    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+    for _ in 0..20 {
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+            let _ = writeln!(f, "{now} {line}");
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    // Journal pris par un autre programme : la ligne va dans un fichier à part, pour ne pas la perdre.
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(dir.join(format!("etat-{}.log", std::process::id()))) {
         let _ = writeln!(f, "{now} {line}");
     }
+}
+
+/// Ligne de journal depuis la partie native (fermetures, pannes de WebView2).
+pub fn note(app: &AppHandle, line: &str) {
+    append_log(app, line);
 }
 
 /// Journal de la copie, écrit par l'interface (décisions de reprise, copies refusées).
@@ -62,7 +142,7 @@ pub fn state_log(app: AppHandle, line: String) {
 /// l'interface puisse appeler Calti (au démarrage de Windows, ces appels peuvent échouer et la reprise n'avait pas lieu).
 pub fn init_script(app: &AppHandle) -> String {
     let text = data_dir(app)
-        .and_then(|d| std::fs::read_to_string(d.join(FILE)).ok())
+        .and_then(|d| read_retry(&d.join(FILE)).ok().flatten())
         .filter(|t| t.len() <= MAX_SIZE && serde_json::from_str::<serde_json::Value>(t).is_ok());
     let value = text.and_then(|t| serde_json::to_string(&t).ok()).unwrap_or_else(|| "null".into());
     format!("window.__CALTI_COPY__ = {value};")
@@ -85,7 +165,7 @@ fn civil(days: i64) -> (i64, u32, u32) {
 /// les 7 dernières gardées dans « copies ».
 pub fn startup(app: &AppHandle) {
     let Some(dir) = data_dir(app) else { return };
-    let copy = std::fs::read_to_string(dir.join(FILE)).ok();
+    let copy = read_retry(&dir.join(FILE)).ok().flatten();
     let profiles = copy.as_deref().and_then(|t| serde_json::from_str::<serde_json::Value>(t).ok()).map_or(0, |v| profiles_in(&v));
     append_log(app, &format!("démarrage de Calti (pid {}) : copie {} profil(s)", std::process::id(), profiles));
     if profiles == 0 {

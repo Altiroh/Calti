@@ -554,3 +554,18 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
   « Reprendre … » quand une copie a des profils.
 - Test persistance : 15/15 (nouveau : Calti arrêté net, stockage supprimé, relance → profils repris par la copie
   posée dans la page, journal natif, copie du jour). Menus 19/19, sélecteur 11/11, intégrations 26/26, fonctions 19/19.
+
+## 2026-11-06 (10:14) — Profils perdus à la relance : fichiers pris par un autre programme
+
+- Constat : Calti s'est fermé vers 10:14 (fermeture propre, aucun plantage dans les journaux Windows ; l'indexeur de
+  recherche était bloqué et arrêté de force à ce moment-là). Relancé à 10:14:46 depuis l'Explorateur, il n'a pu ni
+  écrire son journal, ni lire `etat.json`, et WebView2 n'a pas ouvert son stockage local (nouveau `000003.log`, journal
+  LevelDB non touché) : fichiers pris quelques secondes par un autre programme (indexeur ou antivirus) juste après
+  l'écriture. Une relance une fois les fichiers libres a tout retrouvé.
+- Correction : avant de créer la fenêtre, `state::wait_for_files` attend (10 s au plus) que le WebView2 du lancement
+  précédent ait lâché son dossier (`EBWebView\lockfile`) et que le stockage local et `etat.json` s'ouvrent ; l'attente
+  est notée au journal. Lectures de la copie réessayées 3 s (`state_load` renvoie une erreur au lieu de « rien »), lignes
+  du journal réessayées puis écrites dans `etat-<pid>.log` si besoin. Journal des fermetures (« fenêtre principale
+  fermée », « arrêt de Calti ») et des pannes de WebView2 de l'interface.
+- Test persistance 17/17 (nouveau : relance pendant que `etat.json` et le stockage sont verrouillés → attente, profils
+  gardés). Menus 19/19, sélecteur 11/11, intégrations 26/26, fonctions 19/19. Installé.

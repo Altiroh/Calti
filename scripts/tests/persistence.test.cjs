@@ -79,8 +79,28 @@ const setInput = (selector, value) => `(() => { const i = document.querySelector
   t.check("journal natif du démarrage et source de la copie", /démarrage de Calti \(pid \d+\) : copie 1 profil/.test(journal2) && /posée dans la page\) → copie reprise/.test(journal2), journal2.split("\n").slice(-3).join(" | "));
   const copies = fs.readdirSync(path.join(process.env.WEBVIEW2_USER_DATA_FOLDER, "copies"));
   t.check("copie datée du jour gardée", copies.some((f) => /^etat-\d{4}-\d{2}-\d{2}\.json$/.test(f)), copies);
+  // Cas de 10:14 le 6 novembre : relance alors que les fichiers de Calti sont pris quelques secondes par un autre
+  // programme (antivirus, indexeur). Calti attend qu'ils se libèrent au lieu de repartir d'un stockage vide.
   ui.close();
   try { process.kill(again.pid); } catch {}
+  await sleep(1500);
+  const data = process.env.WEBVIEW2_USER_DATA_FOLDER;
+  const leveldb = path.join(data, "EBWebView", "Default", "Local Storage", "leveldb");
+  const held = [path.join(data, "etat.json"), ...fs.readdirSync(leveldb).filter((f) => f !== "LOCK").map((f) => path.join(leveldb, f))];
+  const script = held.map((f, i) => `$s${i} = [IO.File]::Open('${f}', 'Open', 'Read', 'None')`).join("; ") + "; Start-Sleep -Seconds 4";
+  const locker = require("child_process").spawn("powershell", ["-NoProfile", "-Command", script], { stdio: "ignore" });
+  await sleep(800);
+  const third = require("child_process").spawn(process.env.CALTI_EXE, [], { detached: true, stdio: "ignore", env: process.env });
+  third.unref();
+  await sleep(6000);
+  ui = await connect();
+  await rendered();
+  t.check("relance pendant que les fichiers sont pris : profils gardés", await ui.ev(`!document.querySelector(".welcome") && JSON.parse(localStorage.getItem("calti.settings.v3") ?? "{}").profileOrder?.[0] === "essai"`));
+  const journal3 = fs.readFileSync(path.join(data, "etat.log"), "utf8");
+  t.check("attente notée au journal", /attente au démarrage : \d+ ms \(.*etat\.json/.test(journal3), journal3.split("\n").slice(-4).join(" | "));
+  ui.close();
+  try { process.kill(third.pid); } catch {}
+  locker.kill();
 
   t.report();
   process.exit();

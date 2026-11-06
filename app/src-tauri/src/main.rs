@@ -46,17 +46,24 @@ fn main() {
         .manage(browser::Browser::default())
         .setup(|app| {
             // Fenêtre principale créée ici (et non par la configuration) pour y poser la copie avant la page.
+            state::wait_for_files(app.handle());
             state::startup(app.handle());
             if let Some(config) = app.config().app.windows.iter().find(|w| w.label == "main").cloned() {
-                tauri::WebviewWindowBuilder::from_config(app.handle(), &config)?
+                let window = tauri::WebviewWindowBuilder::from_config(app.handle(), &config)?
                     .initialization_script(&state::init_script(app.handle()))
                     .build()?;
+                native::watch_ui_process(app.handle(), &window);
             }
             clipboard::watch(app.handle().clone());
             media::start(app.handle().clone());
             Ok(())
         })
         .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                if window.label() == "main" {
+                    state::note(window.app_handle(), "fenêtre principale fermée");
+                }
+            }
             if let tauri::WindowEvent::Destroyed = event {
                 browser::forget_window(window.app_handle(), window.label());
             }
@@ -105,6 +112,11 @@ fn main() {
             setup::brave_profiles,
             setup::brave_bookmarks,
         ])
-        .run(tauri::generate_context!())
-        .expect("erreur au lancement de l'application");
+        .build(tauri::generate_context!())
+        .expect("erreur au lancement de l'application")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                state::note(app, "arrêt de Calti");
+            }
+        });
 }
