@@ -606,3 +606,12 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
   simple fondu ; groupe fermé : sans animation ; mouvements coupés (réglage ou système) : aucune.
 - Test `closeanim.test.cjs` 5/5 (animations ralenties 4× pour en capturer les étapes) ; groupes, sélecteur d'onglets,
   menus, nouvel onglet, fonctions : verts. Installé.
+
+## 2026-11-06 — PDF illisibles : zoom aberrant mémorisé
+
+- Constat : `zoom.json` gardait 0,12 % pour la visionneuse de documents de Google
+  (`doc-…-apps-viewer.googleusercontent.com`, pièces jointes Gmail et Drive) : la visionneuse avait signalé ce zoom,
+  Calti l'avait mémorisé et le réappliquait (« 0 % » dans la barre, page vide).
+- Correction (`features.rs`) : zoom valide de 25 à 500 % ; valeurs aberrantes écartées au chargement (fichier
+  réécrit), jamais mémorisées, et un changement aberrant est aussitôt remplacé par le zoom du site.
+- Test `zoom.test.cjs` 4/4, fonctions 19/19. Installé.

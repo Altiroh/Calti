@@ -97,14 +97,25 @@ fn zoom_file(app: &AppHandle) -> Option<std::path::PathBuf> {
     crate::state::data_dir(app).map(|d| d.join("zoom.json"))
 }
 
-/// Zoom par « profil|hôte » (absent : 100 %).
+/// Zoom acceptable : celui des réglages (25 à 300 %), avec une marge pour Ctrl+molette (jusqu'à 500 %).
+fn valid_zoom(factor: f64) -> bool {
+    factor.is_finite() && (0.25..=5.0).contains(&factor)
+}
+
+/// Zoom par « profil|hôte » (absent : 100 %). Valeurs aberrantes (une visionneuse de PDF a pu en signaler, 0,1 %)
+/// écartées au chargement et le fichier réécrit sans elles.
 fn zooms(app: &AppHandle) -> &'static Mutex<HashMap<String, f64>> {
     static ZOOMS: OnceLock<Mutex<HashMap<String, f64>>> = OnceLock::new();
     ZOOMS.get_or_init(|| {
-        let saved = zoom_file(app)
+        let mut saved: HashMap<String, f64> = zoom_file(app)
             .and_then(|p| std::fs::read_to_string(p).ok())
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_default();
+        let before = saved.len();
+        saved.retain(|_, f| valid_zoom(*f));
+        if saved.len() != before {
+            save_zooms(app, &saved);
+        }
         Mutex::new(saved)
     })
 }
@@ -117,7 +128,7 @@ fn default_zoom(zooms: &HashMap<String, f64>) -> f64 {
 /// Zoom d'un site : le sien s'il en a un, sinon le zoom par défaut.
 fn zoom_for(app: &AppHandle, key: &str) -> f64 {
     let zooms = zooms(app).lock().unwrap();
-    zooms.get(key).copied().unwrap_or_else(|| default_zoom(&zooms))
+    zooms.get(key).copied().filter(|f| valid_zoom(*f)).unwrap_or_else(|| default_zoom(&zooms))
 }
 
 fn save_zooms(app: &AppHandle, map: &HashMap<String, f64>) {
@@ -127,6 +138,9 @@ fn save_zooms(app: &AppHandle, map: &HashMap<String, f64>) {
 }
 
 fn remember_zoom(app: &AppHandle, key: String, factor: f64) {
+    if !valid_zoom(factor) {
+        return;
+    }
     let map = {
         let mut zooms = zooms(app).lock().unwrap();
         // Revenir au zoom par défaut efface la valeur propre au site.
@@ -459,10 +473,18 @@ pub fn install(app: &AppHandle, webview: &Webview, tab: u64, profile: &str) {
                     let Some(controller) = controller else { return Ok(()) };
                     let mut factor = 1.0f64;
                     controller.ZoomFactor(&mut factor)?;
-                    crate::browser::update(&app, tab, |t| t.zoom = factor);
                     let mut raw = PWSTR::null();
                     core.Source(&mut raw)?;
-                    if let Some(host) = host_of(&take_pwstr(raw)) {
+                    let host = host_of(&take_pwstr(raw));
+                    // Zoom aberrant (visionneuse de PDF qui se redimensionne…) : ni gardé, ni laissé — le zoom du site revient.
+                    if !valid_zoom(factor) {
+                        let back = host.as_ref().map_or(1.0, |h| zoom_for(&app, &format!("{profile}|{h}")));
+                        controller.SetZoomFactor(back)?;
+                        crate::browser::update(&app, tab, |t| t.zoom = back);
+                        return Ok(());
+                    }
+                    crate::browser::update(&app, tab, |t| t.zoom = factor);
+                    if let Some(host) = host {
                         remember_zoom(&app, format!("{profile}|{host}"), factor);
                     }
                     Ok(())
