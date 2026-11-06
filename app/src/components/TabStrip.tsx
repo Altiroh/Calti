@@ -168,6 +168,75 @@ export function TabStrip({ browser, profile }: Props) {
     else browser.removeFromGroup(d.id);
   };
 
+  // Glisser la pastille d'un groupe : le groupe entier se déplace parmi les onglets et les autres groupes.
+  const gdrag = useRef<{
+    id: string; el: HTMLElement; x0: number; moved: boolean;
+    units: { el: HTMLElement; left: number; right: number; first: number }[]; from: number; target: number;
+  } | null>(null);
+
+  const startGroupDrag = (e: PointerEvent<HTMLButtonElement>, group: TabGroup) => {
+    if (e.button !== 0) return;
+    const strip = e.currentTarget.closest(".strip");
+    const el = e.currentTarget.closest<HTMLElement>(".tgroup");
+    if (!strip || !el) return;
+    // Unités de la barre : onglets seuls et groupes entiers, chacun repéré par son premier onglet.
+    const units = [...strip.children].filter((c): c is HTMLElement => c instanceof HTMLElement && (c.matches(".ptab[data-tab]") || c.matches(".tgroup")))
+      .map((u) => {
+        const r = u.getBoundingClientRect();
+        const first = u.matches(".tgroup") ? Number(u.querySelector<HTMLElement>(".ptab[data-tab]")?.dataset.tab ?? -1) : Number(u.dataset.tab);
+        return { el: u, left: r.left, right: r.right, first };
+      });
+    const from = units.findIndex((u) => u.el === el);
+    gdrag.current = { id: group.id, el, x0: e.clientX, moved: false, units, from, target: from };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const moveGroupDrag = (e: PointerEvent<HTMLButtonElement>) => {
+    const d = gdrag.current;
+    if (!d) return;
+    const dx = e.clientX - d.x0;
+    if (!d.moved) {
+      if (Math.abs(dx) < 6) return;
+      d.moved = true;
+      d.el.classList.add("tgroup--dragging");
+    }
+    d.el.style.transform = `translateX(${dx}px)`;
+    const me = d.units[d.from];
+    const center = (me.left + me.right) / 2 + dx;
+    let target = d.from;
+    for (let i = d.from + 1; i < d.units.length; i++) if (center > (d.units[i].left + d.units[i].right) / 2) target = i;
+    for (let i = d.from - 1; i >= 0; i--) if (center < (d.units[i].left + d.units[i].right) / 2) target = i;
+    d.target = target;
+    const width = me.right - me.left + 4;
+    d.units.forEach((u, i) => {
+      if (i === d.from) return;
+      const shift = i > d.from && i <= d.target ? -width : i < d.from && i >= d.target ? width : 0;
+      u.el.style.transform = shift ? `translateX(${shift}px)` : "";
+    });
+  };
+
+  const endGroupDrag = () => {
+    const d = gdrag.current;
+    gdrag.current = null;
+    if (!d) return;
+    d.el.classList.remove("tgroup--dragging");
+    const reset = () => d.units.forEach((u) => { u.el.style.transform = ""; });
+    if (!d.moved) return;
+    suppressClick.current = true;
+    setTimeout(() => { suppressClick.current = false; }, 0);
+    if (d.target === d.from) {
+      reset();
+      return;
+    }
+    const me = d.units[d.from];
+    const slot = d.units[d.target];
+    d.el.style.transform = `translateX(${d.target > d.from ? slot.right - me.right : slot.left - me.left}px)`;
+    settling.current = d.units.map((u) => u.el);
+    setTimeout(() => { if (settling.current.length) { reset(); settling.current = []; } }, 600);
+    const before = d.target > d.from ? d.units[d.target + 1]?.first ?? null : slot.first;
+    browser.moveGroup(d.id, before);
+  };
+
   const tabChip = (t: BrowserTab, group?: TabGroup) => (
     <div key={t.id} role="button" tabIndex={0} title={`${t.title}\n${t.url}`} data-tab={t.id}
       className={`ptab${t.id === pane.activeTab ? " ptab--active" : ""}${group ? " ptab--grouped" : ""}`}
@@ -203,8 +272,10 @@ export function TabStrip({ browser, profile }: Props) {
           style={{ "--group": item.group.color } as CSSProperties}>
           <button className="tgroup__chip" title={`${item.group.name || "Groupe"} · ${item.tabs.length} onglet${item.tabs.length > 1 ? "s" : ""}`}
             aria-expanded={!item.group.collapsed}
-            onClick={() => browser.updateGroup(item.group.id, { collapsed: !item.group.collapsed })}
-            onContextMenu={(e) => groupMenu(e, item.group)}>
+            onClick={() => !suppressClick.current && browser.updateGroup(item.group.id, { collapsed: !item.group.collapsed })}
+            onContextMenu={(e) => groupMenu(e, item.group)}
+            onPointerDown={(e) => startGroupDrag(e, item.group)} onPointerMove={moveGroupDrag}
+            onPointerUp={endGroupDrag} onPointerCancel={endGroupDrag}>
             {item.group.icon && <FaIcon name={item.group.icon} size={13} />}
             {item.group.name && <span className="tgroup__name">{item.group.name}</span>}
             {(!item.group.name || item.group.collapsed) && <span className="tgroup__count">{item.tabs.length}</span>}

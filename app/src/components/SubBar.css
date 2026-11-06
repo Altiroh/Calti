@@ -86,7 +86,6 @@
   gap: 2px;
   min-height: 0;
   overflow-y: auto;
-  scrollbar-width: thin;
 }
 
 .groups h3 {
@@ -166,4 +165,25 @@
 .groups__act:hover {
   color: var(--text);
   background: var(--line);
+}
+
+.subbar__group {
+  touch-action: none;
+}
+
+.subbar__group--dragging {
+  position: relative;
+  z-index: 2;
+  cursor: grabbing;
+  box-shadow: inset 0 0 0 1.5px var(--group), 0 6px 16px rgba(8, 20, 45, 0.2);
+}
+
+/* Catégories : une icône en tête de chaque partie, une séparation entre elles. */
+.subbar__cat {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 28px;
+  color: var(--text-faint);
 }

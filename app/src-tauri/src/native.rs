@@ -31,6 +31,12 @@ pub fn alt_held() -> bool {
     unsafe { GetAsyncKeyState(VK_MENU as i32) < 0 }
 }
 
+/// Ctrl toujours enfoncée ? (sélecteur d'onglets : relâcher Ctrl choisit l'onglet, comme Alt+Tab).
+#[tauri::command]
+pub fn ctrl_held() -> bool {
+    unsafe { GetAsyncKeyState(VK_CONTROL as i32) < 0 }
+}
+
 /// Raccourci reconnu dans une page.
 fn shortcut(key: u32, ctrl: bool, shift: bool) -> Option<&'static str> {
     Some(match (key, ctrl, shift) {
@@ -84,7 +90,7 @@ pub fn install_shortcuts(app: &AppHandle, webview: &Webview, tab: u64) {
                 "zoom-reset" => crate::features::zoom_step(&app, tab, 0),
                 _ => {
                     // Saisie d'adresse, nouvel onglet : le focus clavier repasse à l'interface de la fenêtre.
-                    if matches!(action, "address" | "new-tab" | "palette" | "next-profile" | "previous-profile") {
+                    if matches!(action, "address" | "new-tab" | "palette" | "next-profile" | "previous-profile" | "next-tab" | "previous-tab") {
                         if let Some(window) = crate::browser::tab_window(&app, tab) {
                             if let Some(ui) = app.get_webview(&window) {
                                 let _ = ui.set_focus();

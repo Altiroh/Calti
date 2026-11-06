@@ -29,7 +29,6 @@
   display: flex;
   gap: calc(10px * var(--density, 1));
   overflow-x: auto;
-  scrollbar-width: thin;
 }
 
 .pswitch__item {

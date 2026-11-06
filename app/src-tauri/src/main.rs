@@ -86,6 +86,7 @@ fn main() {
             native::taskbar_overlay,
             native::ui_devtools,
             native::alt_held,
+            native::ctrl_held,
             media::media_state,
             media::media_control,
             pagemenu::page_menu_pick,

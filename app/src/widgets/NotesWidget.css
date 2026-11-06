@@ -40,7 +40,6 @@
   padding: 2px 6px 4px;
   overflow-x: hidden;
   overflow-y: auto;
-  scrollbar-width: thin;
 }
 
 .notes__section {

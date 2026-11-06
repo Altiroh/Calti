@@ -42,6 +42,33 @@ const saved = `JSON.parse(localStorage.getItem("calti.savedGroups") ?? "[]")`;
   t.check("pastille du groupe à la taille d'un onglet", chip && Math.abs(chip.h - chip.tab) < 1, chip);
   t.check("contour autour du groupe", await ui.ev(`getComputedStyle(document.querySelector(".tgroup")).boxShadow.includes("inset")`));
 
+  // Menu du groupe : tient sans défiler ; barres de défilement de l'interface (pas celles de Windows).
+  await ui.ev(rightClick(".tgroup__chip"));
+  await sleep(300);
+  const menuBox = await ui.ev(`(() => { const m = document.querySelector(".cmenu"); return { over: m.scrollHeight - m.clientHeight, oy: getComputedStyle(m).overflowY, sw: getComputedStyle(m).scrollbarWidth }; })()`);
+  t.check("menu du groupe sans défilement, barre fine de l'interface", menuBox.oy === "hidden" && menuBox.sw === "auto", menuBox);
+  await ui.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+  await sleep(200);
+
+  // Réordonner : un second onglet à droite du groupe, puis le groupe glissé derrière lui.
+  await ui.call("Input.dispatchKeyEvent", { type: "keyDown", key: "t", code: "KeyT", windowsVirtualKeyCode: 84, modifiers: 2 });
+  await ui.call("Input.dispatchKeyEvent", { type: "keyUp", key: "t", code: "KeyT", windowsVirtualKeyCode: 84, modifiers: 2 });
+  await sleep(400);
+  await ui.ev(go("https://example.com/?seul"));
+  await sleep(2500);
+  const order = `[...document.querySelector(".strip").children].filter((c) => c.matches(".tgroup, .ptab[data-tab]")).map((c) => c.matches(".tgroup") ? "groupe" : "onglet").join(",")`;
+  const beforeOrder = await ui.ev(order);
+  const pos = await ui.ev(`(() => { const c = document.querySelector(".tgroup__chip").getBoundingClientRect(); const t = document.querySelector(".strip > .ptab[data-tab]").getBoundingClientRect(); return { x: c.left + 10, y: c.top + c.height / 2, to: t.right + 20 }; })()`);
+  const mouse = (type, x, y) => ui.call("Input.dispatchMouseEvent", { type, x, y, button: "left", buttons: type === "mouseReleased" ? 0 : 1, clickCount: 1 });
+  await mouse("mousePressed", pos.x, pos.y);
+  for (let i = 1; i <= 8; i++) await mouse("mouseMoved", pos.x + ((pos.to - pos.x) * i) / 8, pos.y);
+  await mouse("mouseReleased", pos.to, pos.y);
+  await sleep(900);
+  const afterOrder = await ui.ev(order);
+  t.check("groupe déplacé derrière l'onglet", beforeOrder === "groupe,onglet" && afterOrder === "onglet,groupe", { beforeOrder, afterOrder });
+  t.check("déplacer ne replie pas le groupe", await ui.ev(`!document.querySelector(".tgroup--collapsed")`));
+  await ui.shot(path.join(process.env.TEMP, "calti-groups-moved.png"));
+
   // Repli animé (largeur intermédiaire pendant l'animation), puis dépli.
   const width = `document.querySelector(".tgroup__tabs").getBoundingClientRect().width`;
   const full = await ui.ev(width);
@@ -88,6 +115,17 @@ const saved = `JSON.parse(localStorage.getItem("calti.savedGroups") ?? "[]")`;
   await ui.ev(`${item("Supprimer le groupe enregistré")}.click()`);
   await sleep(400);
   t.check("groupe enregistré supprimé", (await ui.ev(saved)).length === 0 && await ui.ev(`!document.querySelector(".subbar__group")`));
+
+  // Seconde barre : une icône par catégorie, et le clic droit pour choisir ce qu'elle affiche.
+  t.check("icônes des catégories et séparation", await ui.ev(`document.querySelectorAll(".subbar__cat").length === 2 && !!document.querySelector(".subbar__sep")`));
+  await ui.ev(`(() => { const el = document.querySelector(".subbar__cat"); const r = el.getBoundingClientRect();
+    el.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: r.left + 5, clientY: r.top + 5 })); })()`);
+  await sleep(300);
+  const labels = await ui.ev(`[...document.querySelectorAll(".cmenu__label")].map((l) => l.textContent)`);
+  t.check("clic droit sur la seconde barre : Groupes enregistrés, Favoris", ["Groupes enregistrés", "Favoris", "Masquer la seconde barre"].every((l) => labels.includes(l)), labels);
+  await ui.ev(`${item("Favoris")}.click()`);
+  await sleep(400);
+  t.check("favoris masqués de la seconde barre", await ui.ev(`document.querySelectorAll(".subbar__mark").length === 0 && document.querySelectorAll(".subbar__cat").length === 1`));
 
   t.report();
   ui.close();

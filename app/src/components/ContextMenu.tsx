@@ -119,6 +119,9 @@ export function MenuHost({ onRects }: { onRects: (rects: Cutout[]) => void }) {
     shown.forEach((_, level) => {
       const el = levels.current[level];
       if (!el) return;
+      // Défilement seulement si le menu dépasse vraiment (pas pour un pixel d'arrondi).
+      el.style.overflowY = "hidden";
+      el.style.overflowY = el.scrollHeight - el.clientHeight > 2 ? "auto" : "hidden";
       const w = el.offsetWidth;
       const h = el.offsetHeight;
       let x: number;

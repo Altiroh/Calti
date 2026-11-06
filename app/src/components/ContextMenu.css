@@ -10,7 +10,6 @@
   padding: calc(6px * var(--density, 1));
   overflow-x: hidden;
   overflow-y: auto;
-  scrollbar-width: thin;
   border-radius: var(--menu-radius, 16px);
   --glass-alpha: var(--menu-alpha, 0.86);
   box-shadow: var(--glass-shadow), 0 18px 48px rgba(8, 20, 45, 0.28);

@@ -54,6 +54,78 @@
   border-bottom-right-radius: 0;
 }
 
+/* Seconde barre : suit la barre du haut (verre, plein, sans fond ; collée sous elle si la barre est collée). */
+.shell .subbar {
+  border-radius: var(--bar-radius, 16px);
+}
+
+.shell[data-bar-surface="solid"] .subbar {
+  --glass-alpha: 0.92;
+  backdrop-filter: none;
+}
+
+.shell[data-bar-surface="none"] .subbar {
+  gap: 8px;
+  padding: 0;
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.shell[data-bar-surface="none"] .subbar::before,
+.shell[data-bar-surface="none"] .subbar::after {
+  display: none;
+}
+
+/* Sans fond : chaque élément est une pastille de verre, comme les onglets de la barre du haut. */
+.shell[data-bar-surface="none"] .subbar__mark,
+.shell[data-bar-surface="none"] .subbar__group {
+  height: 30px;
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+}
+
+.shell[data-bar-surface="none"] .subbar__mark {
+  color: var(--text);
+  background: rgba(var(--glass-rgb), 0.55);
+  box-shadow: inset 0 0 0 1px var(--glass-border), 0 4px 14px rgba(0, 10, 30, 0.18);
+}
+
+.shell[data-bar-surface="none"] .subbar__group {
+  background: color-mix(in srgb, var(--group) 22%, rgba(var(--glass-rgb), 0.55));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--group) 45%, transparent), 0 4px 14px rgba(0, 10, 30, 0.18);
+}
+
+.shell[data-bar-surface="none"] .subbar__sep {
+  height: 20px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.shell[data-bar-surface="none"] .subbar__cat {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--tab-radius, 10px);
+  color: var(--text);
+  background: rgba(var(--glass-rgb), 0.55);
+  box-shadow: inset 0 0 0 1px var(--glass-border);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+}
+
+.shell[data-bar="attached"] .subbar {
+  margin-top: calc(-1 * var(--ui-gap, 14px) * 0.7);
+  border-top-color: transparent;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.shell[data-bar="attached"] .pane:last-child .subbar {
+  margin-right: calc(-1 * var(--win-pad, 16px));
+  border-right-color: transparent;
+  border-bottom-right-radius: 0;
+}
+
 /* --- Barre latérale --------------------------------------------------------- */
 
 .shell .rail {

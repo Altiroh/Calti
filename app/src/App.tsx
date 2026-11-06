@@ -26,6 +26,7 @@ import { RAIL_NARROW, Sidebar, widgetIcons } from "./components/Sidebar";
 import { WindowControls } from "./components/WindowControls";
 import { withTransition } from "./motion";
 import { ProfileSwitcher } from "./components/ProfileSwitcher";
+import { TabSwitcher } from "./components/TabSwitcher";
 import { ClaudePanel } from "./widgets/ClaudePanel";
 import { GroupsWidget } from "./components/SubBar";
 import { claudeLogoUrl } from "./components/BrandIcons";
@@ -129,6 +130,7 @@ export function App() {
   const [playerRect, setPlayerRect] = useState<Cutout | null>(null);
   // Sélecteur de profils (Alt+²), découpé lui aussi.
   const [switcherRect, setSwitcherRect] = useState<Cutout | null>(null);
+  const [tabSwitcherRect, setTabSwitcherRect] = useState<Cutout | null>(null);
   const cutouts = [
     ...menuRects,
     ...(palette && paletteRect ? [paletteRect] : []),
@@ -136,6 +138,7 @@ export function App() {
     ...(groupDialog.request && dialogRect ? [dialogRect] : []),
     ...(suggestRect ? [suggestRect] : []),
     ...(switcherRect ? [switcherRect] : []),
+    ...(tabSwitcherRect ? [tabSwitcherRect] : []),
     ...(playerRect ? [playerRect] : []),
   ];
   const browser = useBrowser(profileIds, prefsOf, immersive ? 0 : theme.chrome.pageRadius, cutouts);
@@ -488,6 +491,8 @@ export function App() {
       <MenuHost onRects={setMenuRects} />
 
       {playerOn && c.mediaDock === "free" && <FloatingPlayer onRect={setPlayerRect} surface={c.playerSurface} {...playerProps} />}
+
+      <TabSwitcher browser={browser} onRect={setTabSwitcherRect} />
 
       <ProfileSwitcher profiles={byRecent.map(profile)} onRect={setSwitcherRect}
         onPick={(p) => withTransition(() => browser.focus(p))}

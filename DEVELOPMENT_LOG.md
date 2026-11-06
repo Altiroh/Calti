@@ -583,3 +583,16 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
   enregistrés et, au choix, favoris de Calti ; Apparence → Barre du haut, ou clic droit sur la barre → Afficher dans
   la barre. Extension « Groupes » (panneau : ouverts et enregistrés).
 - Test `groups.test.cjs` : 12/12 ; menus, intégrations, sélecteur, persistance, fonctions : verts. Installé.
+
+## 2026-11-06 — Groupes réordonnables, barres de défilement, seconde barre, Ctrl+Tab façon Alt+Tab
+
+- Glisser la pastille d'un groupe le déplace en entier parmi les onglets et les autres groupes (`moveGroup`, chaque
+  onglet posé avant la cible, ordre gardé) ; les groupes enregistrés se réordonnent dans la seconde barre.
+- Barres de défilement : `scrollbar-width: thin` retiré partout (il rendait la barre de Windows, avec flèches) ;
+  barre fine et arrondie de l'interface, plus visible au survol. Menus : défilement seulement s'ils dépassent vraiment.
+- Seconde barre : mêmes surfaces que la barre du haut (verre, plein, sans fond en pastilles, collée sous elle) ; une
+  icône par catégorie et une séparation ; clic droit : afficher les groupes enregistrés, les favoris, masquer la barre.
+- Ctrl+Tab / Ctrl+Maj+Tab : sélecteur des onglets du profil, du plus récent au plus ancien ; relâcher Ctrl choisit,
+  un appui bref revient à l'onglet précédent (commande native `ctrl_held`, le focus passe à l'interface depuis une page).
+- Tests : tabswitch 6/6, groups 18/18, menus, intégrations, sélecteur, nouvel onglet, persistance, notes, fonctions :
+  verts. Installé.

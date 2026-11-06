@@ -49,6 +49,8 @@ export const APP_EVENT = { palette: "calti:palette", downloads: "calti:downloads
 export const PANE_EVENT = { address: "calti:address", bookmark: "calti:bookmark", search: "calti:search" } as const;
 /** Sélecteur de profils façon Alt+Tab (Alt+²) : détail { back, held } (held : Alt enfoncée, relâcher choisit). */
 export const PROFILE_SWITCH_EVENT = "calti:profile-switch";
+/** Sélecteur d'onglets façon Alt+Tab (Ctrl+Tab) : détail { profile, back, held }. */
+export const TAB_SWITCH_EVENT = "calti:tab-switch";
 /** Bascule du plein écran (F11), pour la fenêtre. */
 export const FULLSCREEN_EVENT = "calti:fullscreen";
 
@@ -173,6 +175,10 @@ export interface Browser {
   newWindow: (profile: ProfileId, detach?: boolean, tab?: number) => void;
   /** Déplace un onglet juste avant un autre (null : à la fin). */
   move: (id: number, before: number | null) => void;
+  /** Déplace un groupe entier (ses onglets, dans leur ordre) juste avant un onglet (null : à la fin). */
+  moveGroup: (groupId: string, before: number | null) => void;
+  /** Réordonne les groupes enregistrés : `id` juste avant `before` (null : à la fin). */
+  moveSavedGroup: (id: string, before: string | null) => void;
   /** Onglets d'un profil dans l'ordre d'affichage, regroupés. */
   strip: (profile: ProfileId) => TabStripItem[];
   groups: TabGroup[];
@@ -841,6 +847,23 @@ export function useBrowser(
     invoke("browser_move", { id, before }).catch(fail);
   }, [fail]);
 
+  const moveGroup = useCallback((groupId: string, before: number | null) => {
+    // Chaque onglet va juste avant la cible, dans l'ordre : le groupe arrive entier, ordre gardé.
+    for (const t of tabs.filter((t) => membership[t.id] === groupId)) {
+      if (t.id !== before) invoke("browser_move", { id: t.id, before }).catch(fail);
+    }
+  }, [tabs, membership, fail]);
+
+  const moveSavedGroup = useCallback((id: string, before: string | null) => {
+    const list = readSavedGroups();
+    const item = list.find((g) => g.id === id);
+    if (!item || id === before) return;
+    const rest = list.filter((g) => g.id !== id);
+    const at = before ? rest.findIndex((g) => g.id === before) : -1;
+    rest.splice(at < 0 ? rest.length : at, 0, item);
+    writeSavedGroups(rest);
+  }, []);
+
   const runShortcut = useCallback((key: Shortcut, profile: ProfileId = focused) => {
     const active = panes[profile]?.activeTab ?? null;
     switch (key) {
@@ -882,14 +905,11 @@ export function useBrowser(
       case "bookmark":
         window.dispatchEvent(new CustomEvent(PANE_EVENT[key], { detail: profile }));
         return;
+      // Ctrl+Tab : sélecteur des onglets du plus récent au plus ancien (relâcher Ctrl choisit).
       case "next-tab":
-      case "previous-tab": {
-        const own = tabs.filter((t) => t.profile === profile);
-        if (!own.length) return;
-        const index = own.findIndex((t) => t.id === active);
-        const step = key === "next-tab" ? 1 : -1;
-        activate(own[(index + step + own.length) % own.length].id);
-      }
+      case "previous-tab":
+        window.dispatchEvent(new CustomEvent(TAB_SWITCH_EVENT, { detail: { profile, back: key === "previous-tab", held: true } }));
+        return;
     }
   }, [focused, panes, tabs, newTab, close, newWindow, activate, fail, reopen, toggleDevtools]);
   const runShortcutRef = useRef(runShortcut);
@@ -949,7 +969,7 @@ export function useBrowser(
     panelPage: (profile) => panelPages.find((t) => t.profile === profile) ?? null, openPanelPage, registerPanelSlot,
     devtoolsOpen: (id) => devtools.includes(id), toggleDevtools, undockDevtools, registerDevtoolsSlot, newWindow, move, reopen, tabAction,
     strip, groups: Object.values(groupMap), groupOf, createGroup, addToGroup, removeFromGroup, updateGroup, ungroup, closeGroup,
-    savedGroups, reopenGroup, deleteSavedGroup,
+    savedGroups, reopenGroup, deleteSavedGroup, moveGroup, moveSavedGroup,
     error,
   };
 }

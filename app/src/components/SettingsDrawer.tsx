@@ -72,7 +72,7 @@ const extensions: { id: BarWidget; icon: IconName; colors: [string, string]; des
 ];
 
 const shortcuts: [string, string][] = [
-  ["Ctrl+T", "Nouvel onglet"], ["Ctrl+W", "Fermer l'onglet"], ["Ctrl+Tab", "Onglet suivant"], ["Ctrl+L · F6", "Barre d'adresse"],
+  ["Ctrl+T", "Nouvel onglet"], ["Ctrl+W", "Fermer l'onglet"], ["Ctrl+Tab · Ctrl+Maj+Tab", "Changer d'onglet (relâcher Ctrl pour ouvrir)"], ["Ctrl+L · F6", "Barre d'adresse"],
   ["F5 · Ctrl+R", "Recharger"], ["Ctrl+F5", "Recharger sans le cache"], ["Ctrl+D", "Favori"], ["Ctrl+N", "Nouvelle fenêtre"],
   ["F11", "Plein écran"], ["Clic molette", "Lien en arrière-plan"], ["Ctrl+Maj+T", "Rouvrir l'onglet fermé"],
   ["Ctrl+K · Ctrl+Maj+K", "Palette de commandes (depuis une page : Ctrl+Maj+K)"], ["Ctrl+J", "Téléchargements"], ["Ctrl+H", "Historique"], ["Ctrl+1…9", "Aller à l'onglet n°"], ["F12 · Ctrl+Maj+I", "Outils de développement de la page"], ["Alt+² · Alt+Maj+²", "Changer de profil (relâcher Alt pour ouvrir)"],

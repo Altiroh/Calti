@@ -45,18 +45,38 @@ button:focus-visible,
   outline-offset: 2px;
 }
 
+/* Barres de défilement de l'interface : un trait fin et arrondi, sans flèches, couleur du texte très atténuée ;
+ * il s'épaissit un peu au survol. La bordure transparente laisse de l'air autour du trait. */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--line);
-  border-radius: 8px;
+  min-height: 32px;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 22%, transparent) padding-box;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+::-webkit-scrollbar-thumb:hover {
+  border-width: 2px;
+  background: color-mix(in srgb, var(--text) 38%, transparent) padding-box;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: color-mix(in srgb, var(--text) 50%, transparent) padding-box;
 }
 
 .muted {
