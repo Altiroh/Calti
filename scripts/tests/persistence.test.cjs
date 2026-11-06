@@ -61,6 +61,27 @@ const setInput = (selector, value) => `(() => { const i = document.querySelector
   const journal = fs.readFileSync(path.join(process.env.WEBVIEW2_USER_DATA_FOLDER, "etat.log"), "utf8");
   t.check("journal de la copie tenu", /copie reprise \(profils perdus\)/.test(journal) && /refusée/.test(journal), journal.split("\n").slice(-4).join(" | "));
 
+  // Cas du 6 novembre : Calti arrêté net (fermeture de session), stockage de WebView2 illisible au lancement suivant,
+  // et l'interface qui ne peut pas encore appeler Calti. La copie posée dans la page avant son chargement suffit.
+  ui.close();
+  try { process.kill(Number(process.env.CALTI_PID)); } catch {}
+  await sleep(1500);
+  fs.rmSync(path.join(process.env.WEBVIEW2_USER_DATA_FOLDER, "EBWebView", "Default", "Local Storage"), { recursive: true, force: true });
+  const again = require("child_process").spawn(process.env.CALTI_EXE, [], { detached: true, stdio: "ignore", env: process.env });
+  again.unref();
+  await sleep(2500);
+  ui = await connect();
+  await rendered();
+  t.check("relance sur stockage perdu : profils repris", await ui.ev(`!document.querySelector(".welcome") && JSON.parse(localStorage.getItem("calti.settings.v3") ?? "{}").profileOrder?.[0] === "essai"`));
+  t.check("copie posée dans la page avant son chargement", await ui.ev(`typeof window.__CALTI_COPY__ === "string" && JSON.parse(window.__CALTI_COPY__).calti === 1`));
+  await sleep(1500);
+  const journal2 = fs.readFileSync(path.join(process.env.WEBVIEW2_USER_DATA_FOLDER, "etat.log"), "utf8");
+  t.check("journal natif du démarrage et source de la copie", /démarrage de Calti \(pid \d+\) : copie 1 profil/.test(journal2) && /posée dans la page\) → copie reprise/.test(journal2), journal2.split("\n").slice(-3).join(" | "));
+  const copies = fs.readdirSync(path.join(process.env.WEBVIEW2_USER_DATA_FOLDER, "copies"));
+  t.check("copie datée du jour gardée", copies.some((f) => /^etat-\d{4}-\d{2}-\d{2}\.json$/.test(f)), copies);
+  ui.close();
+  try { process.kill(again.pid); } catch {}
+
   t.report();
   process.exit();
 })().catch((e) => {

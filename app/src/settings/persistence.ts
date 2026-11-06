@@ -37,8 +37,72 @@ export function profileCount(settings: string | null | undefined): number {
 
 const localGen = () => Number(localStorage.getItem(GEN_KEY) ?? 0) || 0;
 
-/** Journal de la copie (etat.log), pour comprendre une perte après coup. */
-const log = (line: string) => { invoke("state_log", { line }).catch(() => {}); };
+/** Journal de la copie (etat.log), pour comprendre une perte après coup. Une ligne qui n'a pas pu partir (Calti pas
+ * encore joignable au démarrage) est réessayée quelques fois. */
+function log(line: string, tries = 6) {
+  invoke("state_log", { line }).catch(() => {
+    if (tries > 1) window.setTimeout(() => log(line, tries - 1), 1500);
+  });
+}
+
+/** Copie posée par Calti dans la page avant son chargement (app/src-tauri/src/state.rs, init_script). */
+const injected = () => (window as { __CALTI_COPY__?: string | null }).__CALTI_COPY__;
+
+/** Lit la copie : celle posée dans la page, sinon par un appel à Calti (réessayé : il peut échouer au démarrage). */
+async function readCopy(): Promise<{ text: string | null; source: string }> {
+  const ready = injected();
+  if (typeof ready === "string") return { text: ready, source: "posée dans la page" };
+  let last: unknown = null;
+  for (let i = 0; i < 5; i++) {
+    try {
+      return { text: await invoke<string | null>("state_load"), source: "lue" };
+    } catch (e) {
+      last = e;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  }
+  throw last;
+}
+
+const parse = (text: string | null): Snapshot | null => {
+  try {
+    const saved = JSON.parse(text ?? "null") as Snapshot | null;
+    return saved?.calti === 1 && typeof saved.data === "object" ? saved : null;
+  } catch {
+    return null;
+  }
+};
+
+/** Écrit la copie dans le stockage local (toutes les clés « calti.* » remplacées). */
+function apply(saved: Snapshot) {
+  for (const key of Object.keys(collect())) localStorage.removeItem(key);
+  for (const [key, value] of Object.entries(saved.data)) {
+    if (key.startsWith("calti.") && typeof value === "string") localStorage.setItem(key, value);
+  }
+  localStorage.setItem(GEN_KEY, String(Math.max(saved.gen, localGen())));
+}
+
+/** Profils de la copie (écran de bienvenue : les reprendre plutôt que d'en créer un). */
+export async function copyProfiles(): Promise<string[]> {
+  try {
+    const saved = parse((await readCopy()).text);
+    const settings = JSON.parse(saved?.data[SETTINGS_KEY] ?? "null");
+    const order: string[] = Array.isArray(settings?.profileOrder) ? settings.profileOrder : [];
+    return order.map((id) => settings.profiles?.[id]?.name?.trim() || id);
+  } catch {
+    return [];
+  }
+}
+
+/** Reprend la copie à la demande (écran de bienvenue), puis recharge l'interface. */
+export async function restoreFromCopy(): Promise<boolean> {
+  const saved = parse((await readCopy()).text);
+  if (!saved || profileCount(saved.data[SETTINGS_KEY]) === 0) return false;
+  apply(saved);
+  log("copie reprise depuis l'écran de bienvenue");
+  location.reload();
+  return true;
+}
 
 /**
  * Au lancement (fenêtre principale) : reprend la copie si le stockage de WebView2 a perdu ses profils, ou si la
@@ -46,29 +110,28 @@ const log = (line: string) => { invoke("state_log", { line }).catch(() => {}); }
  * soit son numéro de génération.
  */
 export async function restoreIfNewer(): Promise<boolean> {
-  if (getCurrentWindow().label !== "main") return false;
+  // Fenêtre principale seulement ; la copie posée dans la page n'existe que là, ce qui suffit si l'appel échoue.
+  let label = typeof injected() === "undefined" ? "" : "main";
+  try { label = getCurrentWindow().label; } catch { /* Calti pas encore joignable */ }
+  if (label !== "main") return false;
   const local = localStorage.getItem(SETTINGS_KEY);
   try {
-    const text = await invoke<string | null>("state_load");
+    const { text, source } = await readCopy();
     if (!text) {
       log(`lancement : pas de copie ; stockage avec ${profileCount(local)} profil(s)`);
       return false;
     }
-    const saved = JSON.parse(text) as Snapshot;
-    if (saved?.calti !== 1 || typeof saved.data !== "object") {
+    const saved = parse(text);
+    if (!saved) {
       log("lancement : copie illisible, ignorée");
       return false;
     }
     const savedProfiles = profileCount(saved.data[SETTINGS_KEY]);
     const lost = profileCount(local) === 0 && savedProfiles > 0;
     const newer = saved.gen > localGen() && savedProfiles > 0;
-    log(`lancement : stockage ${profileCount(local)} profil(s) gén. ${localGen()} ; copie ${savedProfiles} profil(s) gén. ${saved.gen} → ${lost || newer ? "copie reprise" : "stockage gardé"}${lost ? " (profils perdus)" : ""}`);
+    log(`lancement : stockage ${profileCount(local)} profil(s) gén. ${localGen()} ; copie ${savedProfiles} profil(s) gén. ${saved.gen} (${source}) → ${lost || newer ? "copie reprise" : "stockage gardé"}${lost ? " (profils perdus)" : ""}`);
     if (!lost && !newer) return false;
-    for (const key of Object.keys(collect())) localStorage.removeItem(key);
-    for (const [key, value] of Object.entries(saved.data)) {
-      if (key.startsWith("calti.") && typeof value === "string") localStorage.setItem(key, value);
-    }
-    localStorage.setItem(GEN_KEY, String(Math.max(saved.gen, localGen())));
+    apply(saved);
     return true;
   } catch (e) {
     log(`lancement : lecture de la copie impossible (${e})`);

@@ -540,3 +540,17 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
   `build-story.cjs` à partir d'une capture de l'accueil, `scripts/tests/story-capture.cjs`). Captures d'audit :
   `scripts/tests/audit-shots.cjs`.
 - Tests : menus 19/19, notes 21/21, sélecteur 11/11, intégrations 26/26, copie 11/11, fonctions 19/19. Installé.
+
+## 2026-11-06 — Profils perdus au démarrage de Windows (encore)
+
+- Constat (journal, sauvegarde `sauvegarde-2026-11-06`) : au lancement de 08:27, WebView2 a repris un stockage local
+  vierge (fichier `000003.log` ne contenant que des réglages vides), et l'interface n'a écrit aucune ligne au journal :
+  ses appels à Calti échouaient à ce moment-là, donc la reprise depuis `etat.json` (intacte, 2 profils) n'a pas eu
+  lieu. Une relance a suffi : stockage et profils retrouvés.
+- Correction : la fenêtre principale est créée dans `setup` (`"create": false` dans la configuration) avec un script
+  d'initialisation qui pose la copie dans la page (`window.__CALTI_COPY__`) avant son chargement ; la reprise s'en
+  sert sans appel à Calti, et réessaie l'appel sinon. Lignes du journal réessayées. Ligne native au démarrage
+  (« démarrage de Calti (pid …) »), et copie datée du jour dans `copies/` (7 gardées). Écran de bienvenue : bouton
+  « Reprendre … » quand une copie a des profils.
+- Test persistance : 15/15 (nouveau : Calti arrêté net, stockage supprimé, relance → profils repris par la copie
+  posée dans la page, journal natif, copie du jour). Menus 19/19, sélecteur 11/11, intégrations 26/26, fonctions 19/19.

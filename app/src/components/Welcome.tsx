@@ -1,4 +1,5 @@
-import { useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import { copyProfiles, restoreFromCopy } from "../settings/persistence";
 import { profileIcons, useSettings } from "../settings/settings";
 import { dragWindow } from "./dragWindow";
 import { ProfileBadge } from "./ProfileBadge";
@@ -14,6 +15,9 @@ export function Welcome() {
   const [color, setColor] = useState(colors[0]);
   const [icon, setIcon] = useState("");
   const shown = name.trim() || "Profil";
+  // Une copie de sécurité a des profils (stockage de WebView2 perdu) : les reprendre plutôt que d'en créer un.
+  const [saved, setSaved] = useState<string[]>([]);
+  useEffect(() => { copyProfiles().then(setSaved); }, []);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -28,6 +32,11 @@ export function Welcome() {
       <form className="welcome__card glass" onSubmit={submit}>
         <ProfileBadge profile={{ id: "nouveau", name: shown, color, icon, search: "duckduckgo", startPage: "home" }} size={72} />
         <h1>Bienvenue dans Calti</h1>
+        {saved.length > 0 && (
+          <button type="button" className="btn welcome__go welcome__restore" onClick={() => { restoreFromCopy(); }}>
+            Reprendre {saved.join(", ")}
+          </button>
+        )}
         <p>Créez votre premier profil. Chaque profil a ses propres onglets, connexions, mots de passe et historique ;
           vous pourrez en ajouter d'autres dans les Réglages.</p>
         <input className="welcome__name" autoFocus value={name} maxLength={40} placeholder="Nom du profil (ex. Personnel)"

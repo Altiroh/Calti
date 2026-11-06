@@ -119,3 +119,8 @@
 .welcome__go:disabled {
   opacity: 0.5;
 }
+
+/* Copie de sécurité trouvée : la reprendre, au-dessus de la création. */
+.welcome__restore {
+  margin: 4px 0 8px;
+}

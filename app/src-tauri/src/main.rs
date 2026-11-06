@@ -45,6 +45,13 @@ fn main() {
     builder
         .manage(browser::Browser::default())
         .setup(|app| {
+            // Fenêtre principale créée ici (et non par la configuration) pour y poser la copie avant la page.
+            state::startup(app.handle());
+            if let Some(config) = app.config().app.windows.iter().find(|w| w.label == "main").cloned() {
+                tauri::WebviewWindowBuilder::from_config(app.handle(), &config)?
+                    .initialization_script(&state::init_script(app.handle()))
+                    .build()?;
+            }
             clipboard::watch(app.handle().clone());
             media::start(app.handle().clone());
             Ok(())
