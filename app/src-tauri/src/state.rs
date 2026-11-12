@@ -96,6 +96,24 @@ pub fn wait_for_files(app: &AppHandle) {
     }
 }
 
+/// Place libre (octets) sur le disque des données de Calti.
+pub fn disk_free_bytes(app: &AppHandle) -> Option<u64> {
+    use std::os::windows::ffi::OsStrExt;
+    let dir = data_dir(app)?;
+    let wide: Vec<u16> = dir.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+    let mut free = 0u64;
+    let ok = unsafe {
+        windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW(wide.as_ptr(), &mut free, std::ptr::null_mut(), std::ptr::null_mut())
+    };
+    (ok != 0).then_some(free)
+}
+
+/// Place libre sur le disque, pour l'avertissement « disque plein » de l'interface.
+#[tauri::command]
+pub fn disk_free(app: AppHandle) -> Option<u64> {
+    disk_free_bytes(&app)
+}
+
 /// Nombre de profils d'une copie (réglages `calti.settings.v3`, champ `profileOrder`).
 fn profiles_in(snapshot: &serde_json::Value) -> usize {
     snapshot["data"]["calti.settings.v3"]
@@ -167,7 +185,8 @@ pub fn startup(app: &AppHandle) {
     let Some(dir) = data_dir(app) else { return };
     let copy = read_retry(&dir.join(FILE)).ok().flatten();
     let profiles = copy.as_deref().and_then(|t| serde_json::from_str::<serde_json::Value>(t).ok()).map_or(0, |v| profiles_in(&v));
-    append_log(app, &format!("démarrage de Calti (pid {}) : copie {} profil(s)", std::process::id(), profiles));
+    let free = disk_free_bytes(app).map_or(String::new(), |b| format!(", disque : {} Mo libres", b / 1_048_576));
+    append_log(app, &format!("démarrage de Calti (pid {}) : copie {} profil(s){free}", std::process::id(), profiles));
     if profiles == 0 {
         return;
     }

@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 const GEN_KEY = "calti.state.gen";
+/** Copie impossible faute de place sur le disque (avertissement de l'interface). */
 const SETTINGS_KEY = "calti.settings.v3";
 const EVERY = 3000;
 
@@ -144,6 +145,7 @@ export function startMirror() {
   if (getCurrentWindow().label !== "main") return;
   let last = "";
   let warned = false;
+  let failing = "";
   const save = () => {
     const data = collect();
     // Stockage sans profil (premier lancement, perte en cours) : la copie précédente est gardée.
@@ -159,9 +161,14 @@ export function startMirror() {
     const gen = Math.max(Date.now(), localGen() + 1);
     try { localStorage.setItem(GEN_KEY, String(gen)); } catch { /* non persisté */ }
     const snapshot: Snapshot = { calti: 1, gen, saved: new Date().toISOString(), data };
-    invoke("state_save", { data: JSON.stringify(snapshot) }).catch((e) => {
+    invoke("state_save", { data: JSON.stringify(snapshot) }).then(() => {
+      if (failing) log("copie de nouveau enregistrée");
+      failing = "";
+    }).catch((e) => {
       last = "";
-      log(`copie refusée ou impossible : ${e}`);
+      const message = String(e);
+      if (message !== failing) log(`copie refusée ou impossible : ${message}`);
+      failing = message;
     });
   };
   save();

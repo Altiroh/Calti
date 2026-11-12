@@ -615,3 +615,20 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
 - Correction (`features.rs`) : zoom valide de 25 à 500 % ; valeurs aberrantes écartées au chargement (fichier
   réécrit), jamais mémorisées, et un changement aberrant est aussitôt remplacé par le zoom du site.
 - Test `zoom.test.cjs` 4/4, fonctions 19/19. Installé.
+
+## 2026-11-12 — Images en fichiers ; Calti lancé depuis une application empaquetée
+
+- Constat (connexions Google, identifiants proposés et profils « perdus ») : Calti relancé depuis l'application
+  Claude (après chaque installation) héritait de son conteneur MSIX. Windows redirigeait ses écritures dans AppData
+  vers `AppData\Local\Packages\Claude_…\LocalCache\Local\fr.calti.app`, une copie invisible du Calti lancé
+  normalement, et inversement : deux jeux de profils, de cookies et d'identifiants, selon le mode de lancement.
+- Correction (`launch.rs`) : au démarrage, Calti écrit un fichier témoin dans son dossier ; s'il apparaît dans une
+  copie `Packages\*\LocalCache\Local\fr.calti.app`, il se relance par l'Explorateur, hors du conteneur, et s'arrête
+  (`GetCurrentPackageFullName` ne voit rien : le processus enfant hérite de la redirection sans identité de paquet).
+  Pas pour une instance d'essai ni avec des arguments. Vérifié : lancé depuis Claude, il écrit dans le vrai dossier.
+- Images (fond, photos de profil, préréglages) : compressées en WebP (fond 2560 px au plus, photo 256 px) et
+  enregistrées dans `images/` (commandes `image_save` en octets bruts, `image_load`, `image_delete`, `image_list`,
+  écriture atomique, clés vérifiées). IndexedDB n'est plus qu'un cache : une image absente est relue depuis son
+  fichier. Au lancement, les images d'IndexedDB sans fichier sont recompressées et écrites (presse-papiers exclu).
+- Journal de démarrage : place libre sur le disque ; échecs de copie notés une fois, puis la reprise.
+- Tests : images 11/11, persistance 17/17, zoom 4/4, groupes 18/18, fonctions 19/19, nouvel onglet 2/2. Installé.

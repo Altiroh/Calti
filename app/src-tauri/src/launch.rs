@@ -92,3 +92,31 @@ pub fn register_default_browser() -> Result<(), String> {
         .map(|_| ())
         .map_err(|e| e.to_string())
 }
+
+/// Calti lancé par une application empaquetée (l'application Claude, par exemple) hérite de son conteneur : Windows
+/// redirige alors ses écritures dans AppData vers une copie propre à cette application
+/// (`AppData\Local\Packages\<application>\LocalCache\Local\…`). Profils, connexions et identifiants s'y
+/// retrouvent, invisibles du Calti lancé normalement, et inversement.
+/// Détection : un fichier témoin écrit dans le dossier de Calti apparaît-il dans une de ces copies ? Si oui, Calti se
+/// relance par l'Explorateur (hors du conteneur) et ce processus s'arrête : renvoie vrai.
+/// Pas pour une instance d'essai (dossier WebView2 isolé) ni quand des arguments sont passés.
+pub fn escape_package_container(args: &[String], identifier: &str) -> bool {
+    if args.len() > 1 || std::env::var_os("WEBVIEW2_USER_DATA_FOLDER").is_some() {
+        return false;
+    }
+    let Some(local) = std::env::var_os("LOCALAPPDATA").map(std::path::PathBuf::from) else { return false };
+    let dir = local.join(identifier);
+    let name = format!(".lancement-{}", std::process::id());
+    if std::fs::create_dir_all(&dir).is_err() || std::fs::write(dir.join(&name), b"").is_err() {
+        return false;
+    }
+    let redirected = std::fs::read_dir(local.join("Packages")).into_iter().flatten().flatten().any(|package| {
+        package.path().join("LocalCache").join("Local").join(identifier).join(&name).exists()
+    });
+    let _ = std::fs::remove_file(dir.join(&name));
+    if !redirected {
+        return false;
+    }
+    let Ok(exe) = std::env::current_exe() else { return false };
+    std::process::Command::new("explorer.exe").arg(exe).spawn().is_ok()
+}

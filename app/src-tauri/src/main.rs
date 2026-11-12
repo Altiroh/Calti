@@ -7,6 +7,7 @@ mod clipboard;
 mod features;
 mod launch;
 mod state;
+mod images;
 mod browser;
 mod native;
 mod devtools;
@@ -18,6 +19,9 @@ mod suggest;
 fn main() {
     // `calti --import-brave-passwords <profil Brave> <profil Calti>` : à lancer Calti fermé.
     let args: Vec<String> = std::env::args().collect();
+    if launch::escape_package_container(&args, "fr.calti.app") {
+        return;
+    }
     if args.get(1).map(String::as_str) == Some("--import-brave-passwords") && args.len() == 4 {
         match brave_import::import_passwords(&args[2], &args[3]) {
             Ok(r) => println!("importés {} · déjà présents {} · illisibles hors de Brave {}", r.imported, r.already, r.locked),
@@ -107,6 +111,11 @@ fn main() {
             state::state_load,
             state::state_save,
             state::state_log,
+            state::disk_free,
+            images::image_save,
+            images::image_load,
+            images::image_delete,
+            images::image_list,
             launch::register_default_browser,
             clipboard::clipboard_image,
             clipboard::clipboard_pause,

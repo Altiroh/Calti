@@ -12,6 +12,7 @@ import { Welcome } from "./components/Welcome";
 import { restoreIfNewer, startMirror } from "./settings/persistence";
 import { installPointerEffects } from "./motion";
 import { migrateLegacyData } from "./settings/migrate";
+import { syncImagesToDisk } from "./settings/backgrounds";
 import { SettingsProvider, useSettings } from "./settings/settings";
 
 /** Sans profil (premier lancement), l'accueil de création ; ensuite, le navigateur. */
@@ -34,6 +35,7 @@ restoreIfNewer()
   .then(() => migrateLegacyData())
   .finally(() => {
     startMirror();
+    syncImagesToDisk().catch((e) => console.warn("Calti : images non recopiées sur le disque", e));
     createRoot(document.getElementById("root")!).render(
       <StrictMode>
         <SettingsProvider>

@@ -1,7 +1,7 @@
 // Préréglages d'apparence enregistrés par l'utilisateur : tout le style sauf la disposition et les textes de
 // l'accueil. L'image de fond éventuelle est copiée à part dans IndexedDB (clé `preset-<id>`).
 import { useCallback, useEffect, useState } from "react";
-import { run } from "./backgrounds";
+import { deleteImage, getImage, putImage } from "./backgrounds";
 import { BACKGROUND_KEY, type HomeTheme } from "./settings";
 
 export type Look = Omit<HomeTheme, "layout" | "headline" | "tagline">;
@@ -30,8 +30,8 @@ function write(list: AppearancePreset[]) {
 }
 
 async function copyImage(from: string, to: string) {
-  const blob = await run<Blob | undefined>("readonly", (s) => s.get(from));
-  if (blob) await run("readwrite", (s) => s.put(blob, to));
+  const blob = await getImage(from);
+  if (blob) await putImage(to, blob);
   return !!blob;
 }
 
@@ -61,7 +61,7 @@ export function useAppearancePresets() {
 
   const remove = useCallback((id: string) => {
     write(read().filter((p) => p.id !== id));
-    run("readwrite", (s) => s.delete(presetImageKey(id))).catch(() => {});
+    deleteImage(presetImageKey(id)).catch(() => {});
   }, []);
 
   /** Style à appliquer ; l'image du préréglage redevient l'image de fond de l'application. */
