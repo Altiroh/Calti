@@ -129,6 +129,8 @@ export function App() {
   const [menuRects, setMenuRects] = useState<Cutout[]>([]);
   // Mini-lecteur flottant, découpé lui aussi.
   const [playerRect, setPlayerRect] = useState<Cutout | null>(null);
+  // Lecteur en bordure par-dessus la page : ses découpes (lecteur, liseré et congés du bord renflé).
+  const [dockRects, setDockRects] = useState<Cutout[]>([]);
   // Sélecteur de profils (Alt+²), découpé lui aussi.
   const [switcherRect, setSwitcherRect] = useState<Cutout | null>(null);
   const [tabSwitcherRect, setTabSwitcherRect] = useState<Cutout | null>(null);
@@ -141,6 +143,7 @@ export function App() {
     ...(switcherRect ? [switcherRect] : []),
     ...(tabSwitcherRect ? [tabSwitcherRect] : []),
     ...(playerRect ? [playerRect] : []),
+    ...dockRects,
   ];
   const browser = useBrowser(profileIds, prefsOf, immersive ? 0 : theme.chrome.pageRadius, cutouts);
   const claudeOn = theme.chrome.railWidgets.includes("claude");
@@ -363,14 +366,15 @@ export function App() {
   const overlayDock = c.playerOverlay ? edgeDock : null;
   const flowDock = c.playerOverlay ? null : edgeDock;
   const setOverlay = (playerOverlay: boolean) => updateTheme({ chrome: { ...c, playerOverlay } });
-  // Par-dessus la page, le lecteur prend l'allure de la barre latérale : carte flottante, même fond (verre si la
-  // barre est en bord renflé), même arrondi et même transparence (voir MediaWidget.css, .media-dock--overlay).
-  const overlayLook: PlayerLook = {
-    style: "floating", surface: c.railStyle === "edge" ? "glass" : c.railSurface, edge: "none", align: c.playerAlign, width: c.playerWidth,
-  };
   const playerLook: PlayerLook = {
     style: c.playerStyle, surface: c.playerSurface, edge: c.playerEdgeSurface, align: c.playerAlign, width: c.playerWidth,
     tone: readableOn(c.playerEdgeColor) === "#fff" ? "light" : "dark",
+  };
+  // Par-dessus la page, le lecteur prend l'allure de la barre latérale : carte flottante, même fond (verre si la
+  // barre est en bord renflé), même arrondi et même transparence (voir MediaWidget.css, .media-dock--overlay).
+  // Bord renflé : celui du lecteur, le long du bord de la page.
+  const overlayLook: PlayerLook = c.playerStyle === "edge" ? playerLook : {
+    style: "floating", surface: c.railStyle === "edge" ? "glass" : c.railSurface, edge: "none", align: c.playerAlign, width: c.playerWidth,
   };
   const chromeVars = {
     "--rail-width": c.railStyle === "edge" ? "58px" : `${rail.width}px`,
@@ -488,7 +492,7 @@ export function App() {
         {flowDock === "bottom" && <DockedPlayer dock="bottom" look={playerLook} onOverlay={setOverlay} {...playerProps} />}
       </div>
       {flowDock === "right" && <DockedPlayer dock="right" look={playerLook} onOverlay={setOverlay} {...playerProps} />}
-      {overlayDock && <DockedPlayer key={overlayDock} dock={overlayDock} look={overlayLook} overlay onOverlay={setOverlay} onRect={setPlayerRect} {...playerProps} />}
+      {overlayDock && <DockedPlayer key={overlayDock} dock={overlayDock} look={overlayLook} overlay onOverlay={setOverlay} onRects={setDockRects} {...playerProps} />}
 
       {/* Toujours présent (caché hors plein écran) : l’image du profil est déjà chargée quand il apparaît. */}
       <button className={`fullscreen-exit${exitHover ? " fullscreen-exit--open" : ""}`} hidden={!fullscreen || pageFullscreen != null} onClick={toggleFullscreen}

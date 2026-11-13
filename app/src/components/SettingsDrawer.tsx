@@ -404,9 +404,11 @@ function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
           {(c.mediaDock === "top" || c.mediaDock === "bottom" || c.mediaDock === "right") && (
             <>
               <Check label="Par-dessus la page" checked={c.playerOverlay} onChange={(playerOverlay) => setChrome({ playerOverlay })} />
-              {!c.playerOverlay && <>
-              <Segmented value={c.playerStyle} onChange={(playerStyle) => setChrome({ playerStyle })}
-                options={[["edge", "Bord renflé"], ["floating", "Flottant"], ["attached", "Collé au bord"]]} />
+              <Segmented value={c.playerOverlay && c.playerStyle !== "edge" ? "floating" : c.playerStyle} onChange={(playerStyle) => setChrome({ playerStyle })}
+                options={c.playerOverlay
+                  ? [["edge", "Bord renflé"], ["floating", "Flottant"]]
+                  : [["edge", "Bord renflé"], ["floating", "Flottant"], ["attached", "Collé au bord"]]} />
+              {(!c.playerOverlay || c.playerStyle === "edge") && <>
               {c.playerStyle === "edge" ? (
                 <>
                   <Segmented value={c.playerEdgeSurface} onChange={(playerEdgeSurface) => setChrome({ playerEdgeSurface })}
@@ -425,7 +427,7 @@ function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
                       min={0.05} max={1} step={0.05} format={pct} onChange={(playerEdgeOpacity) => setChrome({ playerEdgeOpacity })} />
                   )}
                 </>
-              ) : (
+              ) : !c.playerOverlay && (
                 <Segmented value={c.playerSurface} onChange={(playerSurface) => setChrome({ playerSurface })} options={surfaces} />
               )}
               <Slider label="Arrondi" value={c.playerRadius} min={0} max={36} step={1} format={px} onChange={(playerRadius) => setChrome({ playerRadius })} />

@@ -15,7 +15,9 @@ use tauri::{
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Rect, Url, Webview, WebviewBuilder, WebviewUrl,
     WebviewWindowBuilder, Window,
 };
-use windows_sys::Win32::Graphics::Gdi::{CombineRgn, CreateRoundRectRgn, DeleteObject, SetWindowRgn, RGN_DIFF};
+use windows_sys::Win32::Graphics::Gdi::{
+    CombineRgn, CreateEllipticRgn, CreateRectRgn, CreateRoundRectRgn, DeleteObject, SetWindowRgn, HRGN, RGN_DIFF, RGN_OR,
+};
 use windows_sys::Win32::UI::WindowsAndMessaging::GetParent;
 
 /// Délai avant la suspension d'un onglet caché (mémoire réduite dès qu'il est caché).
@@ -110,13 +112,51 @@ pub struct Placement {
 }
 
 /// Rectangle arrondi retiré de la page (badge du plein écran, dialogue) ; sans arrondi donné, une pilule.
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize, Clone)]
 pub struct Cutout {
     x: f64,
     y: f64,
     width: f64,
     height: f64,
     radius: Option<f64>,
+    /// Côté aux coins droits ("top", "bottom", "left", "right") : élément collé à un bord, arrondi de l'autre côté.
+    #[serde(default)]
+    square: Option<String>,
+    /// Congé : le carré moins le quart de cercle centré sur ce coin ("tl", "tr", "bl", "br"), comme ceux qui
+    /// raccordent un bord renflé à son liseré.
+    #[serde(default)]
+    fillet: Option<String>,
+}
+
+/// Région d'une découpe, en pixels de la page.
+unsafe fn cutout_region(left: i32, top: i32, right: i32, bottom: i32, diameter: i32, square: Option<&str>, fillet: Option<&str>) -> HRGN {
+    if let Some(corner) = fillet {
+        let region = CreateRectRgn(left, top, right + 1, bottom + 1);
+        let r = (right - left).max(bottom - top);
+        let (cx, cy) = match corner {
+            "tl" => (left, top),
+            "tr" => (right, top),
+            "bl" => (left, bottom),
+            _ => (right, bottom),
+        };
+        let circle = CreateEllipticRgn(cx - r, cy - r, cx + r + 1, cy + r + 1);
+        CombineRgn(region, region, circle, RGN_DIFF);
+        DeleteObject(circle);
+        return region;
+    }
+    let region = CreateRoundRectRgn(left, top, right + 1, bottom + 1, diameter, diameter);
+    if let Some(side) = square {
+        let (mid_x, mid_y) = ((left + right) / 2, (top + bottom) / 2);
+        let half = match side {
+            "top" => CreateRectRgn(left, top, right + 1, mid_y),
+            "bottom" => CreateRectRgn(left, mid_y, right + 1, bottom + 1),
+            "left" => CreateRectRgn(left, top, mid_x, bottom + 1),
+            _ => CreateRectRgn(mid_x, top, right + 1, bottom + 1),
+        };
+        CombineRgn(region, region, half, RGN_OR);
+        DeleteObject(half);
+    }
+    region
 }
 
 fn label(id: u64) -> String {
@@ -168,7 +208,7 @@ fn round_corners(webview: &Webview, width: f64, height: f64, radius: f64, cutout
     let r = (radius.max(0.0) * 2.0 * scale).round() as i32;
     let px = |v: f64| (v * scale).round() as i32;
     let holes: Vec<_> = cutouts.iter()
-        .map(|c| (px(c.x), px(c.y), px(c.x + c.width), px(c.y + c.height), px(c.radius.map_or(c.height, |r| r * 2.0))))
+        .map(|c| (px(c.x), px(c.y), px(c.x + c.width), px(c.y + c.height), px(c.radius.map_or(c.height, |r| r * 2.0)), c.square.clone(), c.fillet.clone()))
         .collect();
     let _ = webview.with_webview(move |platform| unsafe {
         let mut parent = windows::Win32::Foundation::HWND::default();
@@ -180,8 +220,8 @@ fn round_corners(webview: &Webview, width: f64, height: f64, radius: f64, cutout
             return;
         }
         let region = CreateRoundRectRgn(0, 0, w + 1, h + 1, r, r);
-        for (left, top, right, bottom, d) in holes {
-            let cut = CreateRoundRectRgn(left, top, right + 1, bottom + 1, d, d);
+        for (left, top, right, bottom, d, square, fillet) in holes {
+            let cut = cutout_region(left, top, right, bottom, d, square.as_deref(), fillet.as_deref());
             CombineRgn(region, region, cut, RGN_DIFF);
             DeleteObject(cut);
         }
@@ -436,7 +476,7 @@ pub async fn browser_layout(app: AppHandle, window: Window, visible: Vec<Placeme
         wake(&app, &w, p.id);
         let scale = window.scale_factor().unwrap_or(1.0);
         let px = |v: f64| (v * scale).round() as i32;
-        crate::devtools::place(p.id, p.devtools.map(|d| (px(d.x), px(d.y), px(d.width), px(d.height))));
+        crate::devtools::place(p.id, p.devtools.as_ref().map(|d| (px(d.x), px(d.y), px(d.width), px(d.height))));
     }
     for id in &ids {
         if !visible.iter().any(|p| p.id == *id) {

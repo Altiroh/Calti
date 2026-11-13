@@ -693,3 +693,11 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
 - Test `overlay.test.cjs` 13/13 (allure de la barre, réglages appliqués en direct, options masquées), intégrations
   26/26. Note : une migration unique force la barre en bord renflé sur un stockage vide (`calti.edge-rail`) ; le test
   pose ce témoin pour garder sa barre flottante. Installé.
+- Retour : le bord renflé doit rester possible par-dessus la page. Il y court le long du bord de la page (liseré de
+  6 px, position calculée), le lecteur collé à lui, raccordé par les deux congés. Découpes de la page enrichies
+  (`browser.rs`, `cutout_region`) : `square` (coins droits d'un côté) et `fillet` (carré moins le quart de cercle
+  centré sur un coin) ; le lecteur envoie ses découpes (lecteur, liseré, congés) par `onRects`. Réglages par-dessus la
+  page : « Bord renflé » (avec couleur, verre, opacité, arrondi) ou « Flottant » (allure de la barre latérale).
+- Test `overlay.test.cjs` 18/18 : la découpe est lue dans la région Windows de la page (`scripts/tests/region.ps1`,
+  `GetWindowRgn` + `PtInRegion`) — sous le lecteur, le liseré, coins droits et arrondis, creux des congés. Les pages
+  sont ouvertes par la barre d'adresse (onglet affiché). Intégrations, persistance, menus, fonctions : verts. Installé.

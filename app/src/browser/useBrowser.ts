@@ -65,6 +65,10 @@ export interface Cutout {
   height: number;
   /** Arrondi des coins ; absent = pilule. */
   radius?: number;
+  /** Côté aux coins droits : élément collé à un bord, arrondi seulement de l'autre côté. */
+  square?: "top" | "bottom" | "left" | "right";
+  /** Congé : le carré moins le quart de cercle centré sur ce coin (raccord d'un bord renflé à son liseré). */
+  fillet?: "tl" | "tr" | "bl" | "br";
 }
 
 export interface PaneState {
