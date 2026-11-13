@@ -902,3 +902,21 @@
 .media-title--idle {
   opacity: 0.6;
 }
+
+/* Par-dessus la page : position fixe calculée sur la zone des pages (MediaWidget.tsx), sans marge ; le bord renflé
+ * devient collé (pas de liseré ni de congés au milieu de la fenêtre). */
+.media-dock--overlay {
+  position: fixed;
+  z-index: 40;
+  margin: 0 !important;
+  align-self: auto;
+}
+
+.media-dock--overlay[data-style="edge"]::before,
+.media-dock--overlay[data-style="edge"]::after {
+  display: none;
+}
+
+.media-dock--overlay[data-style="floating"] {
+  box-shadow: var(--glass-shadow), 0 12px 32px rgba(8, 20, 45, 0.28);
+}

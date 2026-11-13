@@ -102,19 +102,88 @@ interface DockProps {
   onHide: () => void;
 }
 
+/** Largeur (haut, bas) ou largeur de colonne (droite) du lecteur en bordure, selon sa taille. */
+const DOCK_WIDTH = { s: 420, m: 640, l: 920 } as const;
+const SIDE_WIDTH = { s: 170, m: 210, l: 260, full: 260 } as const;
+
+/** Zone des pages web (tous les volets visibles) : le lecteur par-dessus la page s'y place. */
+function pagesArea(): DOMRect | null {
+  const rects = [...document.querySelectorAll<HTMLElement>(".pane__content")]
+    .map((el) => el.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0);
+  if (!rects.length) return null;
+  const left = Math.min(...rects.map((r) => r.left)), top = Math.min(...rects.map((r) => r.top));
+  return new DOMRect(left, top, Math.max(...rects.map((r) => r.right)) - left, Math.max(...rects.map((r) => r.bottom)) - top);
+}
+
 /**
  * Lecteur en bordure de la fenêtre (haut, bas, droite), avec les styles de la barre latérale : flottant, collé au
  * bord, ou bord renflé (liseré le long du bord, renflé là où est le lecteur). Les pages lui font place.
  */
-export function DockedPlayer({ dock, look, setDock, onHide }: DockProps & { dock: "top" | "bottom" | "right"; look: PlayerLook }) {
+export function DockedPlayer({ dock, look, setDock, onHide, overlay, onOverlay, onRect }: DockProps & {
+  dock: "top" | "bottom" | "right";
+  look: PlayerLook;
+  /** Par-dessus la page : placé sur la zone des pages, qui est découpée à sa place (`onRect`). */
+  overlay?: boolean;
+  onOverlay?: (overlay: boolean) => void;
+  onRect?: (r: Cutout | null) => void;
+}) {
   const edge = look.style === "edge";
+  const el = useRef<HTMLDivElement>(null);
+  const [place, setPlace] = useState<CSSProperties | null>(null);
+
+  // Par-dessus la page : position calculée sur la zone des pages, recalculée quand elle bouge.
+  useLayoutEffect(() => {
+    if (!overlay) { setPlace(null); return; }
+    const gap = look.style === "floating" ? 12 : 0;
+    // Même place : rien ne change (ni rendu, ni découpe de la page).
+    const keep = (next: CSSProperties) => setPlace((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+    const update = () => {
+      const area = pagesArea();
+      if (!area) return setPlace(null);
+      const own = el.current?.getBoundingClientRect();
+      const along = (size: number, start: number, length: number) =>
+        look.align === "start" ? start + gap : look.align === "end" ? start + length - gap - size : start + (length - size) / 2;
+      if (dock === "right") {
+        const width = Math.min(SIDE_WIDTH[look.width], area.width - 2 * gap);
+        const full = look.width === "full";
+        const height = full ? area.height - 2 * gap : Math.min(own?.height ?? 0, area.height - 2 * gap);
+        keep({ left: area.right - gap - width, top: full ? area.top + gap : along(height, area.top, area.height), width, ...(full ? { height } : {}) });
+      } else {
+        const width = look.width === "full" ? area.width - 2 * gap : Math.min(DOCK_WIDTH[look.width], area.width - 2 * gap);
+        const height = 64;
+        keep({ left: along(width, area.left, area.width), top: dock === "top" ? area.top + gap : area.bottom - gap - height, width, height });
+      }
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    document.querySelectorAll(".pane__content").forEach((p) => observer.observe(p));
+    if (el.current) observer.observe(el.current);
+    window.addEventListener("resize", update);
+    const timer = window.setInterval(update, 1000);
+    return () => { observer.disconnect(); window.removeEventListener("resize", update); clearInterval(timer); };
+  }, [overlay, dock, look.style, look.width, look.align]);
+
+  // Découpe de la page native à la place du lecteur.
+  useLayoutEffect(() => {
+    if (!overlay || !place || !el.current) return onRect?.(null);
+    const r = el.current.getBoundingClientRect();
+    const radius = parseFloat(getComputedStyle(el.current).borderTopLeftRadius) || parseFloat(getComputedStyle(el.current).borderBottomLeftRadius) || 0;
+    onRect?.({ x: r.left - 1, y: r.top - 1, width: r.width + 2, height: r.height + 2, radius: radius + 1 });
+  }, [overlay, place]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => onRect?.(null), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const menu = playerMenu(dock, setDock, onHide, onOverlay ? [
+    { label: "Par-dessus la page", icon: "layers", tone: "violet", checked: !!overlay, action: () => onOverlay(!overlay) },
+    "-",
+  ] : []);
   return (
     <>
-      {edge && look.edge !== "none" && <span className={`media-line media-line--${dock}`} data-edge={look.edge} aria-hidden="true" />}
-      <div className={`media-dock media-dock--${dock} glass`} data-media-dock={dock}
+      {edge && !overlay && look.edge !== "none" && <span className={`media-line media-line--${dock}`} data-edge={look.edge} aria-hidden="true" />}
+      <div ref={el} className={`media-dock media-dock--${dock}${overlay ? " media-dock--overlay" : ""} glass`} data-media-dock={dock}
+        style={overlay ? (place ?? { visibility: "hidden" }) : undefined}
         data-style={look.style} data-surface={edge ? undefined : look.surface} data-edge={edge ? look.edge : undefined}
         data-tone={edge && look.edge === "color" ? look.tone : undefined} data-align={look.align} data-width={look.width}
-        onContextMenu={(e) => { e.preventDefault(); openMenu(e, playerMenu(dock, setDock, onHide)); }}>
+        onContextMenu={(e) => { e.preventDefault(); openMenu(e, menu); }}>
         <div className="media-dock__inner"><Player compact /></div>
       </div>
     </>

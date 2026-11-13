@@ -403,6 +403,7 @@ function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
           <PlayerPlacement value={c.mediaDock} onChange={(mediaDock) => setChrome({ mediaDock })} />
           {(c.mediaDock === "top" || c.mediaDock === "bottom" || c.mediaDock === "right") && (
             <>
+              <Check label="Par-dessus la page" checked={c.playerOverlay} onChange={(playerOverlay) => setChrome({ playerOverlay })} />
               <Segmented value={c.playerStyle} onChange={(playerStyle) => setChrome({ playerStyle })}
                 options={[["edge", "Bord renflé"], ["floating", "Flottant"], ["attached", "Collé au bord"]]} />
               {c.playerStyle === "edge" ? (

@@ -359,6 +359,10 @@ export function App() {
     onHide: () => updateTheme({ chrome: { ...c, mediaFloat: false } }),
   };
   const edgeDock = playerOn && (c.mediaDock === "top" || c.mediaDock === "bottom" || c.mediaDock === "right") ? c.mediaDock : null;
+  // Par-dessus la page : le lecteur ne prend pas de place, la page est découpée à sa place.
+  const overlayDock = c.playerOverlay ? edgeDock : null;
+  const flowDock = c.playerOverlay ? null : edgeDock;
+  const setOverlay = (playerOverlay: boolean) => updateTheme({ chrome: { ...c, playerOverlay } });
   const playerLook: PlayerLook = {
     style: c.playerStyle, surface: c.playerSurface, edge: c.playerEdgeSurface, align: c.playerAlign, width: c.playerWidth,
     tone: readableOn(c.playerEdgeColor) === "#fff" ? "light" : "dark",
@@ -394,7 +398,7 @@ export function App() {
   const profiles = profileIds.map(profile);
 
   return (
-    <div className={`shell tone-${theme.tone}${immersive ? " shell--fullscreen" : ""}${pageFullscreen != null ? " shell--page-fullscreen" : ""}${drawer ? " shell--drawer" : ""}${rail.resizing ? " shell--resizing" : ""}${c.motion ? "" : " no-motion"}${edgeDock === "right" ? " shell--dock-right" : ""}`}
+    <div className={`shell tone-${theme.tone}${immersive ? " shell--fullscreen" : ""}${pageFullscreen != null ? " shell--page-fullscreen" : ""}${drawer ? " shell--drawer" : ""}${rail.resizing ? " shell--resizing" : ""}${c.motion ? "" : " no-motion"}${flowDock === "right" ? " shell--dock-right" : ""}`}
       style={chromeVars}
       data-surface={c.surface} data-bar={c.barStyle} data-bar-surface={c.barSurface} data-address={c.addressWidth}
       data-rail={c.railStyle} data-rail-surface={c.railSurface}
@@ -435,7 +439,7 @@ export function App() {
         player={playerOn && c.mediaDock === "rail" ? (wide) => <RailPlayer wide={wide} {...playerProps} /> : undefined} />
 
       <div className="page">
-        {edgeDock === "top" && <DockedPlayer dock="top" look={playerLook} {...playerProps} />}
+        {flowDock === "top" && <DockedPlayer dock="top" look={playerLook} onOverlay={setOverlay} {...playerProps} />}
         {editingLayout ? (
           <>
             <div className="drag-bar" onMouseDown={dragWindow}><WindowControls /></div>
@@ -476,9 +480,10 @@ export function App() {
             ))}
           </div>
         )}
-        {edgeDock === "bottom" && <DockedPlayer dock="bottom" look={playerLook} {...playerProps} />}
+        {flowDock === "bottom" && <DockedPlayer dock="bottom" look={playerLook} onOverlay={setOverlay} {...playerProps} />}
       </div>
-      {edgeDock === "right" && <DockedPlayer dock="right" look={playerLook} {...playerProps} />}
+      {flowDock === "right" && <DockedPlayer dock="right" look={playerLook} onOverlay={setOverlay} {...playerProps} />}
+      {overlayDock && <DockedPlayer key={overlayDock} dock={overlayDock} look={playerLook} overlay onOverlay={setOverlay} onRect={setPlayerRect} {...playerProps} />}
 
       {/* Toujours présent (caché hors plein écran) : l’image du profil est déjà chargée quand il apparaît. */}
       <button className={`fullscreen-exit${exitHover ? " fullscreen-exit--open" : ""}`} hidden={!fullscreen || pageFullscreen != null} onClick={toggleFullscreen}

@@ -72,6 +72,8 @@ export interface ChromeSettings {
   mediaDock: "free" | "rail" | "titlebar" | "top" | "bottom" | "right";
   /** Mini-lecteur en bordure : mêmes styles que la barre latérale (flottant, collé au bord, bord renflé). */
   playerStyle: "floating" | "attached" | "edge";
+  /** Lecteur en bordure (haut, bas, droite) par-dessus la page, au lieu de lui prendre de la place. */
+  playerOverlay: boolean;
   playerSurface: BarSurface;
   playerRadius: number;
   playerEdgeSurface: "color" | "glass" | "none";
@@ -134,6 +136,7 @@ export const defaultChrome: ChromeSettings = {
   mediaFloat: false,
   mediaDock: "free",
   playerStyle: "floating",
+  playerOverlay: false,
   playerSurface: "glass",
   playerRadius: 20,
   playerEdgeSurface: "color",

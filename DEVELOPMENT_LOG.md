@@ -673,3 +673,15 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
   plus leurs fenêtres : les onglets (vues `tab-*`) n'ont aucune commande, même s'ils chargeaient l'interface.
 - Tests : sécurité 15/15 (programme téléchargé, export chiffré) ; suite complète verte (fonctions, persistance,
   groupes, menus, nouvel onglet, images, privé, zoom, notes, sélecteur, intégrations, Ctrl+Tab, fermeture). Installé.
+
+## 2026-11-13 — Mini-lecteur en bordure par-dessus la page
+
+- Option « Par-dessus la page » (réglage `playerOverlay`, case dans Apparence › Mini-lecteur et entrée cochable du
+  clic droit sur le lecteur) pour les positions haut, bas et droite : le lecteur ne prend plus de place, il se place
+  sur la zone des pages (union des `.pane__content` visibles), à 12 px du bord en style flottant, collé au bord de la
+  page sinon, avec la taille et l'alignement choisis ; la page native est découpée à sa place (même découpe que le
+  lecteur flottant). Le bord renflé y devient collé (pas de liseré ni de congés au milieu de la fenêtre). Position
+  recalculée quand la zone des pages change (redimensionnement, volets).
+- Test `overlay.test.cjs` 9/9 (place rendue à la page, position en bas, en haut, à droite, menu). La découpe n'a pas
+  été vérifiée à l'image : les captures d'écran prennent ce qui est devant (la fenêtre de l'utilisateur), retirées du
+  test. Intégrations 26/26 au second passage (deux échecs instables, machine chargée), persistance 17/17.
