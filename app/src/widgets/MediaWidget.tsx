@@ -163,13 +163,19 @@ export function DockedPlayer({ dock, look, setDock, onHide, overlay, onOverlay, 
     return () => { observer.disconnect(); window.removeEventListener("resize", update); clearInterval(timer); };
   }, [overlay, dock, look.style, look.width, look.align]);
 
-  // Découpe de la page native à la place du lecteur.
+  // Découpe de la page native à la place du lecteur : vérifiée à chaque rendu (un arrondi ou une taille qui change
+  // sans déplacer le lecteur), transmise seulement quand elle change.
+  const sent = useRef("");
   useLayoutEffect(() => {
-    if (!overlay || !place || !el.current) return onRect?.(null);
-    const r = el.current.getBoundingClientRect();
-    const radius = parseFloat(getComputedStyle(el.current).borderTopLeftRadius) || parseFloat(getComputedStyle(el.current).borderBottomLeftRadius) || 0;
-    onRect?.({ x: r.left - 1, y: r.top - 1, width: r.width + 2, height: r.height + 2, radius: radius + 1 });
-  }, [overlay, place]); // eslint-disable-line react-hooks/exhaustive-deps
+    let cut: Cutout | null = null;
+    if (overlay && place && el.current) {
+      const r = el.current.getBoundingClientRect();
+      const radius = parseFloat(getComputedStyle(el.current).borderTopLeftRadius) || 0;
+      cut = { x: r.left - 1, y: r.top - 1, width: r.width + 2, height: r.height + 2, radius: radius + 1 };
+    }
+    const key = JSON.stringify(cut);
+    if (key !== sent.current) { sent.current = key; onRect?.(cut); }
+  });
   useEffect(() => () => onRect?.(null), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const menu = playerMenu(dock, setDock, onHide, onOverlay ? [

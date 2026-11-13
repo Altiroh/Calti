@@ -363,6 +363,11 @@ export function App() {
   const overlayDock = c.playerOverlay ? edgeDock : null;
   const flowDock = c.playerOverlay ? null : edgeDock;
   const setOverlay = (playerOverlay: boolean) => updateTheme({ chrome: { ...c, playerOverlay } });
+  // Par-dessus la page, le lecteur prend l'allure de la barre latérale : carte flottante, même fond (verre si la
+  // barre est en bord renflé), même arrondi et même transparence (voir MediaWidget.css, .media-dock--overlay).
+  const overlayLook: PlayerLook = {
+    style: "floating", surface: c.railStyle === "edge" ? "glass" : c.railSurface, edge: "none", align: c.playerAlign, width: c.playerWidth,
+  };
   const playerLook: PlayerLook = {
     style: c.playerStyle, surface: c.playerSurface, edge: c.playerEdgeSurface, align: c.playerAlign, width: c.playerWidth,
     tone: readableOn(c.playerEdgeColor) === "#fff" ? "light" : "dark",
@@ -483,7 +488,7 @@ export function App() {
         {flowDock === "bottom" && <DockedPlayer dock="bottom" look={playerLook} onOverlay={setOverlay} {...playerProps} />}
       </div>
       {flowDock === "right" && <DockedPlayer dock="right" look={playerLook} onOverlay={setOverlay} {...playerProps} />}
-      {overlayDock && <DockedPlayer key={overlayDock} dock={overlayDock} look={playerLook} overlay onOverlay={setOverlay} onRect={setPlayerRect} {...playerProps} />}
+      {overlayDock && <DockedPlayer key={overlayDock} dock={overlayDock} look={overlayLook} overlay onOverlay={setOverlay} onRect={setPlayerRect} {...playerProps} />}
 
       {/* Toujours présent (caché hors plein écran) : l’image du profil est déjà chargée quand il apparaît. */}
       <button className={`fullscreen-exit${exitHover ? " fullscreen-exit--open" : ""}`} hidden={!fullscreen || pageFullscreen != null} onClick={toggleFullscreen}

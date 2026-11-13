@@ -404,6 +404,7 @@ function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
           {(c.mediaDock === "top" || c.mediaDock === "bottom" || c.mediaDock === "right") && (
             <>
               <Check label="Par-dessus la page" checked={c.playerOverlay} onChange={(playerOverlay) => setChrome({ playerOverlay })} />
+              {!c.playerOverlay && <>
               <Segmented value={c.playerStyle} onChange={(playerStyle) => setChrome({ playerStyle })}
                 options={[["edge", "Bord renflé"], ["floating", "Flottant"], ["attached", "Collé au bord"]]} />
               {c.playerStyle === "edge" ? (
@@ -428,6 +429,7 @@ function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
                 <Segmented value={c.playerSurface} onChange={(playerSurface) => setChrome({ playerSurface })} options={surfaces} />
               )}
               <Slider label="Arrondi" value={c.playerRadius} min={0} max={36} step={1} format={px} onChange={(playerRadius) => setChrome({ playerRadius })} />
+              </>}
               <div className="player-row">
                 <span>Taille</span>
                 <Segmented value={c.playerWidth} onChange={(playerWidth) => setChrome({ playerWidth })}
@@ -442,10 +444,10 @@ function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
                       : [["start", "À gauche"], ["center", "Au centre"], ["end", "À droite"]]} />
                 </div>
               )}
-              <button className="chip-btn player-copy" onClick={() => setChrome({
+              {!c.playerOverlay && <button className="chip-btn player-copy" onClick={() => setChrome({
                 playerStyle: c.railStyle, playerSurface: c.railSurface, playerRadius: c.railRadius,
                 playerEdgeSurface: c.edgeSurface, playerEdgeColor: c.edgeColor, playerEdgeOpacity: c.edgeOpacity,
-              })}>Reprendre le style de la barre latérale</button>
+              })}>Reprendre le style de la barre latérale</button>}
             </>
           )}
           {c.mediaDock === "free" && (

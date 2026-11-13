@@ -903,8 +903,8 @@
   opacity: 0.6;
 }
 
-/* Par-dessus la page : position fixe calculée sur la zone des pages (MediaWidget.tsx), sans marge ; le bord renflé
- * devient collé (pas de liseré ni de congés au milieu de la fenêtre). */
+/* Par-dessus la page : position fixe calculée sur la zone des pages (MediaWidget.tsx), sans marge. La page native y
+ * est découpée : derrière le verre, on voit le décor de Calti, comme derrière la barre latérale. */
 .media-dock--overlay {
   position: fixed;
   z-index: 40;
@@ -917,6 +917,8 @@
   display: none;
 }
 
-.media-dock--overlay[data-style="floating"] {
-  box-shadow: var(--glass-shadow), 0 12px 32px rgba(8, 20, 45, 0.28);
+/* Allure de la barre latérale : arrondi et transparence du verre de la barre (pas celle, renforcée, du lecteur). */
+.media-dock--overlay {
+  --player-r: var(--rail-radius, 28px);
+  --glass-alpha: inherit;
 }

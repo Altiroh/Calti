@@ -685,3 +685,11 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
 - Test `overlay.test.cjs` 9/9 (place rendue à la page, position en bas, en haut, à droite, menu). La découpe n'a pas
   été vérifiée à l'image : les captures d'écran prennent ce qui est devant (la fenêtre de l'utilisateur), retirées du
   test. Intégrations 26/26 au second passage (deux échecs instables, machine chargée), persistance 17/17.
+- Retour : rendu étrange (bord renflé en verre à 5 %) et pas la même allure que la barre latérale. Par-dessus la page,
+  le lecteur prend désormais l'allure de la barre latérale : carte flottante à 12 px, même fond (verre si la barre
+  est en bord renflé), même arrondi, même transparence, même ombre et même flou (vérifiés égaux). Les réglages sans
+  effet dans ce mode (style, fond, opacité, arrondi, « Reprendre le style ») sont masqués. La découpe de la page est
+  vérifiée à chaque rendu et transmise seulement quand elle change (avant : seulement quand le lecteur bougeait).
+- Test `overlay.test.cjs` 13/13 (allure de la barre, réglages appliqués en direct, options masquées), intégrations
+  26/26. Note : une migration unique force la barre en bord renflé sur un stockage vide (`calti.edge-rail`) ; le test
+  pose ce témoin pour garder sa barre flottante. Installé.
