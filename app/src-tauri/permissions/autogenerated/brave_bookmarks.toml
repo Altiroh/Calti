@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-brave-bookmarks"
+description = "Enables the brave_bookmarks command without any pre-configured scope."
+commands.allow = ["brave_bookmarks"]
+
+[[permission]]
+identifier = "deny-brave-bookmarks"
+description = "Denies the brave_bookmarks command without any pre-configured scope."
+commands.deny = ["brave_bookmarks"]

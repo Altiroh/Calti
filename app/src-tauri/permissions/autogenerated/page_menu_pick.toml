@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-page-menu-pick"
+description = "Enables the page_menu_pick command without any pre-configured scope."
+commands.allow = ["page_menu_pick"]
+
+[[permission]]
+identifier = "deny-page-menu-pick"
+description = "Denies the page_menu_pick command without any pre-configured scope."
+commands.deny = ["page_menu_pick"]

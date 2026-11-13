@@ -5,6 +5,9 @@ import { Drawer } from "./Drawer";
 import { Icon } from "./Icon";
 import "./DownloadsDrawer.css";
 
+/** Réponse de download_open pour un programme ou un script (voir features.rs). */
+const NEEDS_CONFIRMATION = "programme : confirmation requise";
+
 /** Miroir de `Download` dans app/src-tauri/src/features.rs. */
 export interface Download {
   id: number;
@@ -55,8 +58,12 @@ const status = (d: Download) => {
 export function DownloadsDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const list = useDownloads();
   const [error, setError] = useState<string | null>(null);
+  // Programme ou script téléchargé : son ouverture attend une confirmation.
+  const [confirm, setConfirm] = useState<number | null>(null);
   const run = (command: string, args: Record<string, unknown>) =>
-    invoke(command, args).then(() => setError(null)).catch((e) => setError(String(e)));
+    invoke(command, args).then(() => { setError(null); setConfirm(null); }).catch((e) => {
+      if (String(e) === NEEDS_CONFIRMATION) { setError(null); setConfirm(args.id as number); } else setError(String(e));
+    });
 
   return (
     <Drawer open={open} title="Téléchargements" onClose={onClose}>
@@ -82,6 +89,13 @@ export function DownloadsDrawer({ open, onClose }: { open: boolean; onClose: () 
                     <Icon name="close" size={14} />
                   </button>
                 </>
+              )}
+              {confirm === d.id && (
+                <span className="download__confirm" role="alertdialog" aria-label="Ouvrir un programme">
+                  <Icon name="shield" size={14} />
+                  <button className="chip-btn download__run" onClick={() => run("download_open", { id: d.id, reveal: false, confirmed: true })}>Exécuter</button>
+                  <button className="chip-btn" onClick={() => setConfirm(null)}>Annuler</button>
+                </span>
               )}
               {d.state === "done" && (
                 <button className="icon-btn" title="Afficher dans le dossier" aria-label="Afficher dans le dossier"

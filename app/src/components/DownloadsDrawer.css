@@ -92,3 +92,17 @@
   font-size: 13px;
   color: #e5484d;
 }
+
+/* Programme ou script téléchargé : confirmation avant de l'exécuter. */
+.download__confirm {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 6px;
+  color: #d97706;
+}
+
+.download__run {
+  color: #fff;
+  background: #d97706;
+}

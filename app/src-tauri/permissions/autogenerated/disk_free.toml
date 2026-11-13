@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-disk-free"
+description = "Enables the disk_free command without any pre-configured scope."
+commands.allow = ["disk_free"]
+
+[[permission]]
+identifier = "deny-disk-free"
+description = "Denies the disk_free command without any pre-configured scope."
+commands.deny = ["disk_free"]

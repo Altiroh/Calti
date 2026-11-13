@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-zoom-settings"
+description = "Enables the zoom_settings command without any pre-configured scope."
+commands.allow = ["zoom_settings"]
+
+[[permission]]
+identifier = "deny-zoom-settings"
+description = "Denies the zoom_settings command without any pre-configured scope."
+commands.deny = ["zoom_settings"]

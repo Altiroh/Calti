@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-clipboard-pause"
+description = "Enables the clipboard_pause command without any pre-configured scope."
+commands.allow = ["clipboard_pause"]
+
+[[permission]]
+identifier = "deny-clipboard-pause"
+description = "Denies the clipboard_pause command without any pre-configured scope."
+commands.deny = ["clipboard_pause"]

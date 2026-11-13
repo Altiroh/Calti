@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-alt-held"
+description = "Enables the alt_held command without any pre-configured scope."
+commands.allow = ["alt_held"]
+
+[[permission]]
+identifier = "deny-alt-held"
+description = "Denies the alt_held command without any pre-configured scope."
+commands.deny = ["alt_held"]

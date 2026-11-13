@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-devtools-undock"
+description = "Enables the devtools_undock command without any pre-configured scope."
+commands.allow = ["devtools_undock"]
+
+[[permission]]
+identifier = "deny-devtools-undock"
+description = "Denies the devtools_undock command without any pre-configured scope."
+commands.deny = ["devtools_undock"]

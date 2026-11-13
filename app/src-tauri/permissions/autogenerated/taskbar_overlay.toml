@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-taskbar-overlay"
+description = "Enables the taskbar_overlay command without any pre-configured scope."
+commands.allow = ["taskbar_overlay"]
+
+[[permission]]
+identifier = "deny-taskbar-overlay"
+description = "Denies the taskbar_overlay command without any pre-configured scope."
+commands.deny = ["taskbar_overlay"]

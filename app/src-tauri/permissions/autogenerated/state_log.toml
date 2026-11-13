@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-state-log"
+description = "Enables the state_log command without any pre-configured scope."
+commands.allow = ["state_log"]
+
+[[permission]]
+identifier = "deny-state-log"
+description = "Denies the state_log command without any pre-configured scope."
+commands.deny = ["state_log"]

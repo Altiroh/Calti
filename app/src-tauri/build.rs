@@ -1,3 +1,57 @@
+// Commandes de Calti déclarées à Tauri : chacune a sa permission (allow-…), accordée seulement aux vues de
+// l'interface (capabilities/default.json). Les onglets (pages web) n'en ont aucune.
+const COMMANDS: &[&str] = &[
+    "browser_tabs",
+    "browser_open",
+    "browser_close",
+    "browser_layout",
+    "browser_navigate",
+    "browser_action",
+    "browser_new_window",
+    "browser_eval",
+    "browser_move",
+    "brave_history",
+    "search_suggestions",
+    "queue_password_import",
+    "password_import_result",
+    "restart_app",
+    "taskbar_overlay",
+    "ui_devtools",
+    "alt_held",
+    "ctrl_held",
+    "media_state",
+    "media_control",
+    "page_menu_pick",
+    "devtools_toggle",
+    "devtools_undock",
+    "window_identity",
+    "blocker_configure",
+    "zoom_settings",
+    "zoom_set",
+    "downloads_list",
+    "download_cancel",
+    "download_open",
+    "downloads_clear",
+    "site_permissions",
+    "site_permission_set",
+    "clear_browsing_data",
+    "take_launch_urls",
+    "state_load",
+    "state_save",
+    "state_log",
+    "disk_free",
+    "image_save",
+    "image_load",
+    "image_delete",
+    "image_list",
+    "register_default_browser",
+    "clipboard_image",
+    "clipboard_pause",
+    "brave_profiles",
+    "brave_bookmarks",
+];
+
 fn main() {
-    tauri_build::build()
+    tauri_build::try_build(tauri_build::Attributes::new().app_manifest(tauri_build::AppManifest::new().commands(COMMANDS)))
+        .expect("échec de tauri-build");
 }

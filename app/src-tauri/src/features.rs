@@ -340,12 +340,33 @@ pub fn download_cancel(app: AppHandle, id: u64) -> Result<(), String> {
     .map_err(|e| e.to_string())
 }
 
-/// Ouvre le fichier téléchargé, ou le montre dans l'Explorateur (`reveal`).
+/// Fichiers qui lancent un programme ou un script quand on les ouvre (une page peut en télécharger sans demander).
+const RUNNABLE: &[&str] = &[
+    "exe", "msi", "msix", "msixbundle", "appx", "appxbundle", "appinstaller", "bat", "cmd", "com", "scr", "pif", "cpl",
+    "vbs", "vbe", "js", "jse", "wsf", "wsh", "ps1", "psm1", "psd1", "hta", "lnk", "url", "reg", "jar", "msc", "application",
+    "appref-ms", "iso", "img", "vhd", "vhdx", "dll", "scf", "inf", "chm", "library-ms", "search-ms", "settingcontent-ms",
+];
+
+pub(crate) fn runnable(path: &str) -> bool {
+    std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| RUNNABLE.contains(&e.to_ascii_lowercase().as_str()))
+}
+
+/// Erreur renvoyée à l'interface : ouvrir ce fichier lancerait un programme, à confirmer (`confirmed`).
+pub const NEEDS_CONFIRMATION: &str = "programme : confirmation requise";
+
+/// Ouvre le fichier téléchargé, ou le montre dans l'Explorateur (`reveal`). Un programme ou un script ne s'ouvre
+/// qu'après confirmation.
 #[tauri::command]
-pub fn download_open(id: u64, reveal: bool) -> Result<(), String> {
+pub fn download_open(id: u64, reveal: bool, confirmed: Option<bool>) -> Result<(), String> {
     let path = downloads().lock().unwrap().iter().find(|d| d.id == id).map(|d| d.path.clone()).ok_or("téléchargement inconnu")?;
     if !std::path::Path::new(&path).exists() {
         return Err("fichier introuvable (déplacé ou supprimé)".into());
+    }
+    if !reveal && runnable(&path) && confirmed != Some(true) {
+        return Err(NEEDS_CONFIRMATION.into());
     }
     let result = if reveal {
         std::process::Command::new("explorer.exe").arg(format!("/select,{path}")).spawn()

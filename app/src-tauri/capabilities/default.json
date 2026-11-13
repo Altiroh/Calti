@@ -1,9 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Fenêtres de Calti",
-  "windows": ["main", "calti-*"],
+  "description": "Vues de l’interface de Calti (fenêtre principale et autres fenêtres). Les onglets, vues à part, n’en font pas partie : aucune commande pour les pages web.",
+  "webviews": [
+    "main",
+    "calti-*"
+  ],
   "permissions": [
+    "interface",
     "core:default",
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",

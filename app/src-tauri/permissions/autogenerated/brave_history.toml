@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-brave-history"
+description = "Enables the brave_history command without any pre-configured scope."
+commands.allow = ["brave_history"]
+
+[[permission]]
+identifier = "deny-brave-history"
+description = "Denies the brave_history command without any pre-configured scope."
+commands.deny = ["brave_history"]

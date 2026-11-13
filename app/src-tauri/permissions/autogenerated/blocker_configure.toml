@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-blocker-configure"
+description = "Enables the blocker_configure command without any pre-configured scope."
+commands.allow = ["blocker_configure"]
+
+[[permission]]
+identifier = "deny-blocker-configure"
+description = "Denies the blocker_configure command without any pre-configured scope."
+commands.deny = ["blocker_configure"]

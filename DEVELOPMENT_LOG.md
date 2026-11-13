@@ -658,3 +658,18 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
   19/19, persistance 17/17, groupes 18/18, menus 19/19, nouvel onglet 2/2, images 11/11, zoom 4/4. `windows.ps1` ne
   compte plus que les outils de WebView2 (des outils ouverts dans Brave faisaient échouer les menus). Une fois,
   l’ouverture de la fenêtre privée a dépassé le délai juste après un autre test : délai porté à 45 s. Installé.
+
+## 2026-11-13 — Points restants de l'audit de sécurité
+
+- Téléchargements : un programme, un script, un raccourci ou une image disque (`.exe`, `.msi`, `.bat`, `.ps1`, `.js`,
+  `.hta`, `.lnk`, `.iso`, `.vhdx`…, liste `RUNNABLE` de `features.rs`) ne s'ouvre qu'après confirmation :
+  `download_open` le refuse sans `confirmed`, et le panneau des téléchargements propose « Exécuter » / « Annuler ».
+  Constat au passage : Chromium retient lui-même les `.bat`/`.exe` téléchargés (en cours, 0 octet) faute de son
+  panneau, masqué par Calti.
+- Export de mots de passe Brave en attente d'import : chiffré pour la session Windows (DPAPI, `CryptProtectData`),
+  `passwords-<profil>.dpapi`, déchiffré en mémoire à l'import puis effacé ; un ancien `.csv` en clair est encore repris.
+- Commandes de Calti déclarées à Tauri (`build.rs`, `AppManifest`) : une permission par commande, regroupées dans le
+  jeu `interface` (`permissions/interface.toml`). La capability vise les vues `main` et `calti-*` (interface), et non
+  plus leurs fenêtres : les onglets (vues `tab-*`) n'ont aucune commande, même s'ils chargeaient l'interface.
+- Tests : sécurité 15/15 (programme téléchargé, export chiffré) ; suite complète verte (fonctions, persistance,
+  groupes, menus, nouvel onglet, images, privé, zoom, notes, sélecteur, intégrations, Ctrl+Tab, fermeture). Installé.

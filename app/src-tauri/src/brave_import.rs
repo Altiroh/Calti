@@ -11,7 +11,7 @@ use base64::Engine;
 use rusqlite::{types::Value, Connection, OpenFlags};
 use serde::Serialize;
 use windows_sys::Win32::Foundation::LocalFree;
-use windows_sys::Win32::Security::Cryptography::{CryptUnprotectData, CRYPT_INTEGER_BLOB};
+use windows_sys::Win32::Security::Cryptography::{CryptProtectData, CryptUnprotectData, CRYPT_INTEGER_BLOB};
 
 use crate::setup::{declared_profiles, user_data_dir};
 
@@ -96,6 +96,20 @@ fn browser_key(local_state: &Path) -> Result<Vec<u8>, String> {
     unprotect(protected)
 }
 
+/// Chiffre pour l'utilisateur Windows courant (DPAPI) : seule sa session peut relire les données.
+fn protect(data: &[u8]) -> Result<Vec<u8>, String> {
+    unsafe {
+        let input = CRYPT_INTEGER_BLOB { cbData: data.len() as u32, pbData: data.as_ptr() as *mut u8 };
+        let mut output = CRYPT_INTEGER_BLOB { cbData: 0, pbData: std::ptr::null_mut() };
+        if CryptProtectData(&input, std::ptr::null(), std::ptr::null(), std::ptr::null(), std::ptr::null(), 0, &mut output) == 0 {
+            return Err("chiffrement impossible".into());
+        }
+        let bytes = std::slice::from_raw_parts(output.pbData, output.cbData as usize).to_vec();
+        LocalFree(output.pbData as _);
+        Ok(bytes)
+    }
+}
+
 fn unprotect(data: &[u8]) -> Result<Vec<u8>, String> {
     unsafe {
         let input = CRYPT_INTEGER_BLOB { cbData: data.len() as u32, pbData: data.as_ptr() as *mut u8 };
@@ -133,7 +147,11 @@ fn parse_csv(text: &str) -> Vec<Vec<String>> {
 /// Identifiants exportés par Brave (Gestionnaire de mots de passe → Exporter : name, url, username, password, note),
 /// ajoutés au profil Calti. Calti doit être fermé.
 pub fn import_passwords_csv(file: &Path, calti_profile: &str) -> Result<PasswordImport, String> {
-    let rows = parse_csv(&fs::read_to_string(file).map_err(|e| e.to_string())?);
+    import_passwords_text(&fs::read_to_string(file).map_err(|e| e.to_string())?, calti_profile)
+}
+
+fn import_passwords_text(text: &str, calti_profile: &str) -> Result<PasswordImport, String> {
+    let rows = parse_csv(text);
     let header = rows.first().ok_or("fichier vide")?;
     let col = |name: &str| header.iter().position(|h| h.trim().eq_ignore_ascii_case(name));
     let (url_i, user_i, pass_i) = (col("url").ok_or("colonne url absente")?, col("username").ok_or("colonne username absente")?, col("password").ok_or("colonne password absente")?);
@@ -301,6 +319,7 @@ fn valid_profile(id: &str) -> bool {
 }
 
 /// Met de côté un export CSV de Brave ; il sera importé au prochain lancement, avant l'ouverture des pages.
+/// Chiffré en attendant (DPAPI) : jamais de mots de passe en clair sur le disque.
 #[tauri::command]
 pub fn queue_password_import(profile: String, csv: String) -> Result<(), String> {
     if !valid_profile(&profile) {
@@ -308,7 +327,7 @@ pub fn queue_password_import(profile: String, csv: String) -> Result<(), String>
     }
     let dir = pending_dir().ok_or("LOCALAPPDATA absent")?;
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    fs::write(dir.join(format!("passwords-{profile}.csv")), csv).map_err(|e| e.to_string())
+    fs::write(dir.join(format!("passwords-{profile}.dpapi")), protect(csv.as_bytes())?).map_err(|e| e.to_string())
 }
 
 #[derive(Serialize)]
@@ -326,9 +345,22 @@ pub fn run_pending_imports() {
     let mut results = Vec::new();
     for entry in entries.flatten() {
         let name = entry.file_name().to_string_lossy().to_string();
-        let Some(profile) = name.strip_prefix("passwords-").and_then(|n| n.strip_suffix(".csv")) else { continue };
-        let result = import_passwords_csv(&entry.path(), profile);
+        let Some(rest) = name.strip_prefix("passwords-") else { continue };
+        // Export chiffré (.dpapi) ; un ancien export en clair (.csv) est encore repris, puis effacé.
+        let (profile, result) = if let Some(profile) = rest.strip_suffix(".dpapi") {
+            let text = fs::read(entry.path()).map_err(|e| e.to_string())
+                .and_then(|bytes| unprotect(&bytes))
+                .and_then(|plain| String::from_utf8(plain).map_err(|e| e.to_string()));
+            (profile, text.and_then(|t| import_passwords_text(&t, profile)))
+        } else if let Some(profile) = rest.strip_suffix(".csv") {
+            (profile, import_passwords_csv(&entry.path(), profile))
+        } else {
+            continue;
+        };
         let _ = fs::remove_file(entry.path());
+        if !valid_profile(profile) {
+            continue;
+        }
         results.push(match result {
             Ok(r) => PendingResult { profile: profile.into(), imported: r.imported, already: r.already, error: None },
             Err(e) => PendingResult { profile: profile.into(), imported: 0, already: 0, error: Some(e) },

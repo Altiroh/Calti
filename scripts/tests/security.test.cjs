@@ -72,6 +72,35 @@ const run = (ui, id, script) => ui.ev(`${invoke("browser_eval", { id, script })}
   t.check("copie de sécurité à jour (contrôle)", mirror.includes("témoin-miroir"));
   t.check("presse-papiers absent de la copie", !mirror.includes("mot-de-passe-secret-42") && !mirror.includes("calti.clipboard\""));
 
+  // 7. Programme téléchargé par une page : jamais ouvert sans confirmation. Un disque virtuel (.vhdx), monté à
+  // l'ouverture, sert à faire passer des programmes ; Chromium, lui, retient déjà les .bat et .exe.
+  await run(ui, page.id, `(() => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["@echo off"], { type: "application/octet-stream" })); a.download = "calti-essai.vhdx"; document.body.append(a); a.click(); })()`);
+  let bat = null;
+  for (let i = 0; i < 25 && !bat; i++) { await sleep(400); bat = (await ui.ev(`${invoke("downloads_list")}`)).find((d) => d.state === "done" && d.path.endsWith(".vhdx")); }
+  t.check("programme téléchargé (contrôle)", !!bat, bat?.path ?? JSON.stringify(await ui.ev(`${invoke("downloads_list")}`)));
+  if (bat) {
+    const refused = await ui.ev(`${invoke("download_open", { id: bat.id, reveal: false })}.then(() => "ouvert", (e) => String(e))`);
+    t.check("programme non ouvert sans confirmation", refused === "programme : confirmation requise", refused);
+    await ui.ev(`window.dispatchEvent(new CustomEvent("calti:downloads", { detail: "essai" }))`);
+    await sleep(600);
+    await ui.ev(`[...document.querySelectorAll(".download__main")].find((b) => b.textContent.includes("calti-essai.vhdx"))?.click()`);
+    await sleep(500);
+    t.check("confirmation proposée dans les téléchargements", await ui.ev(`!!document.querySelector(".download__confirm .download__run")`));
+    await ui.ev(`[...document.querySelectorAll(".download__confirm .chip-btn")].find((b) => b.textContent === "Annuler")?.click()`);
+    await sleep(300);
+    t.check("confirmation annulable", !(await ui.ev(`!!document.querySelector(".download__confirm")`)));
+    fs.rmSync(bat.path, { force: true });
+    await ui.ev(`${invoke("downloads_clear")}`);
+  }
+
+  // 8. Export de mots de passe en attente d'import : chiffré sur le disque.
+  const pending = path.join(process.env.LOCALAPPDATA, "fr.calti.app", "pending", "passwords-essai.dpapi");
+  await ui.ev(`${invoke("queue_password_import", { profile: "essai", csv: "name,url,username,password\nx,https://exemple.fr,moi,MotDePasseSecret123" })}`);
+  const stored = fs.existsSync(pending) ? fs.readFileSync(pending) : Buffer.alloc(0);
+  t.check("export en attente enregistré", stored.length > 0);
+  t.check("aucun mot de passe en clair dans l'export", stored.length > 0 && !stored.toString("latin1").includes("MotDePasse") && !stored.toString("utf16le").includes("MotDePasse"));
+  fs.rmSync(pending, { force: true });
+
   t.report();
   ui.close();
 })().catch((e) => { console.error(e); process.exitCode = 1; }).finally(() => setTimeout(() => process.exit(), 200));
