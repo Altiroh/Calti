@@ -484,7 +484,7 @@ pub fn install(app: &AppHandle, webview: &Webview, tab: u64, profile: &str) {
                         return Ok(());
                     }
                     crate::browser::update(&app, tab, |t| t.zoom = factor);
-                    if let Some(host) = host {
+                    if let Some(host) = host.filter(|_| !crate::browser::is_private(&app, tab)) {
                         remember_zoom(&app, format!("{profile}|{host}"), factor);
                     }
                     Ok(())
@@ -572,7 +572,7 @@ pub fn zoom_step(app: &AppHandle, tab: u64, step: i32) {
         let mut raw = PWSTR::null();
         if let Ok(core) = controller.CoreWebView2() {
             if core.Source(&mut raw).is_ok() {
-                if let Some(host) = host_of(&take_pwstr(raw)) {
+                if let Some(host) = host_of(&take_pwstr(raw)).filter(|_| !crate::browser::is_private(&app, tab)) {
                     remember_zoom(&app, format!("{profile}|{host}"), next);
                 }
             }

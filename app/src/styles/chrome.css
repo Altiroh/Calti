@@ -541,3 +541,27 @@
 .shell .group-dialog {
   border-radius: calc(var(--radius-md, 16px) * 1.125);
 }
+
+/* Fenêtre de navigation privée : décor assombri, teinte violette, pastille dans la barre du haut. */
+[data-private] .scenery::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(30, 16, 56, 0.72), rgba(14, 10, 30, 0.82));
+}
+
+.private-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  margin-left: 6px;
+  padding: 0 9px 0 7px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e9e3ff;
+  background: rgba(76, 52, 140, 0.85);
+  white-space: nowrap;
+}

@@ -24,6 +24,7 @@ import { LayoutEditor } from "./components/LayoutEditor";
 import { SettingsDrawer, type SettingsTab } from "./components/SettingsDrawer";
 import { RAIL_NARROW, Sidebar, widgetIcons } from "./components/Sidebar";
 import { WindowControls } from "./components/WindowControls";
+import { Icon } from "./components/Icon";
 import { withTransition } from "./motion";
 import { ProfileSwitcher } from "./components/ProfileSwitcher";
 import { TabSwitcher } from "./components/TabSwitcher";
@@ -308,6 +309,7 @@ export function App() {
         run: () => window.dispatchEvent(new CustomEvent(PROFILE_SWITCH_EVENT, { detail: { back: false, held: false } })) }] : []),
       { label: "Rouvrir l'onglet fermé", keys: "Ctrl+Maj+T", icon: "reload", run: () => browser.reopen(p) },
       { label: "Nouvelle fenêtre", keys: "Ctrl+N", icon: "window", run: () => browser.newWindow(p) },
+      { label: "Nouvelle fenêtre privée", keys: "Ctrl+Maj+N", icon: "incognito", run: () => browser.newPrivateWindow(p) },
       { label: "Téléchargements", keys: "Ctrl+J", icon: "download", run: () => setDrawer("downloads") },
       { label: "Historique", keys: "Ctrl+H", icon: "history", run: () => setDrawer("history") },
       { label: "Favoris", icon: "star", run: () => setDrawer("bookmarks") },
@@ -398,7 +400,8 @@ export function App() {
       data-rail={c.railStyle} data-rail-surface={c.railSurface}
       data-edge={c.railStyle === "edge" ? c.edgeSurface : undefined}
       data-edge-tone={c.railStyle === "edge" && c.edgeSurface === "color" ? (readableOn(c.edgeColor) === "#fff" ? "light" : "dark") : undefined}
-      data-tab-close={c.tabClose} data-tab-active={c.tabActive} data-tab-icons={c.tabIconsOnly || undefined}>
+      data-tab-close={c.tabClose} data-tab-active={c.tabActive} data-tab-icons={c.tabIconsOnly || undefined}
+      data-private={browser.isPrivate || undefined}>
       {c.customCss.trim() && <style>{c.customCss}</style>}
       <div className="scenery" aria-hidden="true" style={ambiance}>
         {background ? (
@@ -455,7 +458,9 @@ export function App() {
                     onLook={(l) => updateTheme({ chrome: { ...c,
                       ...(l.surface ? { playerSurface: l.surface } : {}),
                       ...(l.text !== undefined ? { playerTitleText: l.text } : {}),
-                      ...(l.progress !== undefined ? { playerTitleProgress: l.progress } : {}) } })} />}<WindowControls /></>
+                      ...(l.progress !== undefined ? { playerTitleProgress: l.progress } : {}) } })} />}
+                    {browser.isPrivate && <span className="private-badge" title="Navigation privée"><Icon name="incognito" size={14} />Privée</span>}
+                    <WindowControls /></>
                   : null}
                 isBookmarked={(url) => own.has(p, url)} onToggleBookmark={(url, title) => own.toggle(p, url, title)}
                 bookmarks={own.of(p)}

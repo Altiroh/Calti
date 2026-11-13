@@ -77,6 +77,9 @@ pub struct Tab {
     pub(crate) icon: String,
     /// Page d'un panneau latéral (Claude…) : hors barre d'onglets, session et historique.
     pub(crate) panel: bool,
+    /// Navigation privée (InPrivate de WebView2) : cookies et cache en mémoire seulement, ni historique, ni session,
+    /// ni zoom mémorisé ; tout disparaît avec le dernier onglet privé.
+    pub(crate) private: bool,
     #[serde(skip)]
     shown: bool,
     /// Incrémenté à chaque masquage : une mise en veille programmée ne s'applique qu'au dernier.
@@ -120,7 +123,35 @@ fn label(id: u64) -> String {
     format!("tab-{id}")
 }
 
-/// Adresses ouvrables : le web (http, https) et les fichiers locaux (file).
+/// Adresse qu'une page web peut faire ouvrir (lien en arrière-plan, `window.open`) : le web seulement.
+/// Jamais `file:` : une adresse `file://serveur/…` ferait se connecter Windows à ce serveur avec l'identité de
+/// l'utilisateur (fuite de son empreinte NTLM), et Calti l'ouvrirait côté natif, hors des protections de Chromium.
+pub(crate) fn page_url(input: &str) -> Option<Url> {
+    Url::parse(input).ok().filter(|u| matches!(u.scheme(), "http" | "https"))
+}
+
+/// Navigation d'un onglet : jamais vers l'interface de Calti elle-même (elle y aurait accès aux commandes de Calti).
+fn navigation_allowed(url: &Url) -> bool {
+    let internal = matches!(url.host_str(), Some("tauri.localhost" | "ipc.localhost" | "asset.localhost"))
+        || matches!(url.scheme(), "tauri" | "ipc" | "asset");
+    !internal && matches!(url.scheme(), "http" | "https" | "file" | "about" | "data" | "blob")
+}
+
+/// Liens ouverts en arrière-plan par une page : au plus un toutes les 300 ms par onglet d'origine
+/// (une page ne peut pas ouvrir des dizaines d'onglets d'un coup).
+fn background_open_allowed(opener: u64) -> bool {
+    static LAST: Mutex<Vec<(u64, std::time::Instant)>> = Mutex::new(Vec::new());
+    let now = std::time::Instant::now();
+    let mut last = LAST.lock().unwrap();
+    last.retain(|(_, at)| now.duration_since(*at).as_secs() < 60);
+    if last.iter().any(|(id, at)| *id == opener && now.duration_since(*at).as_millis() < 300) {
+        return false;
+    }
+    last.push((opener, now));
+    true
+}
+
+/// Adresses ouvrables depuis l'interface ou la ligne de commande : le web (http, https) et les fichiers (file).
 fn web_url(input: &str) -> Result<Url, String> {
     match Url::parse(input) {
         Ok(u) if matches!(u.scheme(), "http" | "https" | "file") => Ok(u),
@@ -223,22 +254,32 @@ pub(crate) fn webview(app: &AppHandle, id: u64) -> Result<Webview, String> {
 /// Crée l'onglet (masqué : l'interface l'affiche ensuite à sa place).
 /// Lien ouvert depuis un onglet : nouvel onglet dans la même fenêtre et le même profil, affiché ou en arrière-plan.
 pub(crate) fn open_from_tab(app: &AppHandle, opener: u64, url: &str, background: bool) {
-    let Ok(url) = web_url(url) else { return };
+    let Some(url) = page_url(url) else { return };
+    if !background_open_allowed(opener) {
+        return;
+    }
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let Some(window) = tab_window(&app, opener) else { return };
-        let Some(profile) = app.state::<Browser>().0.lock().unwrap().tabs.iter().find(|t| t.id == opener).map(|t| t.profile.clone()) else { return };
-        if let Ok(new_id) = open_tab(&app, &window, &profile, url, None) {
+        let Some((profile, private)) = app.state::<Browser>().0.lock().unwrap().tabs.iter().find(|t| t.id == opener).map(|t| (t.profile.clone(), t.private)) else { return };
+        if let Ok(new_id) = open_tab(&app, &window, &profile, url, None, private) {
             emit_to_tab(&app, new_id, "browser:opened", (new_id, opener, background));
         }
     });
 }
 
-fn open_tab(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy: Option<String>) -> Result<u64, String> {
-    open_page(app, window_label, profile, url, lazy, false)
+fn open_tab(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy: Option<String>, private: bool) -> Result<u64, String> {
+    open_page(app, window_label, profile, url, lazy, false, private)
 }
 
-fn open_page(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy: Option<String>, panel: bool) -> Result<u64, String> {
+/// Fenêtre de navigation privée : ses onglets sont tous privés.
+pub(crate) fn private_window(label: &str) -> bool {
+    label.starts_with(PRIVATE_WINDOW)
+}
+
+const PRIVATE_WINDOW: &str = "calti-prive-";
+
+fn open_page(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy: Option<String>, panel: bool, private: bool) -> Result<u64, String> {
     if !valid_profile(profile) {
         return Err("profil invalide".into());
     }
@@ -261,6 +302,7 @@ fn open_page(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy:
             blocked: 0,
             icon: String::new(),
             panel,
+            private,
             shown: false,
             hidden_gen: 0,
             pending_url: lazy.as_ref().map(|_| url.clone()),
@@ -276,6 +318,7 @@ fn open_page(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy:
     let start = if lazy.is_some() { Url::parse("about:blank").unwrap() } else { url };
     let builder = WebviewBuilder::new(label(id), WebviewUrl::External(start))
         .data_directory(data_dir)
+        .incognito(private)
         // Outils de développement (F12, Ctrl+Maj+I, menus) : disponibles aussi dans la version installée.
         .devtools(true)
         // Fond transparent : pas de flash blanc avant le premier affichage de la page.
@@ -294,11 +337,15 @@ fn open_page(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy:
             });
         })
         // Les liens vers d'autres schémas (mailto:, applications…) ne sont pas suivis.
-        .on_navigation(|url| matches!(url.scheme(), "http" | "https" | "file" | "about" | "data" | "blob"))
+        .on_navigation(navigation_allowed)
         // Clic molette et Ctrl+clic sur un lien : nouvel onglet en arrière-plan (voir native::LINK_SCRIPT).
         .initialization_script(crate::native::LINK_SCRIPT)
         // « Ouvrir dans une nouvelle fenêtre » devient un nouvel onglet du même profil.
         .on_new_window(move |url, features| {
+            // Une page ne fait ouvrir que le web (voir `page_url`), ou une fenêtre vide qu'elle remplira.
+            if url.as_str() != "about:blank" && page_url(url.as_str()).is_none() {
+                return NewWindowResponse::Deny;
+            }
             // Fenêtre surgissante demandée avec une taille (connexion Google, paiement…) : elle doit rester liée
             // à la page qui l'ouvre (`window.opener`), sinon la connexion reste blanche. WebView2 l'ouvre alors
             // dans sa propre fenêtre, avec le même profil.
@@ -310,7 +357,7 @@ fn open_page(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy:
             tauri::async_runtime::spawn(async move {
                 // L'onglet d'origine a pu changer de fenêtre : on ouvre dans sa fenêtre actuelle.
                 let Some(window) = tab_window(&app, id) else { return };
-                if let Ok(new_id) = open_tab(&app, &window, &profile, url, None) {
+                if let Ok(new_id) = open_tab(&app, &window, &profile, url, None, private) {
                     emit_to_tab(&app, new_id, "browser:opened", (new_id, id, false));
                 }
             });
@@ -353,7 +400,8 @@ pub async fn browser_open(
     panel: Option<bool>,
 ) -> Result<u64, String> {
     // `lazy_title` : onglet de session restauré, chargé seulement quand on l'affiche.
-    open_page(&app, window.label(), &profile, web_url(&url)?, lazy_title, panel.unwrap_or(false))
+    let private = private_window(window.label()) && !panel.unwrap_or(false);
+    open_page(&app, window.label(), &profile, web_url(&url)?, lazy_title, panel.unwrap_or(false), private)
 }
 
 #[tauri::command]
@@ -523,9 +571,26 @@ pub async fn browser_new_window(
     detach: bool,
     session: Option<String>,
     tab: Option<u64>,
+    private: Option<bool>,
 ) -> Result<String, String> {
     if !valid_profile(&profile) {
         return Err("profil invalide".into());
+    }
+    // Fenêtre privée : vide, sans session à rouvrir ni onglet repris d'une autre fenêtre.
+    if private == Some(true) {
+        let label = format!("{PRIVATE_WINDOW}{}", NEXT_WINDOW.fetch_add(1, Ordering::Relaxed));
+        let url = WebviewUrl::App(format!("index.html?profile={profile}&private=1").into());
+        WebviewWindowBuilder::new(&app, &label, url)
+            .title("Calti · navigation privée")
+            .inner_size(1320.0, 840.0)
+            .min_inner_size(960.0, 620.0)
+            .decorations(false)
+            .transparent(true)
+            .shadow(true)
+            .effects(WindowEffectsConfig { effects: vec![Effect::Acrylic], ..Default::default() })
+            .build()
+            .map_err(|e| e.to_string())?;
+        return Ok(label);
     }
     // `session` : clé de stockage de la session à rouvrir (fenêtre encore ouverte à la dernière fermeture).
     let session = session.filter(|s| s.starts_with("calti.browser.calti-") && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-'));
@@ -580,4 +645,9 @@ pub async fn browser_new_window(
 pub fn forget_window(app: &AppHandle, label: &str) {
     app.state::<Browser>().0.lock().unwrap().tabs.retain(|t| t.window != label);
     emit_tabs(app);
+}
+
+/// L'onglet est-il privé ? (Rien de lui n'est mémorisé : zoom, historique, session.)
+pub(crate) fn is_private(app: &AppHandle, id: u64) -> bool {
+    app.state::<Browser>().0.lock().unwrap().tabs.iter().any(|t| t.id == id && t.private)
 }

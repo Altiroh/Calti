@@ -33,7 +33,9 @@ if ($Shot) {
     $bmp.Save($Shot)
     exit
 }
-# Outils des pages seulement (ceux de l’interface d’un autre Calti ouvert ne comptent pas).
-$tools = @($top | Where-Object { [W]::IsWindowVisible($_) -and [W]::Title($_) -like "DevTools*" -and [W]::Title($_) -notlike "*tauri.localhost*" } | ForEach-Object { [W]::Title($_) })
+# Outils des pages seulement (ceux de l’interface d’un autre Calti ouvert ne comptent pas), et seulement ceux de
+# WebView2 : les outils ouverts dans Brave, Chrome ou Edge ne comptent pas non plus.
+$fromWebView = { $p = 0; [W]::GetWindowThreadProcessId($_, [ref]$p) | Out-Null; (Get-Process -Id $p -ErrorAction SilentlyContinue).ProcessName -eq "msedgewebview2" }
+$tools = @($top | Where-Object { [W]::IsWindowVisible($_) -and [W]::Title($_) -like "DevTools*" -and [W]::Title($_) -notlike "*tauri.localhost*" } | Where-Object $fromWebView | ForEach-Object { [W]::Title($_) })
 $child = @([W]::Children($main) | Where-Object { [W]::Title($_) -like "DevTools*" -and [W]::IsWindowVisible($_) }).Count -gt 0
 @{ tools = $tools; child = $child } | ConvertTo-Json -Compress

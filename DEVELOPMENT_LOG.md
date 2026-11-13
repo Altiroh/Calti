@@ -632,3 +632,29 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
   fichier. Au lancement, les images d'IndexedDB sans fichier sont recompressées et écrites (presse-papiers exclu).
 - Journal de démarrage : place libre sur le disque ; échecs de copie notés une fois, puis la reprise.
 - Tests : images 11/11, persistance 17/17, zoom 4/4, groupes 18/18, fonctions 19/19, nouvel onglet 2/2. Installé.
+
+## 2026-11-13 — Navigation privée ; audit de sécurité et correctifs
+
+- Navigation privée : Ctrl+Maj+N (palette, menu du volet, raccourcis listés dans les réglages) ouvre une fenêtre
+  `calti-prive-N` pour le profil courant. Ses onglets sont créés en InPrivate (`WebviewBuilder::incognito`) : cookies
+  et cache en mémoire, partagés entre onglets privés, oubliés à la fermeture. Champ `private` sur l'onglet (suivi par
+  les liens et fenêtres qu'il ouvre) : ni historique, ni session, ni onglets fermés, ni zoom mémorisé. Décor assombri
+  et pastille « Privée » dans la barre du haut.
+- Audit (lecture seule, sous-agent) puis correctifs :
+  - Haute : une page pouvait faire ouvrir côté natif une adresse `file://serveur/…` sans clic (message
+    `open-background`), donc faire se connecter Windows à un serveur de l'attaquant (fuite de l'empreinte NTLM).
+    Désormais `page_url` : une page ne fait ouvrir que du http/https (liens en arrière-plan, `window.open`, fenêtres
+    surgissantes), et au plus un lien en arrière-plan toutes les 300 ms par onglet.
+  - Moyenne : un onglet pouvait charger l'interface de Calti (`http://tauri.localhost`) ; refusé par `on_navigation`.
+  - Moyenne : l'historique du presse-papiers (secrets copiés à la main) n'est plus recopié dans `etat.json` ni ses
+    copies quotidiennes.
+  - Basse : adresses, chemins et domaines tapés ne sont plus envoyés au moteur de suggestions.
+  - Restent (basses) : confirmation avant d'ouvrir un exécutable téléchargé, CSV de mots de passe Brave en attente
+    d'import non chiffré, manifeste ACL Tauri limitant les commandes aux vues de l'interface.
+  - Vérifié sain : pas d'IPC pour les pages web ni les iframes, CSP stricte, pas d'injection HTML dans l'interface,
+    chemins de fichiers vérifiés, aucun jeton stocké pour Claude ou le lecteur, suggestions en HTTPS validé,
+    `npm audit` sans vulnérabilité.
+- Tests : `private.test.cjs` 14/14, `security.test.cjs` 9/9 (attaques depuis une page, avec contrôles) ; fonctions
+  19/19, persistance 17/17, groupes 18/18, menus 19/19, nouvel onglet 2/2, images 11/11, zoom 4/4. `windows.ps1` ne
+  compte plus que les outils de WebView2 (des outils ouverts dans Brave faisaient échouer les menus). Une fois,
+  l’ouverture de la fenêtre privée a dépassé le délai juste après un autre test : délai porté à 45 s. Installé.

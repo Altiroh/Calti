@@ -46,6 +46,7 @@ fn shortcut(key: u32, ctrl: bool, shift: bool) -> Option<&'static str> {
         (0x57, true, false) => "close-tab",                              // Ctrl+W
         (0x4C, true, false) | (0x75, false, false) => "address",         // Ctrl+L, F6
         (0x4E, true, false) => "new-window",                             // Ctrl+N
+        (0x4E, true, true) => "new-private-window",                      // Ctrl+Maj+N
         (0x44, true, false) => "bookmark",                               // Ctrl+D
         (0x7A, false, false) => "fullscreen",                            // F11
         (0x7B, false, false) | (0x49, true, true) => "devtools",         // F12 / Ctrl+Maj+I

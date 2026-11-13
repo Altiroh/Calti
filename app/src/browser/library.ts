@@ -81,7 +81,7 @@ export function useHistory(profileIds: ProfileId[], tabs: BrowserTab[]) {
   const last = useRef<Record<number, string>>({});
   useEffect(() => {
     for (const t of tabs) {
-      if (t.loading || t.sleeping || !/^(https?|file):/.test(t.url) || !profileIds.includes(t.profile)) continue;
+      if (t.private || t.loading || t.sleeping || !/^(https?|file):/.test(t.url) || !profileIds.includes(t.profile)) continue;
       const seen = `${t.url}\n${t.title}`;
       if (last.current[t.id] === seen) continue;
       const sameUrl = last.current[t.id]?.startsWith(`${t.url}\n`);

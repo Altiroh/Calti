@@ -32,6 +32,8 @@ export interface BrowserTab {
   icon: string;
   /** Page d'un panneau latéral (Claude…) : hors barre d'onglets, session et historique. */
   panel?: boolean;
+  /** Navigation privée : ni historique, ni session, ni zoom mémorisé ; cookies effacés à la fermeture. */
+  private?: boolean;
 }
 
 export type NavAction = "back" | "forward" | "reload" | "hard-reload" | "empty-cache-reload" | "stop"
@@ -39,7 +41,7 @@ export type NavAction = "back" | "forward" | "reload" | "hard-reload" | "empty-c
 
 /** Raccourcis du navigateur, captés dans l'interface ou dans une page (événement `browser:shortcut`). */
 export type Shortcut =
-  | "reload" | "hard-reload" | "new-tab" | "close-tab" | "address" | "new-window" | "bookmark" | "next-tab" | "previous-tab" | "fullscreen"
+  | "reload" | "hard-reload" | "new-tab" | "close-tab" | "address" | "new-window" | "new-private-window" | "bookmark" | "next-tab" | "previous-tab" | "fullscreen"
   | "reopen-tab" | "palette" | "downloads" | "history" | "zoom-in" | "zoom-out" | "zoom-reset"
   | "devtools" | "next-profile" | "previous-profile" | "tab-1" | "tab-2" | "tab-3" | "tab-4" | "tab-5" | "tab-6" | "tab-7" | "tab-8" | "tab-last";
 
@@ -174,6 +176,10 @@ export interface Browser {
   closePanelPages: () => void;
   /** Nouvelle fenêtre sur un profil ; avec `detach`, les onglets de ce profil y partent. */
   newWindow: (profile: ProfileId, detach?: boolean, tab?: number) => void;
+  /** Ouvre une fenêtre de navigation privée pour ce profil (Ctrl+Maj+N). */
+  newPrivateWindow: (profile: ProfileId) => void;
+  /** Cette fenêtre est-elle une fenêtre de navigation privée ? */
+  isPrivate: boolean;
   /** Déplace un onglet juste avant un autre (null : à la fin). */
   move: (id: number, before: number | null) => void;
   /** Déplace un groupe entier (ses onglets, dans leur ordre) juste avant un onglet (null : à la fin). */
@@ -212,6 +218,8 @@ const PARAMS = new URLSearchParams(location.search);
 const INITIAL_PROFILE = PARAMS.get("profile");
 /** Session d'une fenêtre secondaire à rouvrir au lancement (?session=calti.browser.calti-n). */
 const RESTORE_KEY = PARAMS.get("session");
+/** Fenêtre de navigation privée : sa session n'est jamais enregistrée. */
+export const PRIVATE_WINDOW = PARAMS.get("private") === "1";
 const EMPTY_PANE: PaneState = { activeTab: null, lastTab: null };
 
 /** Adresse si la saisie en a l'air (web, file:///, chemin Windows), sinon recherche. */
@@ -482,15 +490,15 @@ export function useBrowser(
 
   // Sauvegarde de la session (chaque fenêtre sous sa propre clé).
   useEffect(() => {
-    if (!restored.current) return;
+    if (!restored.current || PRIVATE_WINDOW) return;
     const data: Saved = {
       split,
       focused,
       secondary,
-      tabs: tabs.filter((t) => /^(https?|file):/.test(t.url)).map((t) => ({
+      tabs: tabs.filter((t) => !t.private && /^(https?|file):/.test(t.url)).map((t) => ({
         profile: t.profile, url: t.url, title: t.title, active: panes[t.profile]?.activeTab === t.id, group: membership[t.id],
       })),
-      groups: Object.values(groupMap).filter((g) => tabs.some((t) => membership[t.id] === g.id)),
+      groups: Object.values(groupMap).filter((g) => tabs.some((t) => !t.private && membership[t.id] === g.id)),
       bounds,
     };
     closing.current = () => {
@@ -737,7 +745,7 @@ export function useBrowser(
       const next = siblings[index + 1] ?? siblings[index - 1];
       show(tab.profile, next?.id ?? null);
     }
-    if (tab) rememberClosed({ profile: tab.profile, url: tab.url, title: tab.title });
+    if (tab && !tab.private) rememberClosed({ profile: tab.profile, url: tab.url, title: tab.title });
     removeFromGroup(id);
     invoke("browser_close", { id }).catch(fail);
   }, [tabs, panes, show, fail, removeFromGroup]);
@@ -828,6 +836,10 @@ export function useBrowser(
     setSecondaryState(profile);
   }, [focused, secondary]);
 
+  const newPrivateWindow = useCallback((profile: ProfileId) => {
+    invoke("browser_new_window", { profile, detach: false, session: null, tab: null, private: true }).catch(fail);
+  }, [fail]);
+
   const newWindow = useCallback((profile: ProfileId, detach = false, tab?: number) => {
     invoke("browser_new_window", { profile, detach, session: null, tab: tab ?? null })
       .then(() => {
@@ -901,6 +913,7 @@ export function useBrowser(
       }
       case "close-tab": if (active != null) close(active); return;
       case "new-window": return newWindow(profile);
+      case "new-private-window": return newPrivateWindow(profile);
       case "fullscreen":
         window.dispatchEvent(new Event(FULLSCREEN_EVENT));
         return;
@@ -914,7 +927,7 @@ export function useBrowser(
         window.dispatchEvent(new CustomEvent(TAB_SWITCH_EVENT, { detail: { profile, back: key === "previous-tab", held: true } }));
         return;
     }
-  }, [focused, panes, tabs, newTab, close, newWindow, activate, fail, reopen, toggleDevtools]);
+  }, [focused, panes, tabs, newTab, close, newWindow, newPrivateWindow, activate, fail, reopen, toggleDevtools]);
   const runShortcutRef = useRef(runShortcut);
   runShortcutRef.current = runShortcut;
 
@@ -943,6 +956,7 @@ export function useBrowser(
         if (key === "tab") shortcut = e.shiftKey ? "previous-tab" : "next-tab";
         else if (key === "r") shortcut = e.shiftKey ? "hard-reload" : "reload";
         else if (key === "t" && e.shiftKey) shortcut = "reopen-tab";
+        else if (key === "n" && e.shiftKey) shortcut = "new-private-window";
         else if (key === "k" && e.shiftKey) shortcut = "palette";
         else if (key === "=" || key === "+") shortcut = "zoom-in";
         else if (key === "-" || e.code === "NumpadSubtract") shortcut = "zoom-out";
@@ -970,7 +984,7 @@ export function useBrowser(
     pages,
     closePanelPages: () => panelPagesRef.current.forEach((t) => { invoke("browser_close", { id: t.id }).catch(fail); }),
     panelPage: (profile) => panelPages.find((t) => t.profile === profile) ?? null, openPanelPage, registerPanelSlot,
-    devtoolsOpen: (id) => devtools.includes(id), toggleDevtools, undockDevtools, registerDevtoolsSlot, newWindow, move, reopen, tabAction,
+    devtoolsOpen: (id) => devtools.includes(id), toggleDevtools, undockDevtools, registerDevtoolsSlot, newWindow, newPrivateWindow, isPrivate: PRIVATE_WINDOW, move, reopen, tabAction,
     strip, groups: Object.values(groupMap), groupOf, createGroup, addToGroup, removeFromGroup, updateGroup, ungroup, closeGroup,
     savedGroups, reopenGroup, deleteSavedGroup, moveGroup, moveSavedGroup,
     error,

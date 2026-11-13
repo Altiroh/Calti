@@ -166,6 +166,7 @@ export function BrowserPane({
       { label: "Nouvel onglet", icon: "plus", tone: "green", shortcut: "Ctrl+T", action: () => browser.newTab(id) },
       { label: "Rouvrir l'onglet fermé", icon: "undo", tone: "amber", shortcut: "Ctrl+Maj+T", action: () => browser.reopen(id) },
       { label: "Nouvelle fenêtre", icon: "window", tone: "blue", shortcut: "Ctrl+N", action: () => browser.newWindow(id) },
+      { label: "Nouvelle fenêtre privée", icon: "incognito", tone: "slate", shortcut: "Ctrl+Maj+N", action: () => browser.newPrivateWindow(id) },
       { label: "Ouvrir ce profil dans sa propre fenêtre", icon: "popout", tone: "slate", action: () => browser.newWindow(id, true) },
       {
         label: "Deux profils côte à côte", icon: "split", tone: "violet", checked: browser.split, disabled: choices.length < 2,

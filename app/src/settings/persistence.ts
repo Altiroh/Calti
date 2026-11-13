@@ -17,11 +17,15 @@ interface Snapshot {
   data: Record<string, string>;
 }
 
+/** Jamais recopié dans le fichier (lisible par qui accède au disque) : l'historique du presse-papiers, qui peut contenir
+ * des secrets copiés à la main. Il reste dans le stockage de WebView2. */
+const NOT_MIRRORED = "calti.clipboard";
+
 function collect(): Record<string, string> {
   const data: Record<string, string> = {};
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i)!;
-    if (key.startsWith("calti.") && key !== GEN_KEY) data[key] = localStorage.getItem(key)!;
+    if (key.startsWith("calti.") && key !== GEN_KEY && key !== NOT_MIRRORED) data[key] = localStorage.getItem(key)!;
   }
   return data;
 }
@@ -78,7 +82,7 @@ const parse = (text: string | null): Snapshot | null => {
 function apply(saved: Snapshot) {
   for (const key of Object.keys(collect())) localStorage.removeItem(key);
   for (const [key, value] of Object.entries(saved.data)) {
-    if (key.startsWith("calti.") && typeof value === "string") localStorage.setItem(key, value);
+    if (key.startsWith("calti.") && key !== NOT_MIRRORED && typeof value === "string") localStorage.setItem(key, value);
   }
   localStorage.setItem(GEN_KEY, String(Math.max(saved.gen, localGen())));
 }
