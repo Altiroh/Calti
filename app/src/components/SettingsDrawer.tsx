@@ -370,6 +370,7 @@ function Appearance({ onEditLayout }: { onEditLayout: () => void }) {
           <Check label="Précédent / suivant" checked={c.barButtons.nav} onChange={(nav) => setChrome({ barButtons: { ...c.barButtons, nav } })} />
           <Check label="Recharger" checked={c.barButtons.reload} onChange={(reload) => setChrome({ barButtons: { ...c.barButtons, reload } })} />
           <Check label="Favori ★" checked={c.barButtons.star} onChange={(star) => setChrome({ barButtons: { ...c.barButtons, star } })} />
+          <Check label="Téléchargements" checked={c.barButtons.downloads} onChange={(downloads) => setChrome({ barButtons: { ...c.barButtons, downloads } })} />
         </div>
         <div className="settings__checks">
           <Check label="Seconde barre" checked={c.subBar} onChange={(subBar) => setChrome({ subBar })} />

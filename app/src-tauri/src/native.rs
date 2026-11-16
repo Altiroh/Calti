@@ -198,6 +198,8 @@ pub const LINK_SCRIPT: &str = r#"(() => {
     window.chrome.webview.postMessage(JSON.stringify({ calti: "open-background", url: a.href }));
   };
   addEventListener("auxclick", (e) => e.button === 1 && open(e), true);
+  // Dernier endroit cliqué : un téléchargement qui suit en part (animation de Calti, voir downloadAnimation.tsx).
+  addEventListener("pointerdown", (e) => { window.__caltiPointer = { x: e.clientX, y: e.clientY, t: Date.now() }; }, true);
   addEventListener("click", (e) => e.button === 0 && (e.ctrlKey || e.metaKey) && open(e), true);
   // Ctrl+molette (et pincement du pavé tactile) : zoom de Calti, retenu pour le site.
   addEventListener("wheel", (e) => {

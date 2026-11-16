@@ -11,6 +11,7 @@ import { useBlockerSync } from "./browser/blocker";
 import { Drawer } from "./components/Drawer";
 import { DownloadsDrawer, DownloadsList } from "./components/DownloadsDrawer";
 import { Card } from "./components/Card";
+import { DownloadGlyph, useDownloadFlight } from "./components/downloadAnimation";
 import { Palette, type PaletteCommand } from "./components/Palette";
 import { MenuHost } from "./components/ContextMenu";
 import { usePageMenu } from "./browser/pageMenu";
@@ -282,14 +283,9 @@ export function App() {
         : `${profile(r.profile).name} : ${r.imported} mot(s) de passe importé(s), ${r.already} déjà présent(s)`).join(" · ")))
       .catch(() => {});
   }, []);
-  // Téléchargement lancé depuis une page de cette fenêtre : signalé, sauf si le bouton Téléchargements est dans la
-  // barre latérale (l'animation y mène).
-  const downloadsInRail = theme.chrome.railWidgets.includes("downloads") && !theme.chrome.railHidden.includes("downloads");
-  useEffect(() => {
-    if (downloadsInRail) return;
-    const unlisten = listen<number>("browser:download-started", () => setImportNotice("Téléchargement · Ctrl+J"));
-    return () => { unlisten.then((u) => u()); };
-  }, [downloadsInRail]);
+  // Téléchargement lancé depuis une page de cette fenêtre : le fichier file jusqu'à l'icône Téléchargements (barre du
+  // haut, sinon barre latérale) ; sans icône affichée, un simple message.
+  useDownloadFlight(browser.tabs, () => setImportNotice("Téléchargement · Ctrl+J"));
   useEffect(() => {
     if (!importNotice) return;
     const timer = setTimeout(() => setImportNotice(null), 9000);
@@ -490,6 +486,10 @@ export function App() {
                       ...(l.surface ? { playerSurface: l.surface } : {}),
                       ...(l.text !== undefined ? { playerTitleText: l.text } : {}),
                       ...(l.progress !== undefined ? { playerTitleProgress: l.progress } : {}) } })} />}
+                    {c.barButtons.downloads && (
+                      <button className={`bar-downloads${drawer === "downloads" ? " bar-downloads--on" : ""}`} aria-label="Téléchargements" title="Téléchargements (Ctrl+J)"
+                        onClick={() => setDrawer((d) => (d === "downloads" ? null : "downloads"))}><DownloadGlyph target="bar" /></button>
+                    )}
                     {browser.isPrivate && <span className="private-badge" title="Navigation privée"><Icon name="incognito" size={14} />Privée</span>}
                     <WindowControls /></>
                   : null}

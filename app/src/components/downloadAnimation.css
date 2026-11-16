@@ -90,3 +90,38 @@
     animation: none;
   }
 }
+
+/* Barre du haut : bouton comme ceux de la fenêtre, anneau plus serré. */
+.bar-downloads {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 32px;
+  height: 30px;
+  margin-left: 4px;
+  border-radius: 9px;
+  color: var(--text-dim);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.bar-downloads:hover,
+.bar-downloads--on {
+  background: var(--glass-fill-active);
+  color: var(--text);
+}
+
+.dl-glyph--bar {
+  width: 18px;
+  height: 18px;
+}
+
+.dl-glyph--bar .dl-glyph__ring {
+  inset: -5px;
+  width: 28px;
+  height: 28px;
+}
+
+.dl-glyph--bar .dl-glyph__check {
+  right: -6px;
+  bottom: -5px;
+}

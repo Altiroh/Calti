@@ -713,3 +713,18 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
   mouvements sont coupés. Le message « Téléchargement en cours · Ctrl+J pour le suivre » n'apparaît plus quand le
   bouton est dans la barre (sinon « Téléchargement · Ctrl+J »). Palette : pas de doublon « Ouvrir Téléchargements ».
 - Test `downloads.test.cjs` 11/11 ; sécurité, intégrations, menus, fonctions, persistance, groupes : verts. Installé.
+
+## 2026-11-16 — Téléchargements dans la barre du haut ; animation depuis le bouton cliqué
+
+- Option « Téléchargements » parmi les boutons de la barre du haut (`barButtons.downloads`, réglages et clic droit
+  sur la barre) : bouton à gauche des boutons de la fenêtre, avec anneau de progression et coche ; il ouvre le
+  panneau des téléchargements.
+- Animation (`useDownloadFlight`) : destination choisie au début du téléchargement — barre du haut si le bouton y
+  est, sinon barre latérale, sinon aucune animation (message « Téléchargement · Ctrl+J »). La page étant une vue
+  native devant l'interface, le trajet est en deux temps : dans la page (script `browser_eval`, élément dans une
+  racine fermée, sans HTML ni style en ligne pour les sites à Trusted Types ou CSP stricte), du dernier endroit cliqué
+  (moins de 8 s, noté par `LINK_SCRIPT` au `pointerdown`) jusqu'au bord de la page du côté de l'icône (haut ou
+  gauche, zoom de la page pris en compte) ; puis dans l'interface, du même point jusqu'à l'icône, qui rebondit.
+- Test `downloads.test.cjs` 15/15 (trois cas, pastille dans la page, reprise au bord, arrivée sur l'icône). Fonctions,
+  sécurité, persistance, par-dessus la page, privé, intégrations, groupes : verts ; menus 19/19 au troisième passage
+  (instable : outils ancrés, puis réglages d'essai pas posés à temps). Installé.

@@ -179,6 +179,7 @@ export function BrowserPane({
           { label: "Précédent / suivant", icon: "back", tone: "slate", checked: c.barButtons.nav, action: setButton("nav") },
           { label: "Recharger", icon: "reload", tone: "blue", checked: c.barButtons.reload, action: setButton("reload") },
           { label: "Favori", icon: "star", tone: "amber", checked: c.barButtons.star, action: setButton("star") },
+          { label: "Téléchargements", icon: "download", tone: "green", checked: c.barButtons.downloads, action: setButton("downloads") },
           "-",
           { label: "Seconde barre", icon: "layout", tone: "violet", checked: c.subBar, action: () => updateTheme({ chrome: { ...c, subBar: !c.subBar } }) },
           { label: "Groupes enregistrés", icon: "layers", tone: "violet", checked: c.subBarGroups, disabled: !c.subBar, action: () => updateTheme({ chrome: { ...c, subBarGroups: !c.subBarGroups } }) },

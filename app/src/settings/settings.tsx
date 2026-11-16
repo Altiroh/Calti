@@ -59,7 +59,8 @@ export interface ChromeSettings {
   /** Largeur de la barre d'adresse (elle s'élargit pendant la saisie). */
   addressWidth: "s" | "m" | "l";
   /** Boutons affichés dans la barre du haut. */
-  barButtons: { nav: boolean; reload: boolean; star: boolean; detach: boolean };
+  /** Boutons de la barre du haut ; `downloads` : Téléchargements, à gauche des boutons de la fenêtre. */
+  barButtons: { nav: boolean; reload: boolean; star: boolean; detach: boolean; downloads: boolean };
   /** Seconde barre sous la barre du haut : groupes enregistrés, favoris. */
   subBar: boolean;
   subBarGroups: boolean;
@@ -128,7 +129,7 @@ export const defaultChrome: ChromeSettings = {
   barRadius: 16,
   barHeight: 48,
   addressWidth: "m",
-  barButtons: { nav: true, reload: true, star: true, detach: true },
+  barButtons: { nav: true, reload: true, star: true, detach: true, downloads: false },
   subBar: false,
   subBarGroups: true,
   subBarBookmarks: false,

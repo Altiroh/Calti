@@ -50,7 +50,7 @@ export const widgetIcons = { clipboard: "clipboard", history: "history", tabs: "
 const brandGlyphs: Partial<Record<BarWidget, ReactNode>> = {
   claude: <ClaudeLogo size={20} />,
   media: <SpotifyPlus size={24} />,
-  downloads: <DownloadGlyph />,
+  downloads: <DownloadGlyph target="rail" />,
 };
 
 function RailButton({ icon, glyph, label, on, wide, onClick }:
