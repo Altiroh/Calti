@@ -9,7 +9,8 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { APP_EVENT, FULLSCREEN_EVENT, PROFILE_SWITCH_EVENT, useBrowser, type Cutout, type ProfileId } from "./browser/useBrowser";
 import { useBlockerSync } from "./browser/blocker";
 import { Drawer } from "./components/Drawer";
-import { DownloadsDrawer } from "./components/DownloadsDrawer";
+import { DownloadsDrawer, DownloadsList } from "./components/DownloadsDrawer";
+import { Card } from "./components/Card";
 import { Palette, type PaletteCommand } from "./components/Palette";
 import { MenuHost } from "./components/ContextMenu";
 import { usePageMenu } from "./browser/pageMenu";
@@ -250,6 +251,19 @@ export function App() {
     };
   }, []);
 
+  // Téléchargements ajoutés une fois à la barre latérale, à côté des favoris (retirables ensuite).
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("calti.downloads-widget")) return;
+      localStorage.setItem("calti.downloads-widget", "1");
+    } catch { return; }
+    const list = theme.chrome.railWidgets;
+    if (list.includes("downloads")) return;
+    const at = list.indexOf("bookmarks");
+    const railWidgets = at < 0 ? [...list, "downloads" as const] : [...list.slice(0, at + 1), "downloads" as const, ...list.slice(at + 1)];
+    updateTheme({ chrome: { ...theme.chrome, railWidgets } });
+  }, []);
+
   // Barre latérale « bord renflé » demandée : appliquée une fois aux réglages existants (modifiable ensuite).
   useEffect(() => {
     try {
@@ -268,11 +282,14 @@ export function App() {
         : `${profile(r.profile).name} : ${r.imported} mot(s) de passe importé(s), ${r.already} déjà présent(s)`).join(" · ")))
       .catch(() => {});
   }, []);
-  // Téléchargement lancé depuis une page de cette fenêtre : signalé, le panneau reste à un raccourci.
+  // Téléchargement lancé depuis une page de cette fenêtre : signalé, sauf si le bouton Téléchargements est dans la
+  // barre latérale (l'animation y mène).
+  const downloadsInRail = theme.chrome.railWidgets.includes("downloads") && !theme.chrome.railHidden.includes("downloads");
   useEffect(() => {
-    const unlisten = listen<number>("browser:download-started", () => setImportNotice("Téléchargement en cours · Ctrl+J pour le suivre"));
+    if (downloadsInRail) return;
+    const unlisten = listen<number>("browser:download-started", () => setImportNotice("Téléchargement · Ctrl+J"));
     return () => { unlisten.then((u) => u()); };
-  }, []);
+  }, [downloadsInRail]);
   useEffect(() => {
     if (!importNotice) return;
     const timer = setTimeout(() => setImportNotice(null), 9000);
@@ -299,8 +316,9 @@ export function App() {
       ...browser.savedGroups.filter((g) => g.profile === p).map((g) => ({
         label: `Rouvrir le groupe « ${g.name || "sans nom"} »`, icon: "layers" as const, run: () => browser.reopenGroup(g.id),
       })),
-      // Extensions activées (avec ou sans raccourci dans la barre) : ouvertes à côté de la page.
-      ...theme.chrome.railWidgets.filter((w) => w !== "claude").map((w) => ({
+      // Extensions activées (avec ou sans raccourci dans la barre) : ouvertes à côté de la page. Téléchargements a
+      // déjà sa commande (Ctrl+J), pas de doublon.
+      ...theme.chrome.railWidgets.filter((w) => w !== "claude" && w !== "downloads").map((w) => ({
         label: `Ouvrir ${barWidgetLabels[w]}`, icon: widgetIcons[w], run: () => setPanel(p, w),
       })),
       ...(claudeOn ? [
@@ -485,6 +503,7 @@ export function App() {
                   ? <RulerWidget visibleTabs={visibleTabs} />
                   : kind === "claude" ? <ClaudePanel browser={browser} profile={p} />
                   : kind === "groups" ? <GroupsWidget browser={browser} profile={p} />
+                  : kind === "downloads" ? <Card title="Téléchargements" className="downloads-card"><DownloadsList /></Card>
                   : renderBlock({ kind, x: 0, y: 0, w: 4, h: 8 }, homeContext(p))} />
             ))}
           </div>

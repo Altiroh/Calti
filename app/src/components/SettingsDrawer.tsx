@@ -65,6 +65,7 @@ const extensions: { id: BarWidget; icon: IconName; colors: [string, string]; des
   { id: "notes", icon: "notes", colors: ["#ffd166", "#f4a261"], description: "Notes, groupes, couleurs, partage." },
   { id: "ruler", icon: "ruler", colors: ["#ff3d7f", "#a259ff"], description: "Règles et grille sur la page." },
   { id: "bookmarks", icon: "star", colors: ["#f9d423", "#f7971e"], description: "Favoris de Calti et de Brave." },
+  { id: "downloads", icon: "download", colors: ["#34d399", "#0f9d58"], description: "Fichiers téléchargés, progression." },
   { id: "tabs", icon: "tabs", colors: ["#43e97b", "#1f8c8c"], description: "Onglets du profil." },
   { id: "groups", icon: "layers", colors: ["#9334e6", "#5f3dc4"], description: "Groupes ouverts et enregistrés." },
   { id: "claude", icon: "spark", colors: ["#e8916b", "#c15f3c"], description: "claude.ai à côté de la page." },

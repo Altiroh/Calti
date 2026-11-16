@@ -8,6 +8,7 @@ import { Icon, type IconName } from "./Icon";
 import { ProfileBadge } from "./ProfileBadge";
 import { ClaudeLogo, SpotifyPlus } from "./BrandIcons";
 import { hostname, siteIcon } from "./siteIcon";
+import { DownloadGlyph } from "./downloadAnimation";
 import "./Sidebar.css";
 
 /** Largeurs de la barre : icônes seules, ou large (libellés et onglets). */
@@ -43,12 +44,13 @@ interface Props {
   player?: (wide: boolean) => ReactNode;
 }
 
-export const widgetIcons = { clipboard: "clipboard", history: "history", tabs: "tabs", bookmarks: "star", notes: "notes", ruler: "ruler", claude: "spark", media: "sound", groups: "layers" } as const;
+export const widgetIcons = { clipboard: "clipboard", history: "history", tabs: "tabs", bookmarks: "star", downloads: "download", notes: "notes", ruler: "ruler", claude: "spark", media: "sound", groups: "layers" } as const;
 
 /** Logos de marque à la place de l'icône au trait. */
 const brandGlyphs: Partial<Record<BarWidget, ReactNode>> = {
   claude: <ClaudeLogo size={20} />,
   media: <SpotifyPlus size={24} />,
+  downloads: <DownloadGlyph />,
 };
 
 function RailButton({ icon, glyph, label, on, wide, onClick }:

@@ -701,3 +701,15 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
 - Test `overlay.test.cjs` 18/18 : la découpe est lue dans la région Windows de la page (`scripts/tests/region.ps1`,
   `GetWindowRgn` + `PtInRegion`) — sous le lecteur, le liseré, coins droits et arrondis, creux des congés. Les pages
   sont ouvertes par la barre d'adresse (onglet affiché). Intégrations, persistance, menus, fonctions : verts. Installé.
+
+## 2026-11-16 — Téléchargements dans la barre latérale, animation d'un nouveau fichier
+
+- Widget « Téléchargements » (comme les favoris) : bouton de la barre latérale, extension activable, panneau à côté
+  de la page avec la liste commune au panneau Ctrl+J (`DownloadsList`). Ajouté une fois aux réglages existants,
+  après les favoris (`calti.downloads-widget`). État vide réduit à « Aucun téléchargement ».
+- Animation (`components/downloadAnimation.tsx`) : à chaque nouveau fichier, une pastille verte part de la barre
+  d'adresse et file en arc jusqu'au bouton, qui rebondit ; anneau de progression autour de l'icône pendant le
+  téléchargement (tournant si la taille est inconnue), coche verte à la fin. Fenêtre active seulement ; rien si les
+  mouvements sont coupés. Le message « Téléchargement en cours · Ctrl+J pour le suivre » n'apparaît plus quand le
+  bouton est dans la barre (sinon « Téléchargement · Ctrl+J »). Palette : pas de doublon « Ouvrir Téléchargements ».
+- Test `downloads.test.cjs` 11/11 ; sécurité, intégrations, menus, fonctions, persistance, groupes : verts. Installé.

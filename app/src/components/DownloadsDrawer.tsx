@@ -54,8 +54,9 @@ const status = (d: Download) => {
   }
 };
 
-/** Panneau des téléchargements (Ctrl+J) : progression, ouverture du fichier ou de son dossier, annulation. */
-export function DownloadsDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+/** Liste des téléchargements : progression, ouverture du fichier ou de son dossier, annulation. Dans le panneau
+ * (Ctrl+J) et dans le widget de la barre latérale. */
+export function DownloadsList() {
   const list = useDownloads();
   const [error, setError] = useState<string | null>(null);
   // Programme ou script téléchargé : son ouverture attend une confirmation.
@@ -66,10 +67,10 @@ export function DownloadsDrawer({ open, onClose }: { open: boolean; onClose: () 
     });
 
   return (
-    <Drawer open={open} title="Téléchargements" onClose={onClose}>
+    <>
       {error && <p className="downloads__error">{error}</p>}
       {list.length === 0 ? (
-        <p className="settings__hint">Aucun téléchargement pour l'instant. Les fichiers vont dans le dossier Téléchargements de Windows.</p>
+        <p className="settings__hint">Aucun téléchargement</p>
       ) : (
         <ul className="downloads">
           {list.map((d) => (
@@ -89,27 +90,36 @@ export function DownloadsDrawer({ open, onClose }: { open: boolean; onClose: () 
                     <Icon name="close" size={14} />
                   </button>
                 </>
-              )}
-              {confirm === d.id && (
-                <span className="download__confirm" role="alertdialog" aria-label="Ouvrir un programme">
-                  <Icon name="shield" size={14} />
-                  <button className="chip-btn download__run" onClick={() => run("download_open", { id: d.id, reveal: false, confirmed: true })}>Exécuter</button>
-                  <button className="chip-btn" onClick={() => setConfirm(null)}>Annuler</button>
-                </span>
-              )}
-              {d.state === "done" && (
-                <button className="icon-btn" title="Afficher dans le dossier" aria-label="Afficher dans le dossier"
-                  onClick={() => run("download_open", { id: d.id, reveal: true })}>
-                  <Icon name="folder" size={15} />
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-      {list.some((d) => d.state !== "progress") && (
-        <button className="chip-btn downloads__clear" onClick={() => run("downloads_clear", {})}>Effacer la liste</button>
-      )}
+            )}
+            {confirm === d.id && (
+              <span className="download__confirm" role="alertdialog" aria-label="Ouvrir un programme">
+                <Icon name="shield" size={14} />
+                <button className="chip-btn download__run" onClick={() => run("download_open", { id: d.id, reveal: false, confirmed: true })}>Exécuter</button>
+                <button className="chip-btn" onClick={() => setConfirm(null)}>Annuler</button>
+              </span>
+            )}
+            {d.state === "done" && (
+              <button className="icon-btn" title="Afficher dans le dossier" aria-label="Afficher dans le dossier"
+                onClick={() => run("download_open", { id: d.id, reveal: true })}>
+                <Icon name="folder" size={15} />
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+    )}
+    {list.some((d) => d.state !== "progress") && (
+      <button className="chip-btn downloads__clear" onClick={() => run("downloads_clear", {})}>Effacer la liste</button>
+    )}
+    </>
+  );
+}
+
+/** Panneau des téléchargements (Ctrl+J) : progression, ouverture du fichier ou de son dossier, annulation. */
+export function DownloadsDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Drawer open={open} title="Téléchargements" onClose={onClose}>
+      <DownloadsList />
     </Drawer>
   );
 }

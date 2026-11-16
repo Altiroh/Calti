@@ -1,0 +1,92 @@
+/* Pastille qui file de la barre d'adresse au bouton Téléchargements (downloadAnimation.tsx). */
+.dl-flight {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(135deg, #34d399, #0f9d58);
+  box-shadow: 0 6px 18px rgba(15, 157, 88, 0.45);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/* Bouton de la barre latérale : anneau de progression autour de l'icône, coche à la fin. */
+.dl-glyph {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+}
+
+.dl-glyph--active {
+  color: #0f9d58;
+}
+
+.dl-glyph__ring {
+  position: absolute;
+  inset: -7px;
+  width: 36px;
+  height: 36px;
+  transform: rotate(-90deg);
+  fill: none;
+  stroke-width: 2.4;
+}
+
+.dl-glyph__ring circle {
+  stroke: color-mix(in srgb, #0f9d58 18%, transparent);
+}
+
+.dl-glyph__ring .dl-glyph__value {
+  stroke: #0f9d58;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 300ms var(--ease);
+}
+
+.dl-glyph__ring--spin {
+  animation: dl-spin 1s linear infinite;
+}
+
+@keyframes dl-spin {
+  from { transform: rotate(-90deg); }
+  to { transform: rotate(270deg); }
+}
+
+.dl-glyph__check {
+  position: absolute;
+  right: -7px;
+  bottom: -5px;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  color: #fff;
+  background: #0f9d58;
+  box-shadow: 0 0 0 2px var(--surface-solid, #fff);
+  animation: dl-check 360ms var(--ease) both;
+}
+
+@keyframes dl-check {
+  from { transform: scale(0); }
+  70% { transform: scale(1.25); }
+  to { transform: scale(1); }
+}
+
+.no-motion .dl-glyph__ring--spin,
+.no-motion .dl-glyph__check {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dl-glyph__ring--spin,
+  .dl-glyph__check {
+    animation: none;
+  }
+}

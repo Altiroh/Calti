@@ -106,3 +106,9 @@
   color: #fff;
   background: #d97706;
 }
+
+/* Widget de la barre latérale : la liste défile dans la carte. */
+.downloads-card .downloads {
+  min-height: 0;
+  overflow-y: auto;
+}

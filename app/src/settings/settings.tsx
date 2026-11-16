@@ -40,6 +40,7 @@ export const barWidgetLabels = {
   history: "Historique",
   tabs: "Onglets",
   bookmarks: "Favoris",
+  downloads: "Téléchargements",
   notes: "Notes",
   ruler: "Règle et grille",
   claude: "Claude",
