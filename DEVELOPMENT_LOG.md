@@ -728,3 +728,18 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
 - Test `downloads.test.cjs` 15/15 (trois cas, pastille dans la page, reprise au bord, arrivée sur l'icône). Fonctions,
   sécurité, persistance, par-dessus la page, privé, intégrations, groupes : verts ; menus 19/19 au troisième passage
   (instable : outils ancrés, puis réglages d'essai pas posés à temps). Installé.
+
+## 2026-11-20 — Saisie perdue par moments
+
+- Cause 1 : wry crée chaque vue web avec le focus clavier par défaut (`MoveFocus` à la création). Un onglet ouvert en
+  arrière-plan (clic molette, Ctrl+clic), restauré au lancement ou de panneau (Claude) prenait donc le clavier à la
+  page où l'on tapait, depuis une vue cachée : les frappes partaient dans le vide jusqu'au clic suivant.
+  Correction : `WebviewBuilder::focused` seulement pour un onglet ouvert devant l'utilisateur (`open_page(…, focus)`,
+  `browser_open` reçoit `background`, liens en arrière-plan et onglets différés ou de panneau sans focus).
+- Cause 2 : sur un clavier français, AltGr arrive comme Ctrl+Alt ; les raccourcis captés dans les pages ne
+  regardaient que Ctrl : AltGr+à (@) remettait le zoom à 100 %, AltGr+3…9 (# { [ | ` \ ^) changeaient d'onglet,
+  AltGr+= (}) zoomait, et le caractère était perdu. Correction (`native.rs`) : Alt enfoncée, aucun raccourci Ctrl.
+- `install.ps1` attend que `calti.exe` soit libéré (20 s au plus) avant de le remplacer : une copie avait échoué
+  juste après la fermeture et l'ancienne version avait été relancée.
+- Non reproduit sur une instance d'essai (il faudrait la mettre au premier plan et y taper) ; fonctions, persistance,
+  sécurité, intégrations, téléchargements, privé, nouvel onglet, groupes, Ctrl+Tab : verts. Installé.

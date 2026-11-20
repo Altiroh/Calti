@@ -10,7 +10,11 @@ if (Get-Process calti -ErrorAction SilentlyContinue) { throw "Calti est ouvert :
 $dir = Join-Path $env:LOCALAPPDATA "Programs\Calti"
 $exe = Join-Path $dir "calti.exe"
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
-Copy-Item $source $exe -Force
+# Calti tout juste fermé : Windows peut garder le fichier quelques secondes ; on attend qu'il soit libre (20 s au plus).
+for ($i = 0; $i -lt 40; $i++) {
+    try { Copy-Item $source $exe -Force -ErrorAction Stop; break }
+    catch { if ($i -eq 39) { throw }; Start-Sleep -Milliseconds 500 }
+}
 
 $shell = New-Object -ComObject WScript.Shell
 function Set-Shortcut($path) {

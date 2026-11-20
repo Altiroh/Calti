@@ -405,7 +405,7 @@ export function useBrowser(
 
   const openUrl = useCallback(async (url: string, profile: ProfileId, background = false) => {
     try {
-      const id = await invoke<number>("browser_open", { profile, url });
+      const id = await invoke<number>("browser_open", { profile, url, background });
       if (!background) show(profile, id);
       return id;
     } catch (e) {

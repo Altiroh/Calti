@@ -302,14 +302,14 @@ pub(crate) fn open_from_tab(app: &AppHandle, opener: u64, url: &str, background:
     tauri::async_runtime::spawn(async move {
         let Some(window) = tab_window(&app, opener) else { return };
         let Some((profile, private)) = app.state::<Browser>().0.lock().unwrap().tabs.iter().find(|t| t.id == opener).map(|t| (t.profile.clone(), t.private)) else { return };
-        if let Ok(new_id) = open_tab(&app, &window, &profile, url, None, private) {
+        if let Ok(new_id) = open_tab(&app, &window, &profile, url, None, private, !background) {
             emit_to_tab(&app, new_id, "browser:opened", (new_id, opener, background));
         }
     });
 }
 
-fn open_tab(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy: Option<String>, private: bool) -> Result<u64, String> {
-    open_page(app, window_label, profile, url, lazy, false, private)
+fn open_tab(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy: Option<String>, private: bool, focus: bool) -> Result<u64, String> {
+    open_page(app, window_label, profile, url, lazy, false, private, focus)
 }
 
 /// Fenêtre de navigation privée : ses onglets sont tous privés.
@@ -319,7 +319,10 @@ pub(crate) fn private_window(label: &str) -> bool {
 
 const PRIVATE_WINDOW: &str = "calti-prive-";
 
-fn open_page(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy: Option<String>, panel: bool, private: bool) -> Result<u64, String> {
+/// `focus` : la page prend le clavier à sa création (onglet ouvert devant l'utilisateur). Jamais pour un onglet en
+/// arrière-plan, restauré ou de panneau : il prendrait le clavier à la page où l'on tape, depuis une vue cachée.
+#[allow(clippy::too_many_arguments)]
+fn open_page(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy: Option<String>, panel: bool, private: bool, focus: bool) -> Result<u64, String> {
     if !valid_profile(profile) {
         return Err("profil invalide".into());
     }
@@ -359,6 +362,7 @@ fn open_page(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy:
     let builder = WebviewBuilder::new(label(id), WebviewUrl::External(start))
         .data_directory(data_dir)
         .incognito(private)
+        .focused(focus && lazy.is_none() && !panel)
         // Outils de développement (F12, Ctrl+Maj+I, menus) : disponibles aussi dans la version installée.
         .devtools(true)
         // Fond transparent : pas de flash blanc avant le premier affichage de la page.
@@ -397,7 +401,7 @@ fn open_page(app: &AppHandle, window_label: &str, profile: &str, url: Url, lazy:
             tauri::async_runtime::spawn(async move {
                 // L'onglet d'origine a pu changer de fenêtre : on ouvre dans sa fenêtre actuelle.
                 let Some(window) = tab_window(&app, id) else { return };
-                if let Ok(new_id) = open_tab(&app, &window, &profile, url, None, private) {
+                if let Ok(new_id) = open_tab(&app, &window, &profile, url, None, private, true) {
                     emit_to_tab(&app, new_id, "browser:opened", (new_id, id, false));
                 }
             });
@@ -438,10 +442,11 @@ pub async fn browser_open(
     url: String,
     lazy_title: Option<String>,
     panel: Option<bool>,
+    background: Option<bool>,
 ) -> Result<u64, String> {
     // `lazy_title` : onglet de session restauré, chargé seulement quand on l'affiche.
     let private = private_window(window.label()) && !panel.unwrap_or(false);
-    open_page(&app, window.label(), &profile, web_url(&url)?, lazy_title, panel.unwrap_or(false), private)
+    open_page(&app, window.label(), &profile, web_url(&url)?, lazy_title, panel.unwrap_or(false), private, !background.unwrap_or(false))
 }
 
 #[tauri::command]

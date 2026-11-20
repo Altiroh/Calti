@@ -80,7 +80,15 @@ pub fn install_shortcuts(app: &AppHandle, webview: &Webview, tab: u64) {
             }
             let mut key = 0u32;
             args.VirtualKey(&mut key)?;
-            let action = if system { alt_shortcut(key, pressed(VK_SHIFT)) } else { shortcut(key, pressed(VK_CONTROL), pressed(VK_SHIFT)) };
+            // AltGr (claviers français : @ # { [ | \ ^ ] }) arrive comme Ctrl+Alt : jamais un raccourci Ctrl, sinon
+            // AltGr+à (@) remettrait le zoom à 100 %, AltGr+3 (#) changerait d'onglet, et le caractère serait perdu.
+            let action = if system {
+                alt_shortcut(key, pressed(VK_SHIFT))
+            } else if pressed(VK_MENU) {
+                None
+            } else {
+                shortcut(key, pressed(VK_CONTROL), pressed(VK_SHIFT))
+            };
             let Some(action) = action else { return Ok(()) };
             args.SetHandled(true)?;
             match action {
