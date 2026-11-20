@@ -16,6 +16,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { siteIcon } from "./siteIcon";
 import { ProfileBadge } from "./ProfileBadge";
 import { TabStrip } from "./TabStrip";
+import { BookmarkEditor } from "./BookmarkEditor";
+import type { ProfileBookmarks } from "../browser/library";
 import "./BrowserPane.css";
 
 interface Props {
@@ -30,9 +32,11 @@ interface Props {
   home: ReactNode;
   /** Boutons de fenêtre, au bout de la barre du volet de droite. */
   controls?: ReactNode;
-  /** Favoris de Calti : la page affichée y est-elle, et bascule. */
+  /** Favoris de Calti : la page affichée y est-elle ; ajout, modification, dossiers (fenêtre de l'étoile). */
   isBookmarked: (url: string) => boolean;
-  onToggleBookmark: (url: string, title: string) => void;
+  marks: ProfileBookmarks;
+  /** Place de la fenêtre du favori, retirée des pages pour la laisser voir. */
+  onBookmarkRect: (rect: Cutout | null) => void;
   /** Ouvre les réglages du zoom (Général). */
   onZoomSettings: () => void;
   /** Réglages → Interface. */
@@ -54,7 +58,7 @@ const OWN_MENU = "button, a, input, .ptab, .tgroup";
 
 /** Volet de navigation d'un profil : une seule barre (navigation, adresse, onglets), puis le contenu. */
 export function BrowserPane({
-  browser, profile, split, choices, onChooseProfile, home, controls, isBookmarked, onToggleBookmark, onMoreSettings, onZoomSettings, panel, onPanel, renderWidget, suggest, onSuggestRect, bookmarks,
+  browser, profile, split, choices, onChooseProfile, home, controls, isBookmarked, marks, onBookmarkRect, onMoreSettings, onZoomSettings, panel, onPanel, renderWidget, suggest, onSuggestRect, bookmarks,
 }: Props) {
   const id = profile.id;
   const { theme, updateTheme } = useSettings();
@@ -84,7 +88,16 @@ export function BrowserPane({
   const root = useRef<HTMLElement>(null);
   const bookmarked = !!active && isBookmarked(active.url);
   const toggleBookmark = useRef(() => {});
-  toggleBookmark.current = () => active && onToggleBookmark(active.url, active.title);
+  // Étoile, Ctrl+D : la page est ajoutée (si besoin) puis sa fenêtre s'ouvre (nom, dossier, supprimer).
+  const [editing, setEditing] = useState<{ url: string; added: boolean } | null>(null);
+  const editClosedAt = useRef(0);
+  toggleBookmark.current = () => {
+    // Clic sur l'étoile pendant que la fenêtre est ouverte : le clic l'a déjà fermée.
+    if (!active || editing || Date.now() - editClosedAt.current < 300) return;
+    const added = !marks.get(active.url);
+    marks.add(active.url, active.title);
+    setEditing({ url: active.url, added });
+  };
 
   // Ctrl+L, F6 (saisie d'adresse) et Ctrl+D (favori), y compris depuis une page.
   useEffect(() => {
@@ -140,7 +153,7 @@ export function BrowserPane({
       { label: "Recharger sans le cache", icon: "reload", tone: "teal", shortcut: "Ctrl+F5", disabled: !active, action: () => browser.action("hard-reload", id) },
       "-",
       {
-        label: bookmarked ? "Retirer des favoris" : "Ajouter aux favoris", icon: "star", tone: "amber", shortcut: "Ctrl+D",
+        label: bookmarked ? "Modifier le favori" : "Ajouter aux favoris", icon: "star", tone: "amber", shortcut: "Ctrl+D",
         disabled: !active, action: () => toggleBookmark.current(),
       },
       { label: "Copier l'adresse", icon: "link", tone: "violet", disabled: !active, action: () => active && navigator.clipboard.writeText(active.url).catch(() => {}) },
@@ -296,10 +309,14 @@ export function BrowserPane({
           )}
           {show.star && active && (
             <button type="button" className={`pane__star${bookmarked ? " pane__star--on" : ""}`}
-              aria-pressed={bookmarked} title={bookmarked ? "Retirer des favoris (Ctrl+D)" : "Ajouter aux favoris (Ctrl+D)"}
+              aria-pressed={bookmarked} title={bookmarked ? "Modifier le favori (Ctrl+D)" : "Ajouter aux favoris (Ctrl+D)"}
               onClick={() => toggleBookmark.current()}>
               <Icon name="star" size={15} />
             </button>
+          )}
+          {editing && (
+            <BookmarkEditor key={editing.url} url={editing.url} added={editing.added} marks={marks} onRect={onBookmarkRect}
+              onClose={() => { editClosedAt.current = Date.now(); setEditing(null); }} />
           )}
           {suggestions.length > 0 && (
             <SuggestionList items={suggestions} picked={picked} query={draft ?? ""} onPick={(s) => go(s.url ?? s.text)} onRect={onSuggestRect} />
@@ -324,7 +341,7 @@ export function BrowserPane({
         {controls}
       </header>
 
-      {c.subBar && <SubBar browser={browser} profile={id} bookmarks={bookmarks} groups={c.subBarGroups} marks={c.subBarBookmarks} />}
+      {c.subBar && <SubBar browser={browser} profile={id} bookmarks={bookmarks} folders={marks.folders} groups={c.subBarGroups} marks={c.subBarBookmarks} />}
 
       <div className="pane__body">
         {tools && dock.side === "bottom" ? <div className="pane__stack">{content}{tools}</div> : <>{content}{tools}</>}

@@ -99,7 +99,7 @@ pub fn install_shortcuts(app: &AppHandle, webview: &Webview, tab: u64) {
                 "zoom-reset" => crate::features::zoom_step(&app, tab, 0),
                 _ => {
                     // Saisie d'adresse, nouvel onglet : le focus clavier repasse à l'interface de la fenêtre.
-                    if matches!(action, "address" | "new-tab" | "palette" | "next-profile" | "previous-profile" | "next-tab" | "previous-tab") {
+                    if matches!(action, "address" | "new-tab" | "palette" | "bookmark" | "next-profile" | "previous-profile" | "next-tab" | "previous-tab") {
                         if let Some(window) = crate::browser::tab_window(&app, tab) {
                             if let Some(ui) = app.get_webview(&window) {
                                 let _ = ui.set_focus();

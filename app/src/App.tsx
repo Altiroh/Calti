@@ -124,6 +124,8 @@ export function App() {
   const [dialogRect, setDialogRect] = useState<Cutout | null>(null);
   // Suggestions de la barre d’adresse, elles aussi découpées dans les pages.
   const [suggestRect, setSuggestRect] = useState<Cutout | null>(null);
+  // Fenêtre du favori (étoile, Ctrl+D), découpée elle aussi.
+  const [bookmarkRect, setBookmarkRect] = useState<Cutout | null>(null);
   // Palette de commandes (Ctrl+K), ouverte pour un profil ; elle aussi découpée dans les pages.
   const [palette, setPalette] = useState<ProfileId | null>(null);
   const [paletteRect, setPaletteRect] = useState<Cutout | null>(null);
@@ -142,6 +144,7 @@ export function App() {
     ...(fullscreen && pageFullscreen == null ? [{ x: 10, y: 10, width: exitHover ? 236 : 44, height: 44 }] : []),
     ...(groupDialog.request && dialogRect ? [dialogRect] : []),
     ...(suggestRect ? [suggestRect] : []),
+    ...(bookmarkRect ? [bookmarkRect] : []),
     ...(switcherRect ? [switcherRect] : []),
     ...(tabSwitcherRect ? [tabSwitcherRect] : []),
     ...(playerRect ? [playerRect] : []),
@@ -181,7 +184,7 @@ export function App() {
   const own = useCaltiBookmarks(profileIds);
   const history = useHistory(profileIds, browser.tabs);
   // Favoris de Calti (étoile, Ctrl+D) en tête de ceux de Brave.
-  const bookmarks = Object.fromEntries(profileIds.map((p) => [p, mergeBookmarks(own.of(p), braveBookmarks[p] ?? null)]));
+  const bookmarks = Object.fromEntries(profileIds.map((p) => [p, mergeBookmarks(own.of(p), braveBookmarks[p] ?? null, own.folders(p))]));
 
   // Pages affichées partout : le décor est caché derrière, ses animations et sa parallaxe s'arrêtent.
   const browsing = !editingLayout && (browser.split ? [browser.focused, browser.secondary] : [browser.focused])
@@ -493,7 +496,7 @@ export function App() {
                     {browser.isPrivate && <span className="private-badge" title="Navigation privée"><Icon name="incognito" size={14} />Privée</span>}
                     <WindowControls /></>
                   : null}
-                isBookmarked={(url) => own.has(p, url)} onToggleBookmark={(url, title) => own.toggle(p, url, title)}
+                isBookmarked={(url) => own.has(p, url)} marks={own.forProfile(p)} onBookmarkRect={setBookmarkRect}
                 bookmarks={own.of(p)}
                 onMoreSettings={() => { setSettingsTab("appearance"); setDrawer("settings"); }}
                 onZoomSettings={() => { setSettingsTab("general"); setDrawer("settings"); }}

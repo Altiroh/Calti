@@ -318,6 +318,8 @@ export function useBrowser(
   // Appartenance des onglets aux groupes (identifiant d'onglet → groupe).
   const [membership, setMembership] = useState<Record<number, string>>({});
   const membershipRef = useRef(membership);
+  /** Dernier onglet ouvert depuis une page : les suivants du même onglet d'origine se rangent après lui. */
+  const lastOpened = useRef<{ opener: number; id: number } | null>(null);
   membershipRef.current = membership;
 
   // Un profil supprimé ne peut plus être affiché : on retombe sur un profil existant.
@@ -356,6 +358,20 @@ export function useBrowser(
         // Comme dans Brave : un onglet ouvert depuis un groupe rejoint ce groupe.
         const group = membershipRef.current[opener];
         if (group) setMembership((m) => ({ ...m, [id]: group }));
+        // Placé juste après l'onglet d'origine (clic molette, Ctrl+clic, lien qui ouvre un onglet) ; plusieurs
+        // ouverts depuis le même onglet se suivent dans l'ordre d'ouverture.
+        setAllTabs((current) => {
+          const same = current.filter((t) => !t.panel && t.window === WINDOW_LABEL);
+          const origin = same.find((t) => t.id === opener);
+          if (!origin) return current;
+          const row = same.filter((t) => t.profile === origin.profile && t.id !== id);
+          const chain = lastOpened.current;
+          const anchor = chain && chain.opener === opener && row.some((t) => t.id === chain.id) ? chain.id : opener;
+          const before = row[row.findIndex((t) => t.id === anchor) + 1]?.id ?? null;
+          lastOpened.current = { opener, id };
+          if (before != null) queueMicrotask(() => { invoke("browser_move", { id, before }).catch(() => {}); });
+          return current;
+        });
         if (background) return;
         setAllTabs((current) => {
           const tab = current.find((t) => t.id === id && t.window === WINDOW_LABEL);

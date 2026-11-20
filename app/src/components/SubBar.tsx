@@ -4,7 +4,7 @@ import { useRef, type CSSProperties, type MouseEvent, type PointerEvent } from "
 import type { Browser, ProfileId, SavedGroup } from "../browser/useBrowser";
 import { useSettings } from "../settings/settings";
 import type { MenuEntry } from "./ContextMenu";
-import type { LibraryEntry } from "../browser/library";
+import type { BookmarkFolder, LibraryEntry } from "../browser/library";
 import { Card } from "./Card";
 import { openMenu } from "./ContextMenu";
 import { Favicon } from "./Favicon";
@@ -30,10 +30,12 @@ function GroupMark({ g }: { g: { name: string; color: string; icon?: string } })
   return g.icon ? <FaIcon name={g.icon} size={12} /> : <span className="sgroup-dot" />;
 }
 
-export function SubBar({ browser, profile, bookmarks, groups, marks }: {
+export function SubBar({ browser, profile, bookmarks, folders = [], groups, marks }: {
   browser: Browser;
   profile: ProfileId;
   bookmarks: LibraryEntry[];
+  /** Dossiers de favoris : une pastille chacun, qui ouvre la liste de ses favoris. */
+  folders?: BookmarkFolder[];
   /** Montrer les groupes enregistrés, les favoris. */
   groups: boolean;
   marks: boolean;
@@ -41,7 +43,22 @@ export function SubBar({ browser, profile, bookmarks, groups, marks }: {
   const { theme, updateTheme } = useSettings();
   const c = theme.chrome;
   const saved = groups ? browser.savedGroups.filter((g) => g.profile === profile) : [];
-  const shownMarks = marks ? bookmarks : [];
+  const known = new Set(folders.map((f) => f.id));
+  const shownMarks = marks ? bookmarks.filter((b) => !b.folder || !known.has(b.folder)) : [];
+  const shownFolders = marks ? folders : [];
+  const folderMenu = (e: MouseEvent<HTMLElement>, f: BookmarkFolder) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const inside = bookmarks.filter((b) => b.folder === f.id);
+    const r = e.currentTarget.getBoundingClientRect();
+    openMenu({ x: r.left, y: r.bottom + 4 }, [
+      { header: f.name },
+      ...(inside.length ? inside.map((b) => ({ label: b.title || hostname(b.url), image: siteIcon(b.url), action: () => browser.go(b.url, profile) }))
+        : [{ label: "Vide", disabled: true }]),
+      ...(inside.length > 1 ? ["-" as const, { label: "Tout ouvrir dans des onglets", icon: "plus" as const, tone: "green" as const,
+        action: () => inside.forEach((b) => browser.go(b.url, profile, true, true)) }] : []),
+    ]);
+  };
   // Clic droit : ce que la barre affiche (catégories), et la masquer.
   const display: MenuEntry[] = [
     { header: "Afficher" },
@@ -114,6 +131,12 @@ export function SubBar({ browser, profile, bookmarks, groups, marks }: {
       ))}
       {groups && marks && <span className="subbar__sep" />}
       {marks && <span className="subbar__cat" title="Favoris"><Icon name="star" size={14} /></span>}
+      {shownFolders.map((f) => (
+        <button key={f.id} className="subbar__mark subbar__folder" title={f.name} onClick={(e) => folderMenu(e, f)} onContextMenu={(e) => folderMenu(e, f)}>
+          <Icon name="folder" size={14} />
+          <span>{f.name}</span>
+        </button>
+      ))}
       {shownMarks.map((b) => (
         <button key={b.url} className="subbar__mark" title={b.url} onContextMenu={(e) => markMenu(e, b)}
           onClick={() => browser.go(b.url, profile)}

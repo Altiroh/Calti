@@ -8,6 +8,41 @@ export interface LibraryEntry {
   title: string;
   /** Date (ms) de l'ajout ou de la visite. */
   at: number;
+  /** Favori : dossier qui le contient (absent : barre de favoris). */
+  folder?: string;
+}
+
+/** Dossier de favoris de Calti (un niveau, dans la barre de favoris). */
+export interface BookmarkFolder {
+  id: string;
+  name: string;
+}
+
+const foldersKey = (profile: ProfileId) => `calti.bookmarkFolders.${profile}`;
+const LAST_FOLDER_KEY = "calti.bookmarkLastFolder";
+
+function readFolders(profile: ProfileId): BookmarkFolder[] {
+  try {
+    const list = JSON.parse(localStorage.getItem(foldersKey(profile)) ?? "[]");
+    return Array.isArray(list) ? list.filter((f) => f && typeof f.id === "string" && typeof f.name === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Favoris d'un profil, pour l'étoile et sa fenêtre de modification. */
+export interface ProfileBookmarks {
+  list: LibraryEntry[];
+  folders: BookmarkFolder[];
+  get: (url: string) => LibraryEntry | undefined;
+  /** Ajoute la page (dans le dernier dossier choisi) et la renvoie ; déjà là : la renvoie telle quelle. */
+  add: (url: string, title: string) => LibraryEntry;
+  update: (url: string, patch: Partial<Pick<LibraryEntry, "title" | "folder">>) => void;
+  remove: (url: string) => void;
+  addFolder: (name: string) => string;
+  renameFolder: (id: string, name: string) => void;
+  /** Supprime le dossier ; ses favoris reviennent dans la barre de favoris. */
+  removeFolder: (id: string) => void;
 }
 
 const HISTORY_MAX = 1000;
@@ -55,24 +90,91 @@ function useStoredList(kind: "bookmarks" | "history", profileIds: ProfileId[]) {
   return { lists, update };
 }
 
-/** Favoris enregistrés dans Calti (étoile de la barre, Ctrl+D). */
+/** Favoris enregistrés dans Calti (étoile de la barre, Ctrl+D), rangés dans la barre de favoris ou des dossiers. */
 export function useCaltiBookmarks(profileIds: ProfileId[]) {
   const { lists, update } = useStoredList("bookmarks", profileIds);
+  const ids = profileIds.join("|");
+  const loadFolders = () => Object.fromEntries(profileIds.map((p) => [p, readFolders(p)]));
+  const [folders, setFolders] = useState<Record<ProfileId, BookmarkFolder[]>>(loadFolders);
+  useEffect(() => {
+    setFolders(loadFolders());
+    const onStorage = (e: StorageEvent) => {
+      if (!e.key || e.key.startsWith("calti.bookmarkFolders.")) setFolders(loadFolders());
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [ids]); // eslint-disable-line react-hooks/exhaustive-deps
+  const changeFolders = useCallback((profile: ProfileId, change: (list: BookmarkFolder[]) => BookmarkFolder[]) => {
+    const next = change(readFolders(profile));
+    try { localStorage.setItem(foldersKey(profile), JSON.stringify(next)); } catch { /* non persisté */ }
+    setFolders((f) => ({ ...f, [profile]: next }));
+  }, []);
+
   const has = useCallback((profile: ProfileId, url: string) => (lists[profile] ?? []).some((b) => b.url === url), [lists]);
   const toggle = useCallback((profile: ProfileId, url: string, title: string) => {
     update(profile, (list) => list.some((b) => b.url === url)
       ? list.filter((b) => b.url !== url)
       : [{ url, title: title || url, at: Date.now() }, ...list]);
   }, [update]);
-  return { of: (profile: ProfileId) => lists[profile] ?? [], has, toggle };
+
+  const forProfile = (profile: ProfileId): ProfileBookmarks => {
+    const list = lists[profile] ?? [];
+    const own = folders[profile] ?? [];
+    return {
+      list,
+      folders: own,
+      get: (url) => list.find((b) => b.url === url),
+      add: (url, title) => {
+        const known = read(keyOf("bookmarks", profile)).find((b) => b.url === url);
+        if (known) return known;
+        let last: string | null = null;
+        try { last = localStorage.getItem(LAST_FOLDER_KEY); } catch { /* aucun */ }
+        const folder = last && readFolders(profile).some((f) => f.id === last) ? last : undefined;
+        const entry: LibraryEntry = { url, title: title || url, at: Date.now(), ...(folder ? { folder } : {}) };
+        update(profile, (l) => [entry, ...l.filter((b) => b.url !== url)]);
+        return entry;
+      },
+      update: (url, patch) => {
+        if ("folder" in patch) {
+          try {
+            if (patch.folder) localStorage.setItem(LAST_FOLDER_KEY, patch.folder);
+            else localStorage.removeItem(LAST_FOLDER_KEY);
+          } catch { /* non retenu */ }
+        }
+        update(profile, (l) => l.map((b) => {
+          if (b.url !== url) return b;
+          const next = { ...b, ...patch, title: (patch.title ?? b.title).trim() || b.url };
+          if (!next.folder) delete next.folder;
+          return next;
+        }));
+      },
+      remove: (url) => update(profile, (l) => l.filter((b) => b.url !== url)),
+      addFolder: (name) => {
+        const id = `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+        changeFolders(profile, (f) => [...f, { id, name: name.trim() || "Dossier" }]);
+        return id;
+      },
+      renameFolder: (id, name) => changeFolders(profile, (f) => f.map((x) => (x.id === id ? { ...x, name: name.trim() || x.name } : x))),
+      removeFolder: (id) => {
+        changeFolders(profile, (f) => f.filter((x) => x.id !== id));
+        update(profile, (l) => l.map((b) => (b.folder === id ? (({ folder: _f, ...rest }) => rest)(b) : b)));
+      },
+    };
+  };
+  return { of: (profile: ProfileId) => lists[profile] ?? [], has, toggle, forProfile, folders: (profile: ProfileId) => folders[profile] ?? [] };
 }
 
-/** Favoris de Calti en tête de la barre de favoris Brave du profil. */
-export function mergeBookmarks(own: LibraryEntry[], brave: BookmarkNode[] | null): BookmarkNode[] | null {
-  if (!own.length) return brave;
-  const nodes: BookmarkNode[] = own.map((b) => ({ id: `calti-${b.at}`, title: b.title, url: b.url, children: null }));
+/** Favoris de Calti en tête de la barre de favoris Brave du profil : dossiers de Calti, puis favoris hors dossier. */
+export function mergeBookmarks(own: LibraryEntry[], brave: BookmarkNode[] | null, folders: BookmarkFolder[] = []): BookmarkNode[] | null {
+  if (!own.length && !folders.length) return brave;
+  const node = (b: LibraryEntry): BookmarkNode => ({ id: `calti-${b.at}`, title: b.title, url: b.url, children: null });
+  const known = new Set(folders.map((f) => f.id));
+  const folderNodes: BookmarkNode[] = folders.map((f) => ({
+    id: `calti-folder-${f.id}`, title: f.name, url: null, children: own.filter((b) => b.folder === f.id).map(node),
+  }));
+  const loose = own.filter((b) => !b.folder || !known.has(b.folder)).map(node);
   const [bar, ...rest] = brave ?? [];
-  return [{ id: bar?.id ?? "calti", title: bar?.title ?? "Barre de favoris", url: null, children: [...nodes, ...(bar?.children ?? [])] }, ...rest];
+  return [{ id: bar?.id ?? "calti", title: bar?.title ?? "Barre de favoris", url: null, children: [...folderNodes, ...loose, ...(bar?.children ?? [])] }, ...rest];
 }
 
 /** Historique : chaque page chargée par un onglet de cette fenêtre est ajoutée en tête. */

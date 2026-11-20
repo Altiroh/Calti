@@ -743,3 +743,21 @@ Suite de l'audit (« Fais tout ce que tu peux faire ») :
   juste après la fermeture et l'ancienne version avait été relancée.
 - Non reproduit sur une instance d'essai (il faudrait la mettre au premier plan et y taper) ; fonctions, persistance,
   sécurité, intégrations, téléchargements, privé, nouvel onglet, groupes, Ctrl+Tab : verts. Installé.
+
+## 2026-11-20 — Fenêtre du favori, dossiers ; onglets ouverts à côté
+
+- Étoile ou Ctrl+D : la page est ajoutée (dans le dernier dossier choisi) et une fenêtre s'ouvre sous l'étoile :
+  nom (sélectionné), dossier (barre de favoris, dossiers, « Nouveau dossier » créé sur place), « Supprimer »,
+  « Terminé » ; Entrée, Échap ou clic ailleurs enregistrent. Sur un favori existant, la même fenêtre le modifie.
+  Ctrl+D depuis une page passe le clavier à l'interface. Dossiers de favoris par profil
+  (`calti.bookmarkFolders.<profil>`, champ `folder` du favori, `ProfileBookmarks` dans `library.ts`) : dans la
+  seconde barre (pastille qui ouvre la liste, « Tout ouvrir dans des onglets ») et le panneau des favoris.
+- Deux défauts trouvés par le test avant installation : la fenêtre signalait sa place à chaque rendu (boucle de
+  rendus, erreur React 185, interface démontée) ; et sa place mesurée au tout premier affichage était fausse (page
+  non découpée dessous). Place transmise seulement si elle change, re-mesurée pendant l'apparition, en fin
+  d'animation et si la taille change.
+- Onglet ouvert depuis une page (clic molette, Ctrl+clic, lien qui ouvre un onglet) : placé juste après l'onglet
+  d'origine ; plusieurs ouverts depuis le même onglet se suivent dans l'ordre (`browser_move`).
+- Tests : `bookmarks.test.cjs` 14/14 (dont la découpe lue dans la région Windows), `tabplace.test.cjs` 4/4 ; fonctions,
+  groupes, sécurité, menus, persistance, nouvel onglet, intégrations, Ctrl+Tab, fermeture, téléchargements : verts.
+  Installé.
